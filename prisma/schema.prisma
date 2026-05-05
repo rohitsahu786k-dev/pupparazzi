@@ -1,0 +1,305 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth related tables
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  userId       String   @db.ObjectId
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  CLIENT
+  STAFF
+  ADMIN
+}
+
+model User {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  name                String?
+  email               String?   @unique
+  emailVerified       DateTime?
+  image               String?
+  phone               String?
+  alt_phone           String?
+  password_hash       String?
+  role                Role      @default(CLIENT)
+  google_id           String?
+  wallet_balance      Float     @default(0)
+  outstanding_balance Float     @default(0)
+  is_active           Boolean   @default(true)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  pets          Pet[]
+  addresses     Address[]
+  clientBookings Booking[] @relation("ClientBookings")
+  staffBookings  Booking[] @relation("StaffBookings")
+  payments      Payment[]
+  invoices      Invoice[]
+  staffProfile  Staff?
+  notifications Notification[]
+}
+
+model VerificationToken {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Pet {
+  id                    String      @id @default(auto()) @map("_id") @db.ObjectId
+  owner_id              String      @db.ObjectId
+  name                  String
+  type                  String      // Dog, Cat, Bird, Other
+  breed                 String?
+  gender                String?
+  dob                   DateTime?
+  weight                Float?
+  coat_type             String?
+  size                  String?     // Small, Medium, Large, Giant
+  aggression_level      Int?        @default(1) // 1-10
+  profile_photo         String?
+  photos_array          Json?       // Array of strings (URLs)
+  neutered              Boolean?    @default(false)
+  special_occasion      String?
+  special_occasion_date DateTime?
+  microchip_number      String?
+  adoption_status       String?
+  social_handle         String?
+  consent_photos        Boolean?    @default(false)
+  dietary_preference    String?
+  allergies             String?
+  preferences           String?
+  walk_schedule_1       String?
+  walk_schedule_2       String?
+  walk_schedule_3       String?
+  local_guardian_name   String?
+  local_guardian_contact String?
+  tc_accepted           Boolean?    @default(false)
+  created_at            DateTime    @default(now())
+  updated_at            DateTime    @updatedAt
+
+  owner                 User        @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  medical               PetMedical?
+  bookings              Booking[]
+}
+
+model PetMedical {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  pet_id                String    @unique @db.ObjectId
+  vaccination_status    String?   // Vaccinated, Not Vaccinated, Partial
+  anti_rabies_date      DateTime?
+  dhppl_date            DateTime?
+  corona_date           DateTime?
+  kennel_cough_date     DateTime?
+  deworming_date        DateTime?
+  tick_prevention       Boolean?  @default(false)
+  tick_prevention_date  DateTime?
+  tick_method           String?
+  ongoing_medication    Boolean?  @default(false)
+  medication_detail     String?
+  illness_history       String?
+  last_heat_month       Int?
+  last_heat_year        Int?
+  vet_name              String?
+  vet_contact           String?
+
+  pet                   Pet       @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+}
+
+model Address {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  user_id    String   @db.ObjectId
+  label      String?  // Home, Work, Other
+  line1      String
+  city       String
+  state      String
+  pincode    String
+  phone      String?
+  lat        Float?
+  lng        Float?
+  is_default Boolean  @default(false)
+
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  bookings   Booking[]
+}
+
+model Service {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  name                String
+  category            String   // Grooming, Boarding, Walking, etc.
+  description_short   String?
+  description_long    String?
+  price               Float
+  discounted_price    Float?
+  slot_duration_mins  Int      @default(60)
+  max_slots_per_day   Int?
+  is_active           Boolean  @default(true)
+  is_coming_soon      Boolean  @default(false)
+  is_bestseller       Boolean  @default(false)
+  free_services_json  Json?    // Array of strings
+  images_json         Json?    // Array of strings (URLs)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  addons              Addon[]
+  bookings            Booking[]
+}
+
+model Addon {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  service_id  String   @db.ObjectId
+  name        String
+  description String?
+  price       Float
+  is_active   Boolean  @default(true)
+
+  service     Service  @relation(fields: [service_id], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  booking_id       String    @unique // Human-readable e.g. BKG-1029
+  client_id        String    @db.ObjectId
+  pet_id           String    @db.ObjectId
+  service_id       String    @db.ObjectId
+  staff_id         String?   @db.ObjectId
+  address_id       String?   @db.ObjectId
+  addons_json      Json?     // Array of addon objects
+  slot_date        DateTime
+  slot_time        String    // e.g. "10:00 AM"
+  status           String    @default("Pending") // Pending, Confirmed, In Progress, Completed, Cancelled
+  payment_status   String    @default("Pending") // Pending, Paid, Refunded
+  notes            String?
+  internal_notes   String?
+  after_photos_json Json?    // Array of strings (URLs)
+  google_event_id  String?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  client           User      @relation("ClientBookings", fields: [client_id], references: [id])
+  staff            User?     @relation("StaffBookings", fields: [staff_id], references: [id])
+  pet              Pet       @relation(fields: [pet_id], references: [id])
+  service          Service   @relation(fields: [service_id], references: [id])
+  address          Address?  @relation(fields: [address_id], references: [id])
+  payments         Payment[]
+  invoices         Invoice[]
+}
+
+model Payment {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  booking_id          String?  @db.ObjectId
+  client_id           String   @db.ObjectId
+  invoice_id          String?
+  invoice_type        String?
+  amount              Float
+  mode                String   // Cash, Online, Wallet
+  source              String?  // Razorpay, Manual
+  razorpay_order_id   String?
+  razorpay_payment_id String?
+  transaction_id      String?  @unique
+  status              String   @default("Pending") // Pending, Success, Failed, Refunded
+  parent_phone        String?
+  created_at          DateTime @default(now())
+
+  booking             Booking? @relation(fields: [booking_id], references: [id])
+  client              User     @relation(fields: [client_id], references: [id])
+}
+
+model Invoice {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  invoice_id       String   @unique // Human-readable
+  booking_id       String?  @db.ObjectId
+  client_id        String   @db.ObjectId
+  line_items_json  Json     // Array of line items {desc, qty, rate, amount}
+  subtotal         Float
+  tax              Float    @default(0)
+  total            Float
+  status           String   @default("Pending") // Pending, Paid
+  pdf_path         String?
+  created_at       DateTime @default(now())
+
+  booking          Booking? @relation(fields: [booking_id], references: [id])
+  client           User     @relation(fields: [client_id], references: [id])
+}
+
+model Staff {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  user_id            String   @unique @db.ObjectId
+  role               String   // Groomer, Walker, Trainer, Receptionist, Admin
+  services_json      Json?    // Array of service categories they can handle
+  working_hours_json Json?
+  leave_dates_json   Json?
+
+  user               User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Expense {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  date            DateTime
+  category        String   // Supplies, Staff, Marketing, Utilities, Other
+  description     String
+  amount          Float
+  mode            String   // Cash, Bank, UPI
+  reference       String?
+  attachment_path String?
+  created_by      String   @db.ObjectId
+  created_at      DateTime @default(now())
+}
+
+model Notification {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  user_id    String   @db.ObjectId
+  channel    String   // Email, SMS, Both
+  type       String   // Reminder, Confirmation, etc.
+  subject    String?
+  body       String
+  status     String   @default("Pending") // Pending, Sent, Failed
+  sent_at    DateTime?
+  created_at DateTime @default(now())
+
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename      String
+  original_name String
+  path          String
+  category      String   // Services, Hero, Testimonials, Staff, General
+  uploaded_by   String?  @db.ObjectId
+  created_at    DateTime @default(now())
+}
