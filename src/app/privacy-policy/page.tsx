@@ -1,84 +1,135 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { Shield, Lock, MapPin, Database, Mail, ChevronRight } from "lucide-react";
 
-export default function PrivacyPolicy() {
+export const metadata: Metadata = {
+  title: "Privacy Policy – Pupparazzi",
+  description: "Learn how Pupparazzi collects, uses, and protects your personal data.",
+};
+
+const SECTIONS = [
+  {
+    icon: Shield,
+    title: "1. Introduction",
+    color: "bg-blue-50 text-blue-600",
+    content:
+      "Welcome to Pupparazzi ("Company", "we", "our", "us"). We are committed to protecting your personal information and your right to privacy. This Privacy Policy explains how we collect, use, and share information about you when you use our platform.",
+  },
+  {
+    icon: Database,
+    title: "2. Information We Collect",
+    color: "bg-purple-50 text-purple-600",
+    content:
+      "We collect information you provide directly to us, such as your name, email address, phone number, and pet details when you create an account or make a booking. We also collect usage data automatically as you interact with our services.",
+    list: [
+      "Personal Data: Name, email, phone number, and pet details.",
+      "Location Data: Your approximate city/state via IP address to show relevant services.",
+      "Payment Data: Billing details to process transactions securely.",
+      "Usage Data: Pages visited, services browsed, and booking history.",
+    ],
+  },
+  {
+    icon: Lock,
+    title: "3. Google Verification & OAuth",
+    color: "bg-green-50 text-green-600",
+    content:
+      "Our application uses Google OAuth 2.0 for secure, passwordless sign-in. We request only the minimum permissions necessary (email and basic profile). Your Google data is never sold or shared with third parties for advertising. We comply fully with Google API Services User Data Policy, including Limited Use requirements.",
+  },
+  {
+    icon: MapPin,
+    title: "4. Location Data",
+    color: "bg-orange-50 text-orange-600",
+    content:
+      "We use your approximate location (derived from your IP address) solely to show nearby pet care services and relevant offers. We do not track your precise GPS location without explicit, in-app permission. You may opt out at any time through your account settings.",
+  },
+  {
+    icon: Shield,
+    title: "5. Data Security",
+    color: "bg-rose-50 text-rose-600",
+    content:
+      "We implement industry-standard security measures including TLS encryption, secure database storage, and regular security audits to protect your personal information. However, no method of transmission over the Internet is 100% secure.",
+  },
+  {
+    icon: Mail,
+    title: "6. Contact Us",
+    color: "bg-teal-50 text-teal-600",
+    content:
+      "If you have questions or concerns about this Privacy Policy, please contact us at support@pupparazzi.in or write to us at: Pupparazzi India Pvt Ltd, 123 Pet Care Lane, Bandra West, Mumbai, Maharashtra 400050, India.",
+  },
+];
+
+export default function PrivacyPolicyPage() {
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm p-8 md:p-12 border border-slate-100">
-        <Link 
-          href="/" 
-          className="inline-flex items-center text-sm text-slate-500 hover:text-primary transition-colors mb-8 group"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1 group-hover:-translate-x-1 transition-transform" />
-          Back to Home
-        </Link>
-        
-        <h1 className="text-4xl font-bold text-slate-900 mb-4">Privacy Policy</h1>
-        <p className="text-slate-500 mb-8 italic">Last Updated: May 6, 2026</p>
-
-        <div className="prose prose-slate max-w-none space-y-6 text-slate-700">
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">1. Introduction</h2>
-            <p>
-              Welcome to Pupparazzi ("Company", "we", "our", "us"). We are committed to protecting your personal information and your right to privacy. If you have any questions or concerns about this privacy notice, or our practices with regards to your personal information, please contact us at support@pupparazzi.in.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">2. Information We Collect</h2>
-            <p>
-              We collect personal information that you voluntarily provide to us when you register on the Website, express an interest in obtaining information about us or our products and Services, when you participate in activities on the Website or otherwise when you contact us.
-            </p>
-            <ul className="list-disc pl-6 space-y-2">
-              <li><strong>Personal Data:</strong> Name, email address, phone number, and pet details.</li>
-              <li><strong>Location Data:</strong> We may request access or permission to and track location-based information from your browser or mobile device to provide location-based services (like finding nearby groomers).</li>
-              <li><strong>Payment Data:</strong> We may collect data necessary to process your payment if you make purchases, such as your payment instrument number.</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">3. How We Use Your Information</h2>
-            <p>
-              We use personal information collected via our Website for a variety of business purposes described below. We process your personal information for these purposes in reliance on our legitimate business interests, in order to enter into or perform a contract with you, with your consent, and/or for compliance with our legal obligations.
-            </p>
-            <ul className="list-disc pl-6 space-y-2">
-              <li>To facilitate account creation and logon process.</li>
-              <li>To post testimonials.</li>
-              <li>To request feedback.</li>
-              <li>To enable user-to-user communications.</li>
-              <li>To manage user accounts.</li>
-              <li>To send administrative information to you.</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">4. Google Verification & Data Safety</h2>
-            <p>
-              Our application uses Google OAuth for authentication. We only request the minimum necessary permissions to verify your identity. Your Google data is never shared with third parties except as necessary to provide our services. We comply with Google API Services User Data Policy, including the Limited Use requirements.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">5. Data Retention</h2>
-            <p>
-              We will only keep your personal information for as long as it is necessary for the purposes set out in this privacy notice, unless a longer retention period is required or permitted by law.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">6. Contact Us</h2>
-            <p>
-              If you have questions or comments about this notice, you may email us at support@pupparazzi.in or by post to:
-            </p>
-            <div className="bg-slate-50 p-4 rounded-lg mt-2 border border-slate-100">
-              <p className="font-medium">Pupparazzi India Pvt Ltd</p>
-              <p>123 Pet Care Lane, Bandra West</p>
-              <p>Mumbai, Maharashtra 400050</p>
-              <p>India</p>
+    <div className="bg-[#F8FAFC]">
+      {/* Hero Banner */}
+      <section className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-primary/80 py-20">
+        <div className="container mx-auto px-4 lg:px-8">
+          <div className="flex items-center gap-2 text-slate-400 text-sm mb-6">
+            <Link href="/" className="hover:text-white transition-colors">Home</Link>
+            <ChevronRight className="h-3 w-3" />
+            <span className="text-white font-medium">Privacy Policy</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 shrink-0">
+              <Shield className="h-8 w-8 text-white" />
             </div>
-          </section>
+            <div>
+              <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight">Privacy Policy</h1>
+              <p className="text-slate-300 mt-2 text-lg">Last updated: May 6, 2026</p>
+            </div>
+          </div>
+          <p className="mt-8 text-slate-300 max-w-2xl text-lg leading-relaxed">
+            Your privacy is our top priority. This policy describes how we handle your data with care, transparency, and respect — just the way you'd expect from a company that cares about you and your pets.
+          </p>
         </div>
-      </div>
+      </section>
+
+      {/* Content */}
+      <section className="py-16">
+        <div className="container mx-auto px-4 lg:px-8 max-w-4xl">
+          <div className="space-y-6">
+            {SECTIONS.map((section, i) => {
+              const Icon = section.icon;
+              return (
+                <div key={i} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 hover:shadow-md transition-shadow">
+                  <div className="flex items-start gap-5">
+                    <div className={`w-12 h-12 rounded-xl ${section.color} flex items-center justify-center shrink-0 mt-1`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1">
+                      <h2 className="text-xl font-bold text-slate-900 mb-3">{section.title}</h2>
+                      <p className="text-slate-600 leading-relaxed">{section.content}</p>
+                      {section.list && (
+                        <ul className="mt-4 space-y-2">
+                          {section.list.map((item, j) => (
+                            <li key={j} className="flex items-start gap-3 text-slate-600">
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                              <span className="text-sm leading-relaxed">{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* CTA */}
+          <div className="mt-12 bg-gradient-to-r from-primary/10 to-orange-500/10 rounded-3xl p-8 border border-primary/20 text-center">
+            <p className="text-slate-700 font-medium">
+              Have a question about how we handle your data?
+            </p>
+            <a
+              href="mailto:support@pupparazzi.in"
+              className="inline-block mt-4 bg-primary text-white font-bold px-8 py-3 rounded-full hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+            >
+              Contact Privacy Team
+            </a>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

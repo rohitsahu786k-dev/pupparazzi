@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
+import { Providers } from "@/components/providers";
+import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -13,8 +16,6 @@ export const metadata: Metadata = {
   description: "Premium pet grooming, boarding, walking, and training services.",
 };
 
-import { Providers } from "@/components/providers";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -23,8 +24,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
-        <Providers>{children}</Providers>
+        <Providers>
+          <SiteHeader />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </Providers>
       </body>
     </html>
   );
 }
+

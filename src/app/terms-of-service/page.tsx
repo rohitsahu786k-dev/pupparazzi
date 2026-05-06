@@ -1,72 +1,148 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { FileText, Users, Calendar, CreditCard, AlertTriangle, Scale, ChevronRight } from "lucide-react";
 
-export default function TermsOfService() {
+export const metadata: Metadata = {
+  title: "Terms of Service – Pupparazzi",
+  description: "Read the terms and conditions governing your use of Pupparazzi's pet care platform.",
+};
+
+const SECTIONS = [
+  {
+    icon: FileText,
+    title: "1. Agreement to Terms",
+    color: "bg-blue-50 text-blue-600",
+    content:
+      "By accessing and using the Pupparazzi platform, you agree to be bound by these Terms of Service. These terms constitute a legally binding agreement between you and Pupparazzi India Pvt Ltd. If you do not agree to these terms, please do not use our services.",
+  },
+  {
+    icon: FileText,
+    title: "2. Our Services",
+    color: "bg-indigo-50 text-indigo-600",
+    content:
+      "Pupparazzi provides a marketplace platform connecting pet owners with professional pet care service providers including groomers, boarders, walkers, and veterinarians. We act as an intermediary and are not directly responsible for the services provided by our partners.",
+    list: [
+      "Grooming: Professional bath, haircut, and styling services.",
+      "Boarding: Supervised stays in verified partner homes or kennels.",
+      "Walking & Training: Licensed and background-checked professionals.",
+      "Veterinary: Home-visit consultations by licensed veterinarians.",
+    ],
+  },
+  {
+    icon: Users,
+    title: "3. User Responsibilities",
+    color: "bg-purple-50 text-purple-600",
+    content:
+      "As a user of our platform, you are responsible for providing accurate information about yourself and your pets, maintaining the security of your account credentials, and ensuring your pets are up to date on vaccinations. You agree not to misuse the platform or engage in any fraudulent activity.",
+  },
+  {
+    icon: Calendar,
+    title: "4. Booking & Cancellations",
+    color: "bg-green-50 text-green-600",
+    content:
+      "All bookings are subject to service provider availability. Cancellations must be made at least 24 hours in advance to avoid a cancellation fee. Same-day cancellations may incur a fee of up to 50% of the service price. Refunds are processed within 5-7 business days to the original payment method.",
+    list: [
+      "Free cancellation: More than 24 hours before appointment.",
+      "50% fee: Cancellation within 24 hours of appointment.",
+      "No refund: No-show or cancellation within 2 hours.",
+      "Exceptional circumstances may be reviewed on a case-by-case basis.",
+    ],
+  },
+  {
+    icon: CreditCard,
+    title: "5. Payments & Pricing",
+    color: "bg-orange-50 text-orange-600",
+    content:
+      "All prices are listed in Indian Rupees (INR) and include applicable taxes. Payments are processed securely through our payment partners. Pupparazzi reserves the right to change pricing with reasonable notice. Promotional offers and discounts are subject to separate terms.",
+  },
+  {
+    icon: AlertTriangle,
+    title: "6. Limitation of Liability",
+    color: "bg-rose-50 text-rose-600",
+    content:
+      "While we strive to ensure the highest standards of service, Pupparazzi shall not be liable for any indirect, incidental, or consequential damages arising from the use of our services. Our liability is limited to the amount paid for the specific service in question.",
+  },
+  {
+    icon: Scale,
+    title: "7. Governing Law",
+    color: "bg-teal-50 text-teal-600",
+    content:
+      "These Terms of Service shall be governed by and construed in accordance with the laws of India. Any disputes arising under these terms shall be subject to the exclusive jurisdiction of the courts in Mumbai, Maharashtra.",
+  },
+];
+
+export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm p-8 md:p-12 border border-slate-100">
-        <Link 
-          href="/" 
-          className="inline-flex items-center text-sm text-slate-500 hover:text-primary transition-colors mb-8 group"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1 group-hover:-translate-x-1 transition-transform" />
-          Back to Home
-        </Link>
-        
-        <h1 className="text-4xl font-bold text-slate-900 mb-4">Terms of Service</h1>
-        <p className="text-slate-500 mb-8 italic">Last Updated: May 6, 2026</p>
-
-        <div className="prose prose-slate max-w-none space-y-6 text-slate-700">
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">1. Agreement to Terms</h2>
-            <p>
-              These Terms of Service constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("you") and Pupparazzi ("Company", "we", "us", or "our"), concerning your access to and use of the pupparazzi.in website as well as any other media form, media channel, mobile website or mobile application related, linked, or otherwise connected thereto.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">2. Services</h2>
-            <p>
-              Pupparazzi provides a platform to book pet grooming, boarding, walking, and training services. We act as an intermediary between pet owners and professional service providers. While we vet our partners, users are encouraged to perform their own due diligence.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">3. User Representations</h2>
-            <p>
-              By using the site, you represent and warrant that: (1) all registration information you submit will be true, accurate, current, and complete; (2) you will maintain the accuracy of such information and promptly update such registration information as necessary; (3) you have the legal capacity and you agree to comply with these Terms of Service.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">4. Booking & Cancellations</h2>
-            <p>
-              Bookings are subject to availability. Cancellations made within 24 hours of the scheduled service may incur a cancellation fee. Refunds, if applicable, will be processed according to our internal refund policy and may take 5-7 business days to reflect in your account.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">5. Limitation of Liability</h2>
-            <p>
-              In no event will we or our directors, employees, or agents be liable to you or any third party for any direct, indirect, consequential, exemplary, incidental, special, or punitive damages, including lost profit, lost revenue, loss of data, or other damages arising from your use of the site or services.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">6. Governing Law</h2>
-            <p>
-              These Terms shall be governed by and defined following the laws of India. Pupparazzi India Pvt Ltd and yourself irrevocably consent that the courts of Mumbai shall have exclusive jurisdiction to resolve any dispute which may arise in connection with these terms.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">7. Modifications</h2>
-            <p>
-              We reserve the right, in our sole discretion, to make changes or modifications to these Terms of Service at any time and for any reason. We will alert you about any changes by updating the "Last updated" date of these Terms of Service.
-            </p>
-          </section>
+    <div className="bg-[#F8FAFC]">
+      {/* Hero Banner */}
+      <section className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-purple-900/70 py-20">
+        <div className="container mx-auto px-4 lg:px-8">
+          <div className="flex items-center gap-2 text-slate-400 text-sm mb-6">
+            <Link href="/" className="hover:text-white transition-colors">Home</Link>
+            <ChevronRight className="h-3 w-3" />
+            <span className="text-white font-medium">Terms of Service</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 shrink-0">
+              <FileText className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight">Terms of Service</h1>
+              <p className="text-slate-300 mt-2 text-lg">Last updated: May 6, 2026</p>
+            </div>
+          </div>
+          <p className="mt-8 text-slate-300 max-w-2xl text-lg leading-relaxed">
+            Please read these terms carefully before using Pupparazzi. By using our platform, you agree to these terms and conditions which are designed to ensure a safe, fair, and transparent experience for all users.
+          </p>
         </div>
-      </div>
+      </section>
+
+      {/* Content */}
+      <section className="py-16">
+        <div className="container mx-auto px-4 lg:px-8 max-w-4xl">
+          <div className="space-y-6">
+            {SECTIONS.map((section, i) => {
+              const Icon = section.icon;
+              return (
+                <div key={i} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 hover:shadow-md transition-shadow">
+                  <div className="flex items-start gap-5">
+                    <div className={`w-12 h-12 rounded-xl ${section.color} flex items-center justify-center shrink-0 mt-1`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1">
+                      <h2 className="text-xl font-bold text-slate-900 mb-3">{section.title}</h2>
+                      <p className="text-slate-600 leading-relaxed">{section.content}</p>
+                      {section.list && (
+                        <ul className="mt-4 space-y-2">
+                          {section.list.map((item, j) => (
+                            <li key={j} className="flex items-start gap-3 text-slate-600">
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                              <span className="text-sm leading-relaxed">{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* CTA */}
+          <div className="mt-12 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-3xl p-8 border border-primary/20 text-center">
+            <p className="text-slate-700 font-medium">
+              Have questions about our terms? We&apos;re happy to help.
+            </p>
+            <a
+              href="mailto:support@pupparazzi.in"
+              className="inline-block mt-4 bg-primary text-white font-bold px-8 py-3 rounded-full hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+            >
+              Contact Legal Team
+            </a>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
