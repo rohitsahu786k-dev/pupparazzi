@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { sendWelcomeEmail } from "@/lib/mailer";
 
 export async function POST(req: Request) {
   try {
@@ -14,10 +15,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
+    const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return NextResponse.json(
         { message: "User with this email already exists" },
@@ -26,15 +24,12 @@ export async function POST(req: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        phone,
-        password_hash: hashedPassword,
-      },
+      data: { name, email, phone, password_hash: hashedPassword },
     });
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(email, { userName: name, email }).catch(console.error);
 
     return NextResponse.json(
       { message: "User registered successfully", user: { id: newUser.id, email: newUser.email } },

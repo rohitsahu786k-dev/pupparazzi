@@ -78,7 +78,6 @@
     "react-dom": "^19",
     "react-hook-form": "latest",
     "recharts": "^3.5.1",
-    "resend": "latest",
     "sonner": "latest",
     "stripe": "^20.0.0",
     "tailwind-merge": "^3.4.0",
