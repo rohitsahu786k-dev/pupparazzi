@@ -33,6 +33,7 @@ export default function BookingFlow() {
   const [selectedTime, setSelectedTime] = useState("");
   const [showAddPet, setShowAddPet] = useState(false);
   const [address, setAddress] = useState({ line1:"", city:"", state:"", pincode:"", phone:"" });
+  const [detectingLoc, setDetectingLoc] = useState(false);
   const [petForm, setPetForm] = useState({ name:"",type:"Dog",breed:"",gender:"Male",weight:"",size:"Medium",aggression_level:"3",allergies:"",dietary_preference:"",neutered:false,vaccination_status:"",vet_name:"",vet_contact:"" });
   const [petSaving, setPetSaving] = useState(false);
   const [error, setError] = useState("");
@@ -68,6 +69,33 @@ export default function BookingFlow() {
       setPetForm({ name:"",type:"Dog",breed:"",gender:"Male",weight:"",size:"Medium",aggression_level:"3",allergies:"",dietary_preference:"",neutered:false,vaccination_status:"",vet_name:"",vet_contact:"" });
     } catch{ setError("Error saving pet"); }
     setPetSaving(false);
+  }
+
+  async function detectLocation() {
+    if (!navigator.geolocation) return;
+    setDetectingLoc(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`,
+            { headers: { "Accept-Language": "en" } }
+          );
+          const data = await res.json();
+          const a = data.address || {};
+          setAddress(prev => ({
+            ...prev,
+            line1: [a.road, a.house_number, a.neighbourhood, a.suburb].filter(Boolean).join(", "),
+            city:  a.city || a.town || a.village || a.county || prev.city,
+            state: a.state || prev.state,
+            pincode: a.postcode || prev.pincode,
+          }));
+        } catch { /* silent */ }
+        setDetectingLoc(false);
+      },
+      () => setDetectingLoc(false),
+      { timeout: 8000 }
+    );
   }
 
   async function placeBooking(){
@@ -192,7 +220,13 @@ export default function BookingFlow() {
               </div>
               {step===3 && <div className="space-y-5">
                 <div className="space-y-3">
-                  <h3 className="font-bold text-sm text-secondary uppercase tracking-wider">Your Address</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-sm text-secondary uppercase tracking-wider">Your Address</h3>
+                    <button type="button" onClick={detectLocation} disabled={detectingLoc} className="flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 disabled:opacity-50 transition-colors">
+                      {detectingLoc ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <MapPin className="h-3.5 w-3.5"/>}
+                      {detectingLoc ? "Detecting…" : "Use My Location"}
+                    </button>
+                  </div>
                   <Input placeholder="House/Flat/Block No., Street *" value={address.line1} onChange={e=>setAddress({...address,line1:e.target.value})} className="h-12 bg-white"/>
                   <div className="grid grid-cols-3 gap-3">
                     <Input placeholder="City *" value={address.city} onChange={e=>setAddress({...address,city:e.target.value})} className="h-12 bg-white"/>
