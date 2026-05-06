@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Home, Calendar, PawPrint, User, CreditCard, Bell, HelpCircle, LogOut } from "lucide-react";
@@ -22,8 +23,8 @@ export function ClientSidebar() {
   return (
     <div className="flex h-full w-64 flex-col bg-card border-r shadow-sm">
       <div className="p-6">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="text-2xl font-bold text-primary">PetCare Pro</span>
+        <Link href="/dashboard" className="flex items-center" aria-label="Pupparazzi dashboard">
+          <Image src="/pupparazzi-logo.png" alt="Pupparazzi" width={190} height={38} className="h-10 w-auto" />
         </Link>
       </div>
       <div className="flex-1 px-4 space-y-1 overflow-y-auto">

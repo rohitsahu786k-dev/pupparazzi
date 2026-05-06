@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, ChevronRight, User, Star, Shield, Clock } from "lucide-react";
@@ -21,15 +22,18 @@ const OFFERS = [
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      {/* Swiggy Style Sticky Header */}
       <header className="sticky top-0 z-50 w-full bg-white shadow-sm">
         <div className="container mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-xl">P</span>
-              </div>
-              <span className="text-xl font-bold tracking-tight hidden sm:block text-foreground">PetCare Pro</span>
+            <Link href="/" className="flex items-center" aria-label="Pupparazzi home">
+              <Image
+                src="/pupparazzi-logo.png"
+                alt="Pupparazzi"
+                width={200}
+                height={40}
+                priority
+                className="h-12 w-auto"
+              />
             </Link>
             <div className="hidden md:flex items-center gap-2 text-sm text-secondary hover:text-primary cursor-pointer transition-colors">
               <span className="font-bold text-foreground border-b-2 border-foreground">Home</span>
@@ -53,27 +57,31 @@ export default function LandingPage() {
       </header>
 
       <main className="flex-1">
-        {/* Hero Banner Section */}
-        <section className="w-full bg-[#171a29] text-white py-12 md:py-20 relative overflow-hidden">
+        <section className="w-full bg-white text-foreground py-12 md:py-20 relative overflow-hidden border-b border-border">
           <div className="container mx-auto px-4 grid md:grid-cols-2 gap-8 items-center relative z-10">
             <div className="space-y-6">
               <h1 className="text-4xl md:text-5xl font-bold leading-tight">
                 Unexpected guests? <br />
-                <span className="text-gray-400">Pet needs a bath?</span>
+                <span className="text-primary">Pet needs a bath?</span>
               </h1>
-              <p className="text-lg text-gray-300">
+              <p className="text-lg text-secondary">
                 Book premium grooming, boarding, and vet services instantly.
               </p>
               <div className="flex gap-4">
-                <Button size="lg" className="bg-primary text-white hover:bg-primary/90 text-lg px-8 rounded-none font-bold" asChild>
+                <Button size="lg" className="bg-primary text-white hover:bg-primary/90 text-lg px-8 rounded-md font-bold shadow-warm" asChild>
                   <Link href="/book">Book Now</Link>
                 </Button>
               </div>
             </div>
-            {/* Minimalist graphic placeholder */}
             <div className="hidden md:flex justify-end">
-              <div className="w-64 h-64 border-4 border-dashed border-gray-600 rounded-full flex items-center justify-center opacity-50">
-                <span className="text-gray-500 font-medium tracking-widest uppercase">Pet Image</span>
+              <div className="w-72 h-72 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center">
+                <Image
+                  src="/pupparazzi-logo.png"
+                  alt=""
+                  width={260}
+                  height={52}
+                  className="w-56 h-auto"
+                />
               </div>
             </div>
           </div>
@@ -85,7 +93,7 @@ export default function LandingPage() {
             <div className="flex overflow-x-auto gap-4 pb-4 hide-scrollbar">
               {OFFERS.map((offer) => (
                 <div key={offer.id} className="min-w-[280px] bg-white border border-border p-4 rounded-2xl flex-shrink-0 flex items-center gap-4 hover:shadow-warm transition-shadow cursor-pointer">
-                  <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center text-primary">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
                     <Star className="h-6 w-6" />
                   </div>
                   <div>
@@ -185,37 +193,40 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full bg-[#02060c] text-gray-400 py-16">
+      <footer className="w-full bg-white text-secondary py-16 border-t border-border">
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
-                <span className="text-white font-bold">P</span>
-              </div>
-              <span className="text-xl font-bold text-white">PetCare Pro</span>
+            <div className="flex items-center">
+              <Image
+                src="/pupparazzi-logo.png"
+                alt="Pupparazzi"
+                width={180}
+                height={36}
+                className="h-10 w-auto"
+              />
             </div>
             <p className="text-sm">Delivering premium pet care across India since 2026.</p>
           </div>
           <div className="space-y-4">
-            <h4 className="font-bold text-white text-lg">Company</h4>
+            <h4 className="font-bold text-foreground text-lg">Company</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="#" className="hover:text-white transition-colors">About</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Careers</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Team</Link></li>
+              <li><Link href="#" className="hover:text-primary transition-colors">About</Link></li>
+              <li><Link href="#" className="hover:text-primary transition-colors">Careers</Link></li>
+              <li><Link href="#" className="hover:text-primary transition-colors">Team</Link></li>
             </ul>
           </div>
           <div className="space-y-4">
-            <h4 className="font-bold text-white text-lg">Contact Us</h4>
+            <h4 className="font-bold text-foreground text-lg">Contact Us</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="#" className="hover:text-white transition-colors">Help & Support</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Partner with us</Link></li>
+              <li><Link href="#" className="hover:text-primary transition-colors">Help & Support</Link></li>
+              <li><Link href="#" className="hover:text-primary transition-colors">Partner with us</Link></li>
             </ul>
           </div>
           <div className="space-y-4">
-            <h4 className="font-bold text-white text-lg">Legal</h4>
+            <h4 className="font-bold text-foreground text-lg">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="#" className="hover:text-white transition-colors">Terms & Conditions</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link href="#" className="hover:text-primary transition-colors">Terms & Conditions</Link></li>
+              <li><Link href="#" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
         </div>

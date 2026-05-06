@@ -2,26 +2,26 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #282c3f;
+  --foreground: #263238;
   
-  --primary: #fc8019;
+  --primary: #f080a0;
   --primary-foreground: #ffffff;
   
-  --secondary: #686b78;
+  --secondary: #60727a;
   --secondary-foreground: #ffffff;
   
-  --muted: #f0f0f5;
-  --muted-foreground: #686b78;
+  --muted: #f7fbfc;
+  --muted-foreground: #60727a;
   
-  --accent: #fc8019;
+  --accent: #20c0d0;
   --accent-foreground: #ffffff;
 
   --card: #ffffff;
-  --card-foreground: #282c3f;
+  --card-foreground: #263238;
 
-  --border: #e9e9eb;
-  --input: #e9e9eb;
-  --ring: #fc8019;
+  --border: #e5f2f4;
+  --input: #d9edf0;
+  --ring: #20c0d0;
 
   --radius: 0.25rem; /* 4px for inputs default, Swiggy uses slightly square-ish */
   --radius-md: 0.5rem; /* 8px for cards */
@@ -52,9 +52,8 @@
   --radius-lg: var(--radius);
   --radius-full: var(--radius-full);
 
-  /* Swiggy uses very soft shadow for cards */
-  --shadow-warm: 0 2px 12px rgba(0, 0, 0, 0.04);
-  --shadow-warm-hover: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-warm: 0 2px 12px rgba(32, 192, 208, 0.08);
+  --shadow-warm-hover: 0 4px 16px rgba(240, 128, 160, 0.14);
 }
 
 @layer base {

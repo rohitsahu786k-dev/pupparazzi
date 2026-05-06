@@ -18,7 +18,7 @@ export default function AdminDashboard() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
-          <p className="text-muted-foreground mt-1">Here is what&apos;s happening across PetCare Pro today.</p>
+          <p className="text-muted-foreground mt-1">Here is what&apos;s happening across Pupparazzi today.</p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">

@@ -9,7 +9,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "PetCare Pro - Premium Pet Care at Your Doorstep",
+  title: "Pupparazzi - Premium Pet Care at Your Doorstep",
   description: "Premium pet grooming, boarding, walking, and training services.",
 };
 

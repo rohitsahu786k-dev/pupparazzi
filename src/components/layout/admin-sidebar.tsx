@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import NextImage from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { 
@@ -47,10 +48,10 @@ export function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-full w-64 flex-col bg-[#17130f] text-white shadow-sm">
+    <div className="flex h-full w-64 flex-col bg-white text-foreground border-r shadow-sm">
       <div className="p-6">
-        <Link href="/admin" className="flex items-center gap-2">
-          <span className="text-2xl font-bold text-primary">PetCare Admin</span>
+        <Link href="/admin" className="flex items-center" aria-label="Pupparazzi admin">
+          <NextImage src="/pupparazzi-logo.png" alt="Pupparazzi" width={190} height={38} className="h-10 w-auto" />
         </Link>
       </div>
       <div className="flex-1 px-4 space-y-1 overflow-y-auto">
@@ -65,7 +66,7 @@ export function AdminSidebar() {
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                 isActive
                   ? "bg-primary text-white"
-                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               <Icon className="h-5 w-5" />
@@ -74,7 +75,7 @@ export function AdminSidebar() {
           );
         })}
       </div>
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t">
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 hover:bg-red-500/10 transition-all"

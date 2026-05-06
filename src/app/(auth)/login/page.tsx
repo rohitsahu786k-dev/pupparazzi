@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
 
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -60,35 +61,31 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex bg-white">
       {/* Left panel */}
-      <div className="hidden lg:flex w-1/2 bg-[#02060c] flex-col justify-center items-center text-white relative overflow-hidden p-12">
+      <div className="hidden lg:flex w-1/2 bg-white flex-col justify-center items-center text-foreground relative overflow-hidden p-12 border-r border-border">
         <div className="z-10 text-center space-y-6 max-w-md">
-          <div className="w-20 h-20 bg-primary mx-auto flex items-center justify-center rounded-2xl shadow-lg">
-            <span className="text-4xl">🐾</span>
-          </div>
+          <Image src="/pupparazzi-logo.png" alt="Pupparazzi" width={300} height={60} priority className="mx-auto h-16 w-auto" />
           <h1 className="text-4xl font-bold tracking-tight">Welcome back!</h1>
-          <p className="text-gray-400 text-lg">Your pets are waiting. Login to manage bookings, pet profiles, and more.</p>
+          <p className="text-secondary text-lg">Your pets are waiting. Login to manage bookings, pet profiles, and more.</p>
           <div className="grid grid-cols-3 gap-4 mt-8">
             {["Grooming", "Boarding", "Vet Care", "Walking", "Swimming", "Training"].map((s) => (
-              <div key={s} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center text-sm text-gray-400 hover:bg-white/10 transition-colors">
+              <div key={s} className="bg-muted border border-border rounded-xl p-3 text-center text-sm text-secondary hover:border-primary/40 transition-colors">
                 {s}
               </div>
             ))}
           </div>
         </div>
-        <div className="absolute top-0 right-0 w-72 h-72 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
       </div>
 
       {/* Right panel */}
       <div className="w-full lg:w-1/2 flex flex-col p-6 md:p-12 lg:px-20 justify-center">
-        <Link href="/" className="mb-10 inline-flex items-center text-[#686b78] hover:text-[#282c3f] transition-colors font-medium text-sm">
+        <Link href="/" className="mb-10 inline-flex items-center text-secondary hover:text-foreground transition-colors font-medium text-sm">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to home
         </Link>
 
         <div className="max-w-md w-full mx-auto space-y-8">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-[#282c3f]">Login</h2>
-            <p className="text-[#686b78] mt-2">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">Login</h2>
+            <p className="text-secondary mt-2">
               New here?{" "}
               <Link href="/register" className="text-primary font-bold hover:underline">
                 Create an account
@@ -100,7 +97,7 @@ export default function LoginPage() {
           <button
             onClick={handleGoogleLogin}
             disabled={googleLoading || loading}
-            className="w-full h-14 flex items-center justify-center gap-3 border-2 border-[#e9e9eb] rounded-sm hover:border-[#282c3f] hover:bg-gray-50 transition-all font-semibold text-[#282c3f] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-14 flex items-center justify-center gap-3 border-2 border-border rounded-sm hover:border-accent hover:bg-gray-50 transition-all font-semibold text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {googleLoading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -117,10 +114,10 @@ export default function LoginPage() {
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#e9e9eb]" />
+              <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-white px-4 text-[#686b78] font-medium">or login with email</span>
+              <span className="bg-white px-4 text-secondary font-medium">or login with email</span>
             </div>
           </div>
 
@@ -133,7 +130,7 @@ export default function LoginPage() {
               required
               value={formData.email}
               onChange={handleChange}
-              className="h-14 bg-white border-2 border-[#e9e9eb] rounded-sm focus-visible:ring-0 focus-visible:border-[#282c3f] font-medium transition-colors"
+              className="h-14 bg-white border-2 border-border rounded-sm focus-visible:ring-0 focus-visible:border-accent font-medium transition-colors"
             />
             <div className="relative">
               <Input
@@ -144,12 +141,12 @@ export default function LoginPage() {
                 required
                 value={formData.password}
                 onChange={handleChange}
-                className="h-14 bg-white border-2 border-[#e9e9eb] rounded-sm focus-visible:ring-0 focus-visible:border-[#282c3f] font-medium pr-12 transition-colors"
+                className="h-14 bg-white border-2 border-border rounded-sm focus-visible:ring-0 focus-visible:border-accent font-medium pr-12 transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#686b78] hover:text-[#282c3f]"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary hover:text-foreground"
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -174,15 +171,23 @@ export default function LoginPage() {
               {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Logging in...</> : "Login"}
             </Button>
 
-            <p className="text-xs text-[#686b78] text-center leading-5">
+            <p className="text-xs text-secondary text-center leading-5">
               By logging in, I accept the{" "}
-              <Link href="/terms" className="text-[#282c3f] font-bold hover:underline">Terms & Conditions</Link>{" "}
+              <Link href="/terms" className="text-foreground font-bold hover:underline">Terms & Conditions</Link>{" "}
               &{" "}
-              <Link href="/privacy" className="text-[#282c3f] font-bold hover:underline">Privacy Policy</Link>
+              <Link href="/privacy" className="text-foreground font-bold hover:underline">Privacy Policy</Link>
             </p>
           </form>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <LoginContent />
+    </Suspense>
   );
 }

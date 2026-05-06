@@ -19,6 +19,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "owner_id, name and type are required" }, { status: 400 });
     }
 
+    // Verify owner exists
+    const owner = await prisma.user.findUnique({ where: { id: owner_id } });
+    if (!owner) {
+      return NextResponse.json({ message: "Owner not found" }, { status: 404 });
+    }
+
     const pet = await prisma.pet.create({
       data: {
         owner_id,
@@ -58,16 +64,64 @@ export async function POST(req: Request) {
     return NextResponse.json(pet, { status: 201 });
   } catch (error) {
     console.error("POST pet error:", error);
-    return NextResponse.json({ message: "Failed to create pet" }, { status: 500 });
+    return NextResponse.json({ message: "Failed to create pet", error: String(error) }, { status: 500 });
   }
 }
 
 // Get all pets (for admin use)
 export async function GET() {
   try {
-    const pets = await prisma.pet.findMany({ include: { medical: true }, orderBy: { created_at: "desc" } });
+    const pets = await prisma.pet.findMany({
+      include: { medical: true },
+      orderBy: { created_at: "desc" }
+    });
     return NextResponse.json(pets);
   } catch (error) {
-    return NextResponse.json({ message: "Failed to fetch pets" }, { status: 500 });
+    console.error("GET pets error:", error);
+    return NextResponse.json({ message: "Failed to fetch pets", error: String(error) }, { status: 500 });
+  }
+}
+
+// Update a pet
+export async function PUT(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, ...updateData } = body;
+
+    if (!id) {
+      return NextResponse.json({ message: "Pet ID is required" }, { status: 400 });
+    }
+
+    const pet = await prisma.pet.update({
+      where: { id },
+      data: {
+        ...updateData,
+        updated_at: new Date(),
+      },
+      include: { medical: true },
+    });
+
+    return NextResponse.json(pet);
+  } catch (error) {
+    console.error("PUT pet error:", error);
+    return NextResponse.json({ message: "Failed to update pet", error: String(error) }, { status: 500 });
+  }
+}
+
+// Delete a pet
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ message: "Pet ID is required" }, { status: 400 });
+    }
+
+    await prisma.pet.delete({ where: { id } });
+    return NextResponse.json({ message: "Pet deleted successfully" });
+  } catch (error) {
+    console.error("DELETE pet error:", error);
+    return NextResponse.json({ message: "Failed to delete pet", error: String(error) }, { status: 500 });
   }
 }

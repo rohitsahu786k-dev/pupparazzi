@@ -8,12 +8,13 @@ export async function GET(req: Request) {
   try {
     const bookings = await prisma.booking.findMany({
       where: userId ? { client_id: userId } : {},
-      include: { pet: true, service: true },
+      include: { pet: true, service: true, address: true },
       orderBy: { created_at: "desc" },
     });
     return NextResponse.json(bookings);
   } catch (error) {
-    return NextResponse.json({ message: "Failed to fetch bookings" }, { status: 500 });
+    console.error("GET bookings error:", error);
+    return NextResponse.json({ message: "Failed to fetch bookings", error: String(error) }, { status: 500 });
   }
 }
 
@@ -28,6 +29,12 @@ export async function POST(req: Request) {
 
     if (!client_id || !pet_id || !service_id || !slot_date || !slot_time) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+    }
+
+    // Verify pet belongs to client
+    const pet = await prisma.pet.findUnique({ where: { id: pet_id } });
+    if (!pet || pet.owner_id !== client_id) {
+      return NextResponse.json({ message: "Pet not found or unauthorized" }, { status: 404 });
     }
 
     // Generate booking ID
@@ -48,12 +55,57 @@ export async function POST(req: Request) {
         status: "Pending",
         payment_status: "Pending",
       },
-      include: { pet: true, service: true },
+      include: { pet: true, service: true, address: true },
     });
 
     return NextResponse.json(booking, { status: 201 });
   } catch (error) {
     console.error("POST booking error:", error);
-    return NextResponse.json({ message: "Failed to create booking" }, { status: 500 });
+    return NextResponse.json({ message: "Failed to create booking", error: String(error) }, { status: 500 });
+  }
+}
+
+// PATCH /api/bookings/:id
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, status, payment_status, notes } = body;
+
+    if (!id) {
+      return NextResponse.json({ message: "Booking ID is required" }, { status: 400 });
+    }
+
+    const booking = await prisma.booking.update({
+      where: { id },
+      data: {
+        ...(status && { status }),
+        ...(payment_status && { payment_status }),
+        ...(notes && { notes }),
+      },
+      include: { pet: true, service: true },
+    });
+
+    return NextResponse.json(booking);
+  } catch (error) {
+    console.error("PATCH booking error:", error);
+    return NextResponse.json({ message: "Failed to update booking", error: String(error) }, { status: 500 });
+  }
+}
+
+// DELETE /api/bookings/:id
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ message: "Booking ID is required" }, { status: 400 });
+    }
+
+    await prisma.booking.delete({ where: { id } });
+    return NextResponse.json({ message: "Booking deleted successfully" });
+  } catch (error) {
+    console.error("DELETE booking error:", error);
+    return NextResponse.json({ message: "Failed to delete booking", error: String(error) }, { status: 500 });
   }
 }
