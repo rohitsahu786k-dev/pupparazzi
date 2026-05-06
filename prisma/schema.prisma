@@ -303,3 +303,14 @@ model Asset {
   uploaded_by   String?  @db.ObjectId
   created_at    DateTime @default(now())
 }
+
+model ServiceArea {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  pincode    String   @unique
+  city       String
+  area_name  String?
+  state      String   @default("Gujarat")
+  country    String   @default("India")
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+}

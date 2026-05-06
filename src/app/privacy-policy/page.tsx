@@ -13,7 +13,7 @@ const SECTIONS = [
     title: "1. Introduction",
     color: "bg-blue-50 text-blue-600",
     content:
-      "Welcome to Pupparazzi ("Company", "we", "our", "us"). We are committed to protecting your personal information and your right to privacy. This Privacy Policy explains how we collect, use, and share information about you when you use our platform.",
+      'Welcome to Pupparazzi ("Company", "we", "our", "us"). We are committed to protecting your personal information and your right to privacy. This Privacy Policy explains how we collect, use, and share information about you when you use our platform.',
   },
   {
     icon: Database,

@@ -4,9 +4,9 @@ import Link from "next/link";
 import NextImage from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, Calendar, Users, PawPrint, 
-  Settings, Package, Scissors, Banknote, Image, Bell
+import {
+  LayoutDashboard, Calendar, Users, PawPrint,
+  Settings, Package, Scissors, Banknote, Image, Bell, MapPin
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -21,6 +21,7 @@ const navItems = [
   { name: "Expenses", href: "/admin/expenses", icon: Package },
   { name: "Assets", href: "/admin/assets", icon: Image },
   { name: "Notifications", href: "/admin/notifications", icon: Bell },
+  { name: "Service Areas", href: "/admin/service-areas", icon: MapPin },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

@@ -138,7 +138,7 @@ export function bookingConfirmationHtml(data: {
     <!-- Header Band -->
     <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:36px 48px 32px;text-align:center;">
       <div style="display:inline-block;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:100px;padding:6px 18px;margin-bottom:20px;">
-        <span style="color:#10B981;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">✓ Booking Confirmed</span>
+        <span style="color:#10B981;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;"> Booking Confirmed</span>
       </div>
       <h1 style="margin:0 0 10px;font-size:28px;font-weight:800;color:#FFFFFF;line-height:1.2;">You&rsquo;re all set, ${data.userName}!</h1>
       <p style="margin:0;font-size:15px;color:#94A3B8;line-height:1.6;">Your appointment has been confirmed. We&rsquo;ll see you soon!</p>
@@ -209,11 +209,11 @@ export function paymentConfirmationHtml(data: {
     <!-- Header Band -->
     <div style="background:linear-gradient(135deg,#064E3B 0%,#065F46 100%);padding:36px 48px 32px;text-align:center;">
       <div style="width:64px;height:64px;background:rgba(16,185,129,0.2);border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">
-        <img src="https://em-content.zobj.net/source/apple/354/white-check-mark_2705.png" width="36" height="36" alt="✓" style="display:block;margin:auto;padding-top:14px;" />
+        <div style="width:20px;height:20px;border:2px solid #10B981;border-top:none;border-left:none;transform:rotate(45deg);"></div>
       </div>
-      <h1 style="margin:0 0 10px;font-size:28px;font-weight:800;color:#FFFFFF;line-height:1.2;">Payment Successful!</h1>
+      <h1 style="margin:0 0 10px;font-size:28px;font-weight:800;color:#FFFFFF;line-height:1.2;">Payment Successful</h1>
       <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.75);line-height:1.6;">Thank you, ${data.userName}. Your payment of <strong style="color:#FFFFFF;">₹${data.totalAmount}</strong> has been received.</p>
-      ${statusBadge("✓ Payment Confirmed", "rgba(16,185,129,0.2)", "#10B981")}
+      ${statusBadge(" Payment Confirmed", "rgba(16,185,129,0.2)", "#10B981")}
     </div>
 
     <!-- Body -->
@@ -226,7 +226,7 @@ export function paymentConfirmationHtml(data: {
             <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 <td width="48" valign="middle" style="padding-right:16px;">
-                  <div style="width:44px;height:44px;background:#DCFCE7;border-radius:10px;text-align:center;line-height:44px;font-size:22px;">🧾</div>
+                  <div style="width:44px;height:44px;background:#DCFCE7;border-radius:10px;text-align:center;line-height:44px;font-size:22px;"></div>
                 </td>
                 <td valign="middle">
                   <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#15803D;">GST Invoice Attached</p>
@@ -290,25 +290,25 @@ export function paymentConfirmationHtml(data: {
 
 export function welcomeEmailHtml(data: { userName: string; email: string }) {
   const services = [
-    { icon: "✂️", name: "Premium Grooming", desc: "Certified groomers, spa treatments" },
-    { icon: "🏠", name: "Luxury Boarding", desc: "Climate-controlled, 24/7 care" },
-    { icon: "🏃", name: "Daily Dog Walking", desc: "GPS-tracked, individual walks" },
-    { icon: "🩺", name: "Home Vet Visits", desc: "Expert vets at your doorstep" },
-    { icon: "🎓", name: "Professional Training", desc: "Positive reinforcement methods" },
-    { icon: "🏊", name: "Pet Swimming", desc: "Hydrotherapy & fun pool sessions" },
+    { icon: "", name: "Premium Grooming", desc: "Certified groomers, spa treatments" },
+    { icon: "", name: "Luxury Boarding", desc: "Climate-controlled, 24/7 care" },
+    { icon: "", name: "Daily Dog Walking", desc: "GPS-tracked, individual walks" },
+    { icon: "", name: "Home Vet Visits", desc: "Expert vets at your doorstep" },
+    { icon: "", name: "Professional Training", desc: "Positive reinforcement methods" },
+    { icon: "", name: "Pet Swimming", desc: "Hydrotherapy & fun pool sessions" },
   ];
 
   const body = `
     <!-- Header Band -->
     <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:40px 48px;text-align:center;">
-      <div style="font-size:52px;margin-bottom:16px;">🐾</div>
+      <div style="font-size:52px;margin-bottom:16px;"></div>
       <h1 style="margin:0 0 10px;font-size:30px;font-weight:800;color:#FFFFFF;line-height:1.2;">Welcome to Pupparazzi!</h1>
       <p style="margin:0;font-size:16px;color:#94A3B8;">Ahmedabad&rsquo;s most trusted pet care destination</p>
     </div>
 
     <!-- Body -->
     <div style="padding:40px 48px;" class="email-card">
-      <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong> 👋,</p>
+      <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong> ,</p>
       <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.7;">We&rsquo;re absolutely thrilled to have you join the Pupparazzi family! Your furry friend is about to experience the finest pet care in Ahmedabad. Here&rsquo;s everything we offer:</p>
 
       <!-- Services Grid -->
@@ -345,7 +345,7 @@ export function welcomeEmailHtml(data: { userName: string; email: string }) {
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:32px;">
         <tr>
           <td style="background:linear-gradient(135deg,#FDF4FF 0%,#FFF7ED 100%);border:1px solid #E9D5FF;border-radius:16px;padding:24px 28px;text-align:center;">
-            <p style="margin:0 0 8px;font-size:24px;">🎁</p>
+            <p style="margin:0 0 8px;font-size:24px;"></p>
             <p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#6B21A8;">Exclusive Welcome Offer</p>
             <p style="margin:0 0 16px;font-size:13px;color:#7E22CE;">Use code below for <strong>50% OFF</strong> on your first grooming session!</p>
             <div style="display:inline-block;background:#FFFFFF;border:2px dashed #C084FC;border-radius:10px;padding:10px 28px;">
@@ -355,7 +355,7 @@ export function welcomeEmailHtml(data: { userName: string; email: string }) {
         </tr>
       </table>
 
-      ${primaryButton("Book Your First Service →", `${BUSINESS.website}/book`)}
+      ${primaryButton("Book Your First Service", `${BUSINESS.website}/book`)}
 
       <p style="margin:0;font-size:13px;color:#94A3B8;text-align:center;line-height:1.6;">Need help? Just reply to this email or reach us at <a href="mailto:${BUSINESS.email}" style="color:#EC4899;text-decoration:none;">${BUSINESS.email}</a></p>
     </div>`;
@@ -377,7 +377,7 @@ export function cancellationEmailHtml(data: {
   const body = `
     <!-- Header Band -->
     <div style="background:linear-gradient(135deg,#450A0A 0%,#7F1D1D 100%);padding:36px 48px 32px;text-align:center;">
-      <div style="width:60px;height:60px;background:rgba(239,68,68,0.2);border-radius:50%;margin:0 auto 20px;text-align:center;line-height:60px;font-size:28px;">✕</div>
+      <div style="width:60px;height:60px;background:rgba(239,68,68,0.2);border-radius:50%;margin:0 auto 20px;text-align:center;line-height:60px;font-size:28px;">x</div>
       <h1 style="margin:0 0 10px;font-size:26px;font-weight:800;color:#FFFFFF;line-height:1.2;">Booking Cancelled</h1>
       <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.65);line-height:1.6;">We&rsquo;re sorry to see you go, ${data.userName}.</p>
     </div>
@@ -409,7 +409,7 @@ export function cancellationEmailHtml(data: {
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
         <tr>
           <td style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:18px 22px;">
-            <p style="margin:0;font-size:14px;color:#15803D;line-height:1.6;">✅ <strong>Refund of ₹${data.refundAmount}</strong> will be processed to your original payment method within <strong>5–7 business days</strong>.</p>
+            <p style="margin:0;font-size:14px;color:#15803D;line-height:1.6;"> <strong>Refund of ₹${data.refundAmount}</strong> will be processed to your original payment method within <strong>5–7 business days</strong>.</p>
           </td>
         </tr>
       </table>` : ""}
@@ -482,7 +482,7 @@ export async function sendPaymentConfirmation(
 export async function sendWelcomeEmail(to: string, data: Parameters<typeof welcomeEmailHtml>[0]) {
   return sendMail({
     to,
-    subject: `Welcome to ${BUSINESS.shortName}, ${data.userName}! 🐾`,
+    subject: `Welcome to ${BUSINESS.shortName}, ${data.userName}! `,
     html: welcomeEmailHtml(data),
   });
 }

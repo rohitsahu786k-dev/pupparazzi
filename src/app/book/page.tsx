@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, CheckCircle2, MapPin, Clock, Loader2, PawPrint } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, XCircle, MapPin, Clock, Loader2, PawPrint } from "lucide-react";
 import Link from "next/link";
 
 interface Service { id:string; name:string; category:string; description_short:string|null; price:number; discounted_price:number|null; }
@@ -34,6 +34,7 @@ export default function BookingFlow() {
   const [showAddPet, setShowAddPet] = useState(false);
   const [address, setAddress] = useState({ line1:"", city:"", state:"", pincode:"", phone:"" });
   const [detectingLoc, setDetectingLoc] = useState(false);
+  const [pincodeStatus, setPincodeStatus] = useState<"idle"|"checking"|"ok"|"unavailable">("idle");
   const [petForm, setPetForm] = useState({ name:"",type:"Dog",breed:"",gender:"Male",weight:"",size:"Medium",aggression_level:"3",allergies:"",dietary_preference:"",neutered:false,vaccination_status:"",vet_name:"",vet_contact:"" });
   const [petSaving, setPetSaving] = useState(false);
   const [error, setError] = useState("");
@@ -70,6 +71,24 @@ export default function BookingFlow() {
     } catch{ setError("Error saving pet"); }
     setPetSaving(false);
   }
+
+  async function checkPincode(pin: string) {
+    if (!/^\d{6}$/.test(pin)) { setPincodeStatus("idle"); return; }
+    setPincodeStatus("checking");
+    try {
+      const res = await fetch(`/api/service-areas?pincode=${pin}`);
+      const data = await res.json();
+      setPincodeStatus(data.serviceable ? "ok" : "unavailable");
+    } catch { setPincodeStatus("idle"); }
+  }
+
+  useEffect(() => {
+    if (!address.pincode) {
+      setPincodeStatus("idle");
+      return;
+    }
+    checkPincode(address.pincode);
+  }, [address.pincode]);
 
   async function detectLocation() {
     if (!navigator.geolocation) return;
@@ -231,7 +250,23 @@ export default function BookingFlow() {
                   <div className="grid grid-cols-3 gap-3">
                     <Input placeholder="City *" value={address.city} onChange={e=>setAddress({...address,city:e.target.value})} className="h-12 bg-white"/>
                     <Input placeholder="State *" value={address.state} onChange={e=>setAddress({...address,state:e.target.value})} className="h-12 bg-white"/>
-                    <Input placeholder="Pincode *" value={address.pincode} onChange={e=>setAddress({...address,pincode:e.target.value})} className="h-12 bg-white"/>
+                    <div className="relative">
+                      <Input
+                        placeholder="Pincode * (6 digits)"
+                        value={address.pincode}
+                        maxLength={6}
+                        onChange={e=>{
+                          const pin = e.target.value.replace(/\D/g,"").slice(0,6);
+                          setAddress({...address,pincode:pin});
+                        }}
+                        className={`h-12 bg-white pr-10 ${pincodeStatus==="ok"?"border-green-400":pincodeStatus==="unavailable"?"border-red-400":""}`}
+                      />
+                      {pincodeStatus==="checking" && <Loader2 className="absolute right-3 top-3.5 h-4 w-4 animate-spin text-secondary"/>}
+                      {pincodeStatus==="ok" && <CheckCircle2 className="absolute right-3 top-3.5 h-4 w-4 text-green-500"/>}
+                      {pincodeStatus==="unavailable" && <XCircle className="absolute right-3 top-3.5 h-4 w-4 text-red-500"/>}
+                    </div>
+                    {pincodeStatus==="ok" && <p className="text-xs text-green-600 font-medium col-span-3">Service available in your area</p>}
+                    {pincodeStatus==="unavailable" && <p className="text-xs text-red-500 font-medium col-span-3">Sorry, we do not serve this pincode yet. Check back soon!</p>}
                   </div>
                   <Input placeholder="Contact Number" value={address.phone} onChange={e=>setAddress({...address,phone:e.target.value})} className="h-12 bg-white"/>
                 </div>
@@ -255,7 +290,7 @@ export default function BookingFlow() {
                 </div>
                 <div className="flex gap-3">
                   <Button variant="outline" className="w-1/3 h-12 font-bold" onClick={()=>setStep(2)}>Back</Button>
-                  <Button className="w-2/3 bg-primary hover:bg-primary/90 text-white font-bold h-12" onClick={()=>{if(address.line1&&address.city&&selectedTime)setStep(4);}} disabled={!address.line1||!address.city||!selectedTime}>Continue</Button>
+                  <Button className="w-2/3 bg-primary hover:bg-primary/90 text-white font-bold h-12" onClick={()=>{if(address.line1&&address.city&&selectedTime&&pincodeStatus==="ok")setStep(4);}} disabled={!address.line1||!address.city||!selectedTime||pincodeStatus!=="ok"}>Continue</Button>
                 </div>
               </div>}
             </CardContent>
