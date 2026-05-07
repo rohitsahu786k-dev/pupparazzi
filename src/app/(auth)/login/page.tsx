@@ -16,8 +16,8 @@ function LoginContent() {
   const { status } = useSession();
 
   useEffect(() => {
-    if (status === "authenticated") router.replace(callbackUrl);
-  }, [status, callbackUrl, router]);
+    if (status === "authenticated") window.location.replace(callbackUrl);
+  }, [status, callbackUrl]);
 
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
