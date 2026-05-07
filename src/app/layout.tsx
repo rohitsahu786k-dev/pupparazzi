@@ -14,6 +14,9 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Pupparazzi - Premium Pet Care at Your Doorstep",
   description: "Premium pet grooming, boarding, walking, and training services.",
+  verification: {
+    google: "G6YRjxmuLqMPtE436n9AzaogelpFBzSV4iimFrbhLe4",
+  },
 };
 
 export default function RootLayout({
