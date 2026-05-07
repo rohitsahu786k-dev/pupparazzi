@@ -242,13 +242,13 @@ export default function BookingFlow() {
   if(loading || status==="loading") return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>;
 
   return (
-    <div className="min-h-screen bg-white pb-24 md:pb-0">
+    <div className="min-h-screen bg-white pb-36 md:pb-0">
       <header className="sticky top-0 z-50 bg-white shadow-sm h-16 flex items-center px-4">
         <Link href="/" className="mr-4"><ChevronLeft className="h-6 w-6"/></Link>
         <div className="flex-1"><h1 className="font-bold text-foreground">Book a Service</h1><p className="text-xs text-secondary">Step {step} of 4</p></div>
       </header>
 
-      <div className="container mx-auto max-w-5xl py-6 px-4 grid md:grid-cols-3 gap-6">
+      <div className="container mx-auto max-w-5xl py-6 px-4 grid md:grid-cols-3 gap-6 overflow-x-hidden">
         <div className="md:col-span-2 space-y-4">
 
           {/* STEP 1: Select Service */}
@@ -278,7 +278,7 @@ export default function BookingFlow() {
                 {step>2 && <CheckCircle2 className="text-green-600 h-6 w-6"/>}
               </div>
               {step===2 && <div className="space-y-4">
-                {pets.length>0 && !showAddPet && <div className="grid grid-cols-2 gap-3">
+                {pets.length>0 && !showAddPet && <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3">
                   {pets.map(p=>(
                     <div key={p.id} onClick={()=>setSelectedPet(p.id)} className={`border p-4 rounded-xl flex flex-col items-center gap-2 cursor-pointer ${selectedPet===p.id?"border-primary bg-primary/10":"hover:border-accent"}`}>
                       <div className="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center"><PawPrint className="h-6 w-6 text-accent"/></div>
@@ -293,7 +293,7 @@ export default function BookingFlow() {
 
                 {(showAddPet || pets.length===0) && <div className="space-y-3 border rounded-xl p-4 bg-muted">
                   <h3 className="font-bold text-foreground">Add Pet Details</h3>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Input placeholder="Pet Name *" value={petForm.name} onChange={e=>setPetForm({...petForm,name:e.target.value})} className="h-12 bg-white"/>
                     <select value={petForm.type} onChange={e=>setPetForm({...petForm,type:e.target.value})} className="h-12 border rounded-md px-3 bg-white text-sm">
                       {PET_TYPES.map(t=><option key={t}>{t}</option>)}
@@ -307,7 +307,7 @@ export default function BookingFlow() {
                       {SIZES.map(s=><option key={s}>{s}</option>)}
                     </select>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Input placeholder="Allergies (if any)" value={petForm.allergies} onChange={e=>setPetForm({...petForm,allergies:e.target.value})} className="h-12 bg-white"/>
                     <select value={petForm.vaccination_status} onChange={e=>setPetForm({...petForm,vaccination_status:e.target.value})} className="h-12 border rounded-md px-3 bg-white text-sm">
                       <option value="">Vaccination Status</option>
@@ -354,7 +354,7 @@ export default function BookingFlow() {
                   </div>
                   {locationError && <p className="text-xs font-medium text-amber-600">{locationError}</p>}
                   <Input placeholder="House/Flat/Block No., Street *" value={address.line1} onChange={e=>setAddress({...address,line1:e.target.value})} className="h-12 bg-white"/>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <Input placeholder="City *" value={address.city} onChange={e=>setAddress({...address,city:e.target.value})} className="h-12 bg-white"/>
                     <Input placeholder="State *" value={address.state} onChange={e=>setAddress({...address,state:e.target.value})} className="h-12 bg-white"/>
                     <div className="relative">
@@ -372,8 +372,8 @@ export default function BookingFlow() {
                       {pincodeStatus==="ok" && <CheckCircle2 className="absolute right-3 top-3.5 h-4 w-4 text-green-500"/>}
                       {pincodeStatus==="unavailable" && <XCircle className="absolute right-3 top-3.5 h-4 w-4 text-red-500"/>}
                     </div>
-                    {pincodeStatus==="ok" && <p className="text-xs text-green-600 font-medium col-span-3">Service available in your area</p>}
-                    {pincodeStatus==="unavailable" && <p className="text-xs text-red-500 font-medium col-span-3">Sorry, we do not serve this pincode yet. Check back soon!</p>}
+                    {pincodeStatus==="ok" && <p className="text-xs text-green-600 font-medium sm:col-span-3">Service available in your area</p>}
+                    {pincodeStatus==="unavailable" && <p className="text-xs text-red-500 font-medium sm:col-span-3">Sorry, we do not serve this pincode yet. Check back soon!</p>}
                   </div>
                   <Input placeholder="Contact Number" value={address.phone} onChange={e=>setAddress({...address,phone:e.target.value})} className="h-12 bg-white"/>
                 </div>
@@ -389,7 +389,7 @@ export default function BookingFlow() {
                 </div>
                 <div className="space-y-3">
                   <h3 className="font-bold text-sm text-secondary uppercase tracking-wider">Select Time</h3>
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {TIME_SLOTS.map(t=>(
                       <div key={t} onClick={()=>setSelectedTime(t)} className={`py-2.5 text-center rounded-lg border text-sm cursor-pointer ${selectedTime===t?"border-primary text-primary font-bold bg-primary/10":"text-secondary hover:border-accent"}`}>{t}</div>
                     ))}
@@ -403,6 +403,19 @@ export default function BookingFlow() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Mobile sticky bottom bar - step 4 confirm */}
+        {step === 4 && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t shadow-2xl p-4 space-y-2 md:hidden">
+            {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{error}</div>}
+            <Button className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 text-base" onClick={placeBooking} disabled={submitting}>
+              {submitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Placing...</> : "Place Booking"}
+            </Button>
+            <Button className="w-full bg-accent hover:bg-accent/90 text-white font-bold h-12 text-base" onClick={payOnlineAndBook} disabled={submitting}>
+              {submitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Processing...</> : "Pay Online & Book"}
+            </Button>
+          </div>
+        )}
 
         {/* Sidebar Summary */}
         <div className="md:col-span-1">

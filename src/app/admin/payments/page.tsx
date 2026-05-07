@@ -38,7 +38,7 @@ export default function AdminPaymentsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Payments & Invoices</h1>
         <p className="mt-1 text-sm text-muted-foreground">Track manual and Razorpay payments.</p>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border bg-white p-4"><p className="text-sm text-muted-foreground">Payments</p><p className="text-2xl font-bold">{totals.count}</p></div>
         <div className="rounded-lg border bg-white p-4"><p className="text-sm text-muted-foreground">Successful</p><p className="text-2xl font-bold">{totals.success}</p></div>
         <div className="rounded-lg border bg-white p-4"><p className="text-sm text-muted-foreground">Revenue</p><p className="text-2xl font-bold">Rs. {totals.revenue.toLocaleString("en-IN")}</p></div>
@@ -48,7 +48,7 @@ export default function AdminPaymentsPage() {
           <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="w-full min-w-225 text-left text-sm">
               <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
                 <tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Client</th><th className="px-4 py-3">Booking</th><th className="px-4 py-3">Mode</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Transaction</th></tr>
               </thead>

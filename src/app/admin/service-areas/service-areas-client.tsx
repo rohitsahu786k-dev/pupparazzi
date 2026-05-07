@@ -119,14 +119,14 @@ export function ServiceAreasClient() {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Service Areas</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Manage which pincodes you serve. Only India is supported.
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-accent/10 text-accent px-4 py-2 rounded-[10px] text-sm font-bold border border-accent/20">
+        <div className="flex items-center gap-2 bg-accent/10 text-accent px-4 py-2 rounded-[10px] text-sm font-bold border border-accent/20 self-start sm:self-auto">
           <Globe className="h-4 w-4" />
           India Only
         </div>
@@ -134,7 +134,7 @@ export function ServiceAreasClient() {
 
       {/* Allow All Toggle */}
       <Card className={`border-2 shadow-sm transition-colors ${allowAll ? "border-green-400 bg-green-50/40" : "border-border/50"}`}>
-        <CardContent className="p-5 flex items-center justify-between gap-4">
+        <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center ${allowAll ? "bg-green-100" : "bg-muted"}`}>
               <Globe className={`h-5 w-5 ${allowAll ? "text-green-600" : "text-muted-foreground"}`} />
@@ -169,7 +169,7 @@ export function ServiceAreasClient() {
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Total Areas", value: areas.length, color: "text-foreground" },
           { label: "Active",      value: active,       color: "text-green-600" },
@@ -263,7 +263,7 @@ export function ServiceAreasClient() {
           ) : (
             <div className="divide-y divide-border/40">
               {filtered.map(area => (
-                <div key={area.id} className="flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors">
+                <div key={area.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-4 hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-4">
                     <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${area.is_active ? "bg-green-500" : "bg-slate-300"}`} />
                     <div>

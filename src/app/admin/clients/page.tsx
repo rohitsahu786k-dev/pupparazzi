@@ -95,7 +95,7 @@ export default function AdminClientsPage() {
 
       <div className="rounded-lg border bg-white p-5">
         <h2 className="mb-4 font-bold">Create User</h2>
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_160px_160px_140px_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-[1fr_1fr_160px_160px_140px_auto]">
           <Input placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -109,7 +109,7 @@ export default function AdminClientsPage() {
       </div>
 
       <div className="rounded-lg border bg-white p-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_180px_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-[1fr_180px_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fetchUsers()} placeholder="Search users..." className="pl-9" />
@@ -126,7 +126,7 @@ export default function AdminClientsPage() {
           <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1000px] text-left text-sm">
+            <table className="w-full min-w-250 text-left text-sm">
               <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">User</th>

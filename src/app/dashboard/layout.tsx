@@ -1,4 +1,5 @@
 import { ClientSidebar } from "@/components/layout/client-sidebar";
+import { DashboardLayoutShell } from "@/components/layout/dashboard-layout-shell";
 
 export default function DashboardLayout({
   children,
@@ -6,16 +7,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen w-full bg-muted/20 overflow-hidden">
-      <div className="hidden md:block">
-        <ClientSidebar />
-      </div>
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Header could go here */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          {children}
-        </main>
-      </div>
-    </div>
+    <DashboardLayoutShell sidebar={<ClientSidebar />}>
+      {children}
+    </DashboardLayoutShell>
   );
 }

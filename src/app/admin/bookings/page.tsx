@@ -120,7 +120,7 @@ export default function AdminBookingsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Bookings</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage schedules, status, payments, cancellations, and customer communication.</p>
         </div>
-        <div className="grid grid-cols-3 gap-3 text-sm">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
           <div className="rounded-lg border bg-white px-4 py-3">
             <p className="text-muted-foreground">Today</p>
             <p className="text-xl font-bold">{todayBookings}</p>
@@ -137,7 +137,7 @@ export default function AdminBookingsPage() {
       </div>
 
       <div className="rounded-lg border bg-white p-4">
-        <div className="grid gap-3 md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search booking, client, pet, email..." className="pl-9" />
@@ -163,7 +163,7 @@ export default function AdminBookingsPage() {
           <div className="p-10 text-center text-sm text-muted-foreground">No bookings found.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left text-sm">
+            <table className="w-full min-w-275 text-left text-sm">
               <thead className="border-b bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Booking</th>
@@ -195,7 +195,7 @@ export default function AdminBookingsPage() {
                     <td className="px-4 py-4">
                       <p className="flex items-center gap-1 font-semibold"><Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(booking.slot_date)}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{booking.slot_time}</p>
-                      <p className="mt-2 flex max-w-[220px] items-start gap-1 text-xs text-muted-foreground"><MapPin className="mt-0.5 h-3 w-3 shrink-0" /> {booking.address ? `${booking.address.line1}, ${booking.address.city}` : booking.notes?.replace("Address: ", "") || "-"}</p>
+                      <p className="mt-2 flex max-w-55 items-start gap-1 text-xs text-muted-foreground"><MapPin className="mt-0.5 h-3 w-3 shrink-0" /> {booking.address ? `${booking.address.line1}, ${booking.address.city}` : booking.notes?.replace("Address: ", "") || "-"}</p>
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.status)}`}>{booking.status}</span>

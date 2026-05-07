@@ -88,7 +88,7 @@ export default function LandingPage() {
       </section>
 
       <section className="-mt-12 relative z-20 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-3 rounded-lg border border-border bg-white p-4 shadow-xl md:grid-cols-4">
+        <div className="grid gap-3 rounded-lg border border-border bg-white p-4 shadow-xl grid-cols-2 md:grid-cols-4">
           {proof.map((item) => (
             <div key={item.label} className="px-4 py-5 text-center">
               <p className="text-3xl font-extrabold text-foreground">{item.value}</p>
@@ -205,7 +205,7 @@ export default function LandingPage() {
               {Array.from({ length: 5 }).map((_, index) => <Star key={index} className="h-5 w-5 fill-current" />)}
             </div>
           </div>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {reviews.map((review) => (
               <div key={review.name} className="rounded-lg border border-white/12 bg-white/8 p-6">
                 <p className="text-sm leading-7 text-white/78">&ldquo;{review.text}&rdquo;</p>
