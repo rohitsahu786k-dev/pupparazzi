@@ -11,6 +11,11 @@ export async function GET(req: Request) {
       if (!/^\d{6}$/.test(pincode)) {
         return NextResponse.json({ serviceable: false, message: "Invalid pincode format" });
       }
+      // Check if "allow all pincodes" mode is enabled
+      const globalSetting = await prisma.serviceArea.findFirst({ where: { pincode: "GLOBAL", is_active: true } });
+      if (globalSetting) {
+        return NextResponse.json({ serviceable: true, area: null });
+      }
       const area = await prisma.serviceArea.findFirst({ where: { pincode, is_active: true } });
       return NextResponse.json({ serviceable: !!area, area: area || null });
     }
@@ -32,7 +37,7 @@ export async function POST(req: Request) {
     if (!pincode || !city) {
       return NextResponse.json({ message: "Pincode and city are required" }, { status: 400 });
     }
-    if (!/^\d{6}$/.test(pincode)) {
+    if (pincode !== "GLOBAL" && !/^\d{6}$/.test(pincode)) {
       return NextResponse.json({ message: "Pincode must be exactly 6 digits" }, { status: 400 });
     }
 

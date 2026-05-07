@@ -29,19 +29,45 @@ const INDIAN_STATES = [
 ];
 
 export default function ServiceAreasPage() {
-  const [areas, setAreas]       = useState<ServiceArea[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState("");
-  const [search, setSearch]     = useState("");
-  const [form, setForm]         = useState({ pincode: "", city: "", area_name: "", state: "Gujarat" });
+  const [areas, setAreas]               = useState<ServiceArea[]>([]);
+  const [globalSetting, setGlobalSetting] = useState<ServiceArea | null>(null);
+  const [loading, setLoading]           = useState(true);
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const [saving, setSaving]             = useState(false);
+  const [error, setError]               = useState("");
+  const [search, setSearch]             = useState("");
+  const [form, setForm]                 = useState({ pincode: "", city: "", area_name: "", state: "Gujarat" });
 
   useEffect(() => {
     fetch("/api/service-areas")
       .then(r => r.json())
-      .then(d => setAreas(Array.isArray(d) ? d : []))
+      .then(d => {
+        const all: ServiceArea[] = Array.isArray(d) ? d : [];
+        setGlobalSetting(all.find(a => a.pincode === "GLOBAL") ?? null);
+        setAreas(all.filter(a => a.pincode !== "GLOBAL"));
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  async function toggleGlobal() {
+    setGlobalLoading(true);
+    if (!globalSetting) {
+      const res = await fetch("/api/service-areas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pincode: "GLOBAL", city: "All India", area_name: "Allow All Pincodes", state: "India" }),
+      });
+      if (res.ok) setGlobalSetting(await res.json());
+    } else {
+      const res = await fetch("/api/service-areas", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: globalSetting.id, is_active: !globalSetting.is_active }),
+      });
+      if (res.ok) setGlobalSetting(prev => prev ? { ...prev, is_active: !prev.is_active } : null);
+    }
+    setGlobalLoading(false);
+  }
 
   async function addArea() {
     if (!form.pincode || !form.city) { setError("Pincode and city are required"); return; }
@@ -87,6 +113,7 @@ export default function ServiceAreasPage() {
 
   const active   = areas.filter(a => a.is_active).length;
   const inactive = areas.length - active;
+  const allowAll = globalSetting?.is_active ?? false;
 
   return (
     <div className="space-y-6">
@@ -104,6 +131,42 @@ export default function ServiceAreasPage() {
           India Only
         </div>
       </div>
+
+      {/* Allow All Toggle */}
+      <Card className={`border-2 shadow-sm transition-colors ${allowAll ? "border-green-400 bg-green-50/40" : "border-border/50"}`}>
+        <CardContent className="p-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center ${allowAll ? "bg-green-100" : "bg-muted"}`}>
+              <Globe className={`h-5 w-5 ${allowAll ? "text-green-600" : "text-muted-foreground"}`} />
+            </div>
+            <div>
+              <p className="font-bold text-foreground text-sm">Allow All Pincodes</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {allowAll
+                  ? "Customers from any pincode in India can book. Whitelist below is ignored."
+                  : "Only pincodes added to the whitelist below can book."}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={toggleGlobal}
+            disabled={globalLoading}
+            className={`flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-bold transition-colors ${
+              allowAll
+                ? "bg-green-100 text-green-700 hover:bg-green-200"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            {globalLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : allowAll ? (
+              <><ToggleRight className="h-5 w-5" /> Enabled</>
+            ) : (
+              <><ToggleLeft className="h-5 w-5" /> Disabled</>
+            )}
+          </button>
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
@@ -172,7 +235,7 @@ export default function ServiceAreasPage() {
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" />
-            All Areas ({filtered.length})
+            Whitelist Areas ({filtered.length})
           </CardTitle>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
