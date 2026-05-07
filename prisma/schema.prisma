@@ -314,3 +314,11 @@ model ServiceArea {
   is_active  Boolean  @default(true)
   created_at DateTime @default(now())
 }
+
+model AppSetting {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  key        String   @unique
+  value      Json
+  updated_at DateTime @updatedAt
+  created_at DateTime @default(now())
+}

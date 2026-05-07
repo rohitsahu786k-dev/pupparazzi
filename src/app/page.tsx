@@ -1,184 +1,136 @@
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
-  ChevronRight, Star, Shield, Clock, Award, CheckCircle2,
-  Sparkles, MapPin, Phone, ArrowRight, PawPrint,
-  Scissors, Home, Footprints, Stethoscope, GraduationCap, Waves,
-  Heart, Users, ThumbsUp,
+  ArrowRight,
+  Award,
+  CalendarCheck,
+  CheckCircle2,
+  Clock,
+  Footprints,
+  GraduationCap,
+  HeartPulse,
+  Home,
+  MapPin,
+  PawPrint,
+  Phone,
+  Scissors,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Stethoscope,
+  Waves,
 } from "lucide-react";
 
-const SERVICES = [
-  { id: 1, name: "Grooming",   icon: Scissors,      desc: "Premium bath, haircut & spa styling by certified groomers",       price: "999",  duration: "45–60 min", img: "/service-grooming.png" },
-  { id: 2, name: "Boarding",   icon: Home,           desc: "Luxury climate-controlled suites with 24/7 supervision",          price: "799",  duration: "Per night",  img: "/service-boarding.png" },
-  { id: 3, name: "Swimming",   icon: Waves,          desc: "Hydrotherapy and fun sessions in our pet-safe pool",              price: "499",  duration: "30–45 min", img: "/service-swimming.png" },
-  { id: 4, name: "Walking",    icon: Footprints,     desc: "Individual health walks with GPS tracking and live updates",      price: "299",  duration: "30–60 min", img: "/service-walking.png" },
-  { id: 5, name: "Veterinary", icon: Stethoscope,    desc: "Expert medical consultations and care at your doorstep",         price: "1499", duration: "30–45 min", img: "/service-veterinary.png" },
-  { id: 6, name: "Training",   icon: GraduationCap,  desc: "Positive reinforcement based behavior and obedience training",   price: "1999", duration: "60 min",    img: "/service-training.png" },
+const services = [
+  { name: "Grooming", icon: Scissors, image: "/service-grooming.png", price: "999", copy: "Bath, haircut, coat care, nail trim, and spa finishing." },
+  { name: "Boarding", icon: Home, image: "/service-boarding.png", price: "799", copy: "Supervised stays with clean suites and daily care updates." },
+  { name: "Walking", icon: Footprints, image: "/service-walking.png", price: "299", copy: "Structured walks for fitness, routine, and outdoor stimulation." },
+  { name: "Veterinary", icon: Stethoscope, image: "/service-veterinary.png", price: "1499", copy: "Home visits for routine consults and wellness checks." },
+  { name: "Training", icon: GraduationCap, image: "/service-training.png", price: "1999", copy: "Positive reinforcement programs for calmer everyday behavior." },
+  { name: "Swimming", icon: Waves, image: "/service-swimming.png", price: "499", copy: "Pet-safe pool sessions for fun, confidence, and conditioning." },
 ];
 
-const OFFERS = [
-  { id: 1, title: "50% OFF on First Grooming", code: "WELCOME50", desc: "For new customers only",   color: "border-primary/20 bg-primary/5 text-primary" },
-  { id: 2, title: "Flat Rs.200 off Boarding",  code: "STAY200",   desc: "Min. 2 nights stay",       color: "border-accent/20 bg-accent/5 text-accent" },
-  { id: 3, title: "Free Vet with Training",    code: "TRAINPLUS", desc: "Book any training package", color: "border-secondary/20 bg-secondary/5 text-secondary" },
+const proof = [
+  { value: "4.9/5", label: "parent rating" },
+  { value: "12k+", label: "bookings handled" },
+  { value: "24/7", label: "boarding care" },
+  { value: "500+", label: "pets profiled" },
 ];
 
-const STATS = [
-  { value: "50,000+", label: "Happy Pets Served",    icon: PawPrint },
-  { value: "4.9 / 5", label: "Average Rating",       icon: Star },
-  { value: "500+",    label: "Expert Professionals", icon: Users },
-  { value: "98%",     label: "Satisfaction Rate",    icon: ThumbsUp },
+const promises = [
+  { icon: ShieldCheck, title: "Verified Professionals", copy: "Every groomer, walker, trainer, and care partner is screened before assignment." },
+  { icon: HeartPulse, title: "Pet-First Handling", copy: "Temperament, allergies, vaccination status, and care notes travel with every booking." },
+  { icon: CalendarCheck, title: "Managed From Admin", copy: "Bookings, payments, service areas, client notes, and updates stay organized in one backend." },
 ];
 
-const HOW_IT_WORKS = [
-  { step: "01", icon: Scissors,     title: "Book Online",  desc: "Choose your service, pick a date and time that works for you. Takes under 2 minutes." },
-  { step: "02", icon: MapPin,       title: "We Arrive",    desc: "Our certified professional arrives at your location, fully equipped and on time." },
-  { step: "03", icon: PawPrint,     title: "Happy Pet",    desc: "Your pet gets premium care. You receive real-time updates and a detailed care report." },
-];
-
-const TESTIMONIALS = [
-  { name: "Priya Sharma",  location: "Satellite, Ahmedabad",  rating: 5, text: "Absolutely love Pupparazzi! Bruno gets so excited when the groomer arrives. The service is always on time and the team is so gentle with him. Highly recommend!", avatar: "PS", pet: "Golden Retriever — Bruno" },
-  { name: "Rahul Mehta",   location: "Bopal, Ahmedabad",      rating: 5, text: "Booked their boarding service when we went for vacation. Received daily photos of our cat Miso. Amazing peace of mind! The facility is spotlessly clean.",              avatar: "RM", pet: "Persian Cat — Miso" },
-  { name: "Anita Patel",   location: "Vastrapur, Ahmedabad",  rating: 5, text: "The vet visit was so convenient! No stressful car ride for my anxious dog. Dr. came home, was thorough and friendly. Will definitely use again.",                        avatar: "AP", pet: "Beagle — Coco" },
+const reviews = [
+  { name: "Priya Sharma", pet: "Bruno, Golden Retriever", text: "The grooming was polished, gentle, and on time. Bruno looked fresh without feeling stressed." },
+  { name: "Rahul Mehta", pet: "Miso, Persian Cat", text: "Boarding updates gave us real peace of mind. Clean facility, calm staff, great follow-up." },
+  { name: "Anita Patel", pet: "Coco, Beagle", text: "The vet visit at home saved us a stressful drive. Professional, patient, and thorough." },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="bg-background overflow-x-hidden">
-
-      {/* ── Hero ─────────────────────────────────────────── */}
-      <section className="relative w-full bg-white pt-14 pb-24 md:pt-28 md:pb-36 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(240,128,160,0.07),transparent_55%),radial-gradient(ellipse_at_bottom_left,rgba(32,192,208,0.06),transparent_55%)] pointer-events-none" />
-        <div className="container mx-auto px-4 lg:px-8 grid lg:grid-cols-2 gap-16 items-center">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 px-4 py-1.5 rounded-[10px] text-sm font-bold">
-              <Heart className="h-4 w-4 fill-current" /> Trusted by 50,000+ Pet Parents in Ahmedabad
+    <main className="bg-white text-foreground">
+      <section className="relative min-h-[88vh] overflow-hidden bg-foreground">
+        <Image
+          src="/hero-dog.png"
+          alt="Premium pet care at home"
+          fill
+          priority
+          className="object-cover opacity-70"
+          sizes="100vw"
+        />
+        <div className="absolute inset-0 bg-black/45" />
+        <div className="relative z-10 mx-auto flex min-h-[88vh] max-w-7xl flex-col justify-center px-4 py-24 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
+              <Sparkles className="h-4 w-4 text-accent" />
+              Premium pet care across Ahmedabad
             </div>
-            <h1 className="text-5xl md:text-6xl lg:text-[64px] font-extrabold text-foreground leading-[1.08] tracking-tight">
-              Premium Pet Care,{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
-                Delivered at Home.
-              </span>
+            <h1 className="max-w-3xl text-5xl font-extrabold leading-tight tracking-tight text-white md:text-7xl">
+              Pupparazzi pet care, booked beautifully.
             </h1>
-            <p className="text-xl text-secondary max-w-lg leading-relaxed">
-              Expert grooming, certified boarding, and professional vet services — because your furry friend deserves the absolute best.
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/82 md:text-xl">
+              Grooming, boarding, walking, training, swimming, and veterinary care with a polished booking experience and a backend built for daily operations.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Button size="lg" asChild>
-                <Link href="/book">Book a Service</Link>
+                <Link href="/book">Book Now</Link>
               </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="#services" className="flex items-center gap-2">
-                  Explore Services <ChevronRight className="h-4 w-4" />
-                </Link>
+              <Button size="lg" variant="outline" className="border-white/35 bg-white/10 text-white hover:bg-white/20" asChild>
+                <Link href="#services">Explore Services <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
             </div>
-            <div className="flex items-center gap-6 pt-2">
-              <div className="flex -space-x-3">
-                {["PS", "RM", "AP", "VG"].map((initials, i) => (
-                  <div key={i} className="w-10 h-10 rounded-full border-2 border-white bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold">
-                    {initials}
-                  </div>
-                ))}
-              </div>
-              <div className="text-sm">
-                <div className="flex items-center gap-0.5 mb-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-3.5 w-3.5 fill-accent text-accent" />)}
-                </div>
-                <span className="text-secondary font-medium">4.9 / 5 from 12,000+ reviews</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative hidden lg:block">
-            <div className="absolute -inset-4 bg-gradient-to-br from-primary/10 to-accent/10 rounded-[10px] rotate-2 opacity-70" />
-            <div className="relative z-10 rounded-[10px] overflow-hidden shadow-2xl border-8 border-white">
-              <Image src="/hero-dog.png" alt="Happy pampered pet" width={600} height={600} className="w-full h-auto object-cover" priority />
-            </div>
-            <div className="absolute -bottom-4 -left-8 bg-white p-4 rounded-[10px] shadow-xl border border-border z-20 flex items-center gap-3">
-              <div className="w-10 h-10 bg-accent rounded-[10px] flex items-center justify-center text-white">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-[10px] text-secondary font-bold uppercase tracking-wider">Verified</div>
-                <div className="text-sm font-bold text-foreground">Certified Groomers</div>
-              </div>
-            </div>
-            <div className="absolute top-8 -right-6 bg-white p-4 rounded-[10px] shadow-xl border border-border z-20 flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-[10px] flex items-center justify-center text-white">
-                <Award className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-[10px] text-secondary font-bold uppercase tracking-wider">#1 Rated</div>
-                <div className="text-sm font-bold text-foreground">Pet Store Ahmedabad</div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* ── Stats Bar ─────────────────────────────────────── */}
-      <section className="w-full bg-foreground py-10">
-        <div className="container mx-auto px-4 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {STATS.map((s) => {
-              const Icon = s.icon;
-              return (
-                <div key={s.label} className="flex flex-col items-center gap-2">
-                  <Icon className="h-5 w-5 text-accent" />
-                  <div className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">{s.value}</div>
-                  <div className="text-xs text-slate-400 font-medium">{s.label}</div>
-                </div>
-              );
-            })}
-          </div>
+      <section className="-mt-12 relative z-20 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-3 rounded-lg border border-border bg-white p-4 shadow-xl md:grid-cols-4">
+          {proof.map((item) => (
+            <div key={item.label} className="px-4 py-5 text-center">
+              <p className="text-3xl font-extrabold text-foreground">{item.value}</p>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">{item.label}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ── Offers ────────────────────────────────────────── */}
-      <section className="w-full py-12 bg-white border-b border-border">
-        <div className="container mx-auto px-4 lg:px-8">
-          <div className="flex overflow-x-auto gap-5 pb-3 hide-scrollbar snap-x">
-            {OFFERS.map((offer) => (
-              <div key={offer.id} className={`min-w-[300px] ${offer.color} border rounded-[10px] p-5 flex-shrink-0 flex items-center gap-5 hover:shadow-md transition-all cursor-pointer snap-start`}>
-                <div className="w-11 h-11 bg-white rounded-[10px] flex items-center justify-center shadow-sm flex-shrink-0 border border-border">
-                  <Sparkles className="h-5 w-5 text-current opacity-60" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-foreground text-sm">{offer.title}</h4>
-                  <p className="text-xs text-secondary mt-0.5">{offer.desc}</p>
-                  <p className="text-xs font-bold mt-1.5 opacity-80">Code: <span className="font-black uppercase tracking-wide">{offer.code}</span></p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Services ──────────────────────────────────────── */}
-      <section id="services" className="w-full py-20 bg-muted">
-        <div className="container mx-auto px-4 lg:px-8 space-y-10">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <section id="services" className="py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-xs font-bold text-primary tracking-widest uppercase mb-2">What We Offer</p>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">Our Premium Services</h2>
-              <p className="text-secondary mt-2 max-w-md text-sm">Everything your pet needs, from a quick bath to a luxury boarding stay.</p>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">Services</p>
+              <h2 className="mt-3 text-4xl font-extrabold tracking-tight md:text-5xl">Designed for pets with standards.</h2>
             </div>
             <Button variant="outline" asChild>
-              <Link href="/book" className="flex items-center gap-1">View All <ArrowRight className="h-4 w-4" /></Link>
+              <Link href="/book">See Availability <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           </div>
 
-          <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar snap-x">
-            {SERVICES.map((service) => {
+          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {services.map((service) => {
               const Icon = service.icon;
               return (
-                <Link href={`/book?service=${service.name.toLowerCase()}`} key={service.id} className="flex flex-col items-center gap-3 min-w-[110px] snap-start group cursor-pointer flex-shrink-0">
-                  <div className="w-22 h-22 rounded-full bg-white shadow border border-border overflow-hidden transition-all group-hover:scale-110 group-hover:shadow-lg group-hover:border-primary/30">
-                    <Image src={service.img} alt={service.name} width={88} height={88} className="w-full h-full object-cover" />
+                <Link key={service.name} href={`/book?service=${service.name.toLowerCase()}`} className="group overflow-hidden rounded-lg border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+                  <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+                    <Image src={service.image} alt={service.name} fill className="object-cover transition duration-500 group-hover:scale-105" sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw" />
+                    <div className="absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-lg bg-white/92 text-primary shadow">
+                      <Icon className="h-5 w-5" />
+                    </div>
                   </div>
-                  <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{service.name}</span>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <h3 className="text-xl font-bold">{service.name}</h3>
+                      <span className="rounded-lg bg-muted px-3 py-1 text-sm font-bold">Rs. {service.price}+</span>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">{service.copy}</p>
+                    <div className="mt-5 flex items-center text-sm font-bold text-primary">
+                      Book service <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-1" />
+                    </div>
+                  </div>
                 </Link>
               );
             })}
@@ -186,183 +138,114 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Popular Services Grid ─────────────────────────── */}
-      <section className="w-full py-20 bg-white">
-        <div className="container mx-auto px-4 lg:px-8 space-y-10">
-          <div>
-            <p className="text-xs font-bold text-primary tracking-widest uppercase mb-2">Most Booked</p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">Popular in Ahmedabad</h2>
+      <section className="bg-muted py-20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+          <div className="relative min-h-[520px] overflow-hidden rounded-lg">
+            <Image src="/service-boarding.png" alt="Luxury boarding care" fill className="object-cover" sizes="(min-width:1024px) 45vw, 100vw" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {SERVICES.map((service) => {
-              const Icon = service.icon;
-              return (
-                <Link href={`/book?service=${service.name.toLowerCase()}`} key={service.id}>
-                  <Card className="border-none shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden group cursor-pointer h-full rounded-[10px]">
-                    <div className="h-52 w-full relative overflow-hidden">
-                      <Image src={service.img} alt={service.name} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/10 to-transparent" />
-                      <div className="absolute top-4 left-4">
-                        <span className="bg-gradient-to-r from-primary to-accent text-white text-[9px] font-black px-2.5 py-1 rounded-[10px] uppercase tracking-widest">Featured</span>
-                      </div>
-                      <div className="absolute bottom-4 left-5 flex items-center gap-2">
-                        <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-[10px] flex items-center justify-center">
-                          <Icon className="h-4 w-4 text-white" />
-                        </div>
-                        <h3 className="text-xl font-bold text-white">{service.name}</h3>
-                      </div>
-                    </div>
-                    <CardContent className="p-5 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-secondary text-xs font-medium flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" /> {service.duration}
-                        </span>
-                        <span className="bg-accent/10 text-accent text-xs font-bold px-2.5 py-1 rounded-[10px] flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-current" /> 4.9
-                        </span>
-                      </div>
-                      <p className="text-secondary text-sm leading-relaxed line-clamp-2">{service.desc}</p>
-                      <div className="pt-3 border-t border-border flex items-center justify-between">
-                        <div>
-                          <span className="text-xs text-secondary block mb-0.5">Starting from</span>
-                          <span className="text-lg font-extrabold text-foreground">Rs. {service.price}</span>
-                        </div>
-                        <Button size="sm">Book Now</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ── How It Works ──────────────────────────────────── */}
-      <section className="w-full py-24 bg-foreground">
-        <div className="container mx-auto px-4 lg:px-8">
-          <div className="text-center mb-16">
-            <p className="text-xs font-bold text-accent tracking-widest uppercase mb-3">Simple Process</p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">How It Works</h2>
-            <p className="text-slate-400 mt-3 max-w-lg mx-auto text-sm">Professional pet care in under 2 minutes. Here is how:</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            <div className="hidden md:block absolute top-10 left-[calc(16.67%+1rem)] right-[calc(16.67%+1rem)] h-px bg-gradient-to-r from-primary/40 via-accent/60 to-primary/40" />
-            {HOW_IT_WORKS.map((step, i) => {
-              const Icon = step.icon;
-              return (
-                <div key={i} className="text-center space-y-5">
-                  <div className="relative inline-flex flex-col items-center">
-                    <div className="w-20 h-20 rounded-[10px] bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto shadow-lg">
-                      <Icon className="h-8 w-8 text-white" />
-                    </div>
-                    <span className="absolute -top-2 -right-2 w-6 h-6 bg-white text-foreground text-[10px] font-black rounded-[10px] flex items-center justify-center shadow">{step.step}</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-white">{step.title}</h3>
-                  <p className="text-slate-400 leading-relaxed text-sm max-w-xs mx-auto">{step.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-          <div className="text-center mt-14">
-            <Button size="lg" variant="accent" asChild>
-              <Link href="/book">Get Started — It is Free</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Testimonials ──────────────────────────────────── */}
-      <section className="w-full py-24 bg-muted">
-        <div className="container mx-auto px-4 lg:px-8">
-          <div className="text-center mb-14">
-            <p className="text-xs font-bold text-primary tracking-widest uppercase mb-3">Reviews</p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">What Our Customers Say</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((t, i) => (
-              <Card key={i} className="border border-border shadow-sm hover:shadow-xl transition-all rounded-[10px] h-full">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center gap-0.5">
-                    {Array.from({ length: t.rating }).map((_, j) => (
-                      <Star key={j} className="h-4 w-4 fill-accent text-accent" />
-                    ))}
-                  </div>
-                  <p className="text-secondary text-sm leading-relaxed">&ldquo;{t.text}&rdquo;</p>
-                  <div className="flex items-center gap-3 pt-2 border-t border-border">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                      {t.avatar}
+          <div className="flex flex-col justify-center">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Why Pupparazzi</p>
+            <h2 className="mt-3 text-4xl font-extrabold tracking-tight md:text-5xl">A premium front desk and a serious operating system.</h2>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
+              Pet care businesses need more than a pretty booking form. Pupparazzi connects customer bookings, service areas, pet profiles, admin notes, payment status, invoices, and email updates.
+            </p>
+            <div className="mt-8 space-y-4">
+              {promises.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="flex gap-4 rounded-lg border bg-white p-5">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-foreground text-white">
+                      <Icon className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="font-bold text-sm text-foreground">{t.name}</p>
-                      <p className="text-xs text-secondary">{t.pet}</p>
-                    </div>
-                    <div className="ml-auto flex items-center gap-1 text-xs text-secondary">
-                      <MapPin className="h-3 w-3" /> {t.location}
+                      <h3 className="font-bold">{item.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.copy}</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── Why Pupparazzi ────────────────────────────────── */}
-      <section className="w-full py-20 bg-white border-t border-border">
-        <div className="container mx-auto px-4 lg:px-8">
-          <div className="text-center mb-14">
-            <p className="text-xs font-bold text-primary tracking-widest uppercase mb-3">Our Promise</p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">Why Choose Pupparazzi?</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section className="py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-8 lg:grid-cols-3">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">Experience</p>
+              <h2 className="mt-3 text-4xl font-extrabold tracking-tight">From booking to happy handoff.</h2>
+            </div>
             {[
-              { icon: <Clock className="h-7 w-7" />,    color: "bg-primary/10 text-primary", title: "On-Time, Every Time",   desc: "Punctuality is our promise. Our professionals arrive at the exact scheduled time — no waiting, no last-minute surprises." },
-              { icon: <Shield className="h-7 w-7" />,   color: "bg-accent/10 text-accent",   title: "Vetted and Insured",    desc: "Every groomer and vet undergoes a rigorous 5-step background check, skill certification, and is fully insured for your safety." },
-              { icon: <Sparkles className="h-7 w-7" />, color: "bg-primary/10 text-primary", title: "Premium Products Only", desc: "We use certified, organic, and pet-safe products from globally trusted brands. No shortcuts — ever." },
-            ].map((item, i) => (
-              <div key={i} className="space-y-5 p-7 rounded-[10px] border border-border hover:shadow-lg transition-all">
-                <div className={`w-14 h-14 rounded-[10px] ${item.color} flex items-center justify-center`}>
-                  {item.icon}
+              { icon: CalendarCheck, title: "Choose", copy: "Select service, pet profile, address, date, and slot." },
+              { icon: Award, title: "Assign", copy: "Admin confirms, tracks payment, records notes, and manages the job." },
+              { icon: CheckCircle2, title: "Care", copy: "Customer gets updates while your team keeps operations clean." },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.title} className="rounded-lg border bg-white p-6 shadow-sm">
+                  <Icon className="h-8 w-8 text-accent" />
+                  <h3 className="mt-5 text-xl font-bold">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.copy}</p>
                 </div>
-                <h3 className="text-xl font-bold text-foreground">{item.title}</h3>
-                <p className="text-secondary leading-relaxed text-sm">{item.desc}</p>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y bg-foreground py-20 text-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Reviews</p>
+              <h2 className="mt-3 text-4xl font-extrabold tracking-tight">Loved by pet parents.</h2>
+            </div>
+            <div className="flex items-center gap-1 text-accent">
+              {Array.from({ length: 5 }).map((_, index) => <Star key={index} className="h-5 w-5 fill-current" />)}
+            </div>
+          </div>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {reviews.map((review) => (
+              <div key={review.name} className="rounded-lg border border-white/12 bg-white/8 p-6">
+                <p className="text-sm leading-7 text-white/78">&ldquo;{review.text}&rdquo;</p>
+                <div className="mt-6 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-sm font-black text-foreground">
+                    {review.name.split(" ").map((part) => part[0]).join("")}
+                  </div>
+                  <div>
+                    <p className="font-bold">{review.name}</p>
+                    <p className="text-xs text-white/58">{review.pet}</p>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Final CTA ─────────────────────────────────────── */}
-      <section className="w-full py-20 bg-gradient-to-br from-foreground via-foreground to-foreground relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(240,128,160,0.12),transparent_65%)] pointer-events-none" />
-        <div className="container mx-auto px-4 lg:px-8 text-center relative z-10">
-          <div className="w-16 h-16 rounded-[10px] bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-6">
-            <PawPrint className="h-8 w-8 text-white" />
+      <section className="py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid overflow-hidden rounded-lg border bg-white shadow-xl lg:grid-cols-[1fr_0.85fr]">
+            <div className="p-8 md:p-12">
+              <PawPrint className="h-10 w-10 text-primary" />
+              <h2 className="mt-5 max-w-2xl text-4xl font-extrabold tracking-tight">Ready to make pet care feel premium from the first click?</h2>
+              <p className="mt-4 max-w-xl text-muted-foreground">Book a service today or speak with Pupparazzi for custom care plans, boarding, and recurring schedules.</p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Button size="lg" asChild><Link href="/book">Book a Service</Link></Button>
+                <Button size="lg" variant="outline" asChild><Link href="tel:+919999999999"><Phone className="mr-2 h-4 w-4" /> Call Pupparazzi</Link></Button>
+              </div>
+              <p className="mt-8 flex items-start gap-2 text-sm text-muted-foreground">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                Shop No 11,12, Shaligram Lakeview, Sardar Patel Ring Rd, Ahmedabad, Gujarat 382501
+              </p>
+            </div>
+            <div className="relative min-h-[360px]">
+              <Image src="/service-grooming.png" alt="Premium grooming finish" fill className="object-cover" sizes="(min-width:1024px) 42vw, 100vw" />
+            </div>
           </div>
-          <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-5 tracking-tight">
-            Your Pet Deserves the Best.{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Give It to Them.</span>
-          </h2>
-          <p className="text-slate-400 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
-            Join 50,000+ happy pet parents in Ahmedabad. Book a service today and get 50% off your first grooming with code{" "}
-            <strong className="text-white font-bold">WELCOME50</strong>.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" asChild>
-              <Link href="/book">Book Your First Service</Link>
-            </Button>
-            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10" asChild>
-              <Link href="/contact" className="flex items-center gap-2"><Phone className="h-4 w-4" /> Contact Us</Link>
-            </Button>
-          </div>
-          <p className="text-slate-500 text-sm mt-8 flex items-center justify-center gap-2">
-            <MapPin className="h-4 w-4" />
-            Shop No 11,12, Shaligram Lakeview, Sardar Patel Ring Rd, Ahmedabad, Gujarat 382501
-          </p>
         </div>
       </section>
-
-    </div>
+    </main>
   );
 }

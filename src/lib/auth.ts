@@ -38,6 +38,9 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.password_hash) {
           throw new Error("Invalid credentials");
         }
+        if (!user.emailVerified) {
+          throw new Error("EMAIL_NOT_VERIFIED");
+        }
         const isValid = await bcrypt.compare(credentials.password, user.password_hash);
         if (!isValid) throw new Error("Invalid credentials");
         return { id: user.id, name: user.name, email: user.email, role: user.role };
@@ -49,8 +52,11 @@ export const authOptions: NextAuthOptions = {
       // For Google OAuth, ensure user has CLIENT role
       if (account?.provider === "google" && user?.email) {
         const existingUser = await prisma.user.findUnique({ where: { email: user.email } });
-        if (existingUser && !existingUser.role) {
-          await prisma.user.update({ where: { id: existingUser.id }, data: { role: "CLIENT" } });
+        if (existingUser) {
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { role: existingUser.role || "CLIENT", emailVerified: existingUser.emailVerified || new Date() },
+          });
         }
       }
       return true;

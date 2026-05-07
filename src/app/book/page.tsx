@@ -10,6 +10,11 @@ import Link from "next/link";
 
 interface Service { id:string; name:string; category:string; description_short:string|null; price:number; discounted_price:number|null; }
 interface Pet { id:string; name:string; type:string; breed:string|null; }
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
 
 const PET_TYPES = ["Dog","Cat","Bird","Rabbit","Fish","Other"];
 const SIZES = ["Small","Medium","Large","Giant"];
@@ -117,16 +122,95 @@ export default function BookingFlow() {
     );
   }
 
-  async function placeBooking(){
+  async function createBooking(){
     setSubmitting(true); setError("");
-    try{
-      const res = await fetch("/api/bookings",{ method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ client_id:(session?.user as any)?.id, pet_id:selectedPet, service_id:selectedService, slot_date:days[selectedDate].toISOString(), slot_time:selectedTime, notes:address.line1?`Address: ${address.line1}, ${address.city}, ${address.state} ${address.pincode}`:undefined })
+    const res = await fetch("/api/bookings",{ method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          client_id:(session?.user as any)?.id,
+          pet_id:selectedPet,
+          service_id:selectedService,
+          slot_date:days[selectedDate].toISOString(),
+          slot_time:selectedTime,
+          address,
+          notes: undefined,
+        })
       });
-      if(!res.ok){ setError("Booking failed"); setSubmitting(false); return; }
+    if(!res.ok){ setError("Booking failed"); setSubmitting(false); return null; }
+    return await res.json();
+  }
+
+  async function placeBooking(){
+    try{
+      const booking = await createBooking();
+      if (!booking) return;
       router.push("/dashboard?booked=true");
     } catch{ setError("Error placing booking"); }
     setSubmitting(false);
+  }
+
+  async function loadRazorpay() {
+    if (window.Razorpay) return true;
+    return new Promise<boolean>((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }
+
+  async function payOnlineAndBook() {
+    try {
+      const booking = await createBooking();
+      if (!booking) return;
+      const loaded = await loadRazorpay();
+      if (!loaded) {
+        setError("Unable to load payment gateway");
+        setSubmitting(false);
+        return;
+      }
+      const total = price + tax;
+      const orderRes = await fetch("/api/payments/razorpay/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: total, receipt: booking.booking_id, notes: { bookingId: booking.id } }),
+      });
+      const order = await orderRes.json();
+      if (!orderRes.ok) {
+        setError(order.message || "Online payment is not configured");
+        setSubmitting(false);
+        return;
+      }
+      const razorpay = new window.Razorpay({
+        key: order.key,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Pupparazzi",
+        description: svc?.name || "Pet care booking",
+        order_id: order.id,
+        handler: async (response: any) => {
+          const verifyRes = await fetch("/api/payments/razorpay/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...response, bookingId: booking.id, amount: total }),
+          });
+          if (verifyRes.ok) router.push("/dashboard?booked=true&paid=true");
+          else setError("Payment verification failed. Please contact support.");
+          setSubmitting(false);
+        },
+        prefill: {
+          name: session?.user?.name || "",
+          email: session?.user?.email || "",
+          contact: address.phone,
+        },
+        theme: { color: "#F080A0" },
+        modal: { ondismiss: () => setSubmitting(false) },
+      });
+      razorpay.open();
+    } catch {
+      setError("Error starting payment");
+      setSubmitting(false);
+    }
   }
 
   const svc = services.find(s=>s.id===selectedService);
@@ -318,6 +402,9 @@ export default function BookingFlow() {
                   <Button variant="outline" className="w-full h-11 font-bold" onClick={()=>setStep(3)}>← Back</Button>
                   <Button className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 text-lg" onClick={placeBooking} disabled={submitting}>
                     {submitting?<><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Placing...</>:"Place Booking"}
+                  </Button>
+                  <Button className="w-full bg-accent hover:bg-accent/90 text-white font-bold h-12 text-lg" onClick={payOnlineAndBook} disabled={submitting}>
+                    {submitting?<><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Processing...</>:"Pay Online & Book"}
                   </Button>
                 </div>}
               </CardContent>

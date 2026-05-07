@@ -1,14 +1,12 @@
 import nodemailer from "nodemailer";
+import { DEFAULT_SMTP_SETTINGS, getSetting } from "@/lib/settings";
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
+export const SITE_URL = (
+  process.env.NEXTAUTH_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
+  "https://pupparazzi.iprixmedia.com"
+).replace(/\/$/, "");
 
 export const BUSINESS = {
   name: "Pupparazzi Pet Store & Grooming Salon",
@@ -16,7 +14,7 @@ export const BUSINESS = {
   email: "pupparazzipetstore@gmail.com",
   address: "Shop No 11,12, Shaligram Lakeview, Wind Park, Sardar Patel Ring Rd, opp. Balaji, near Vaishnodevi Circle, Ahmedabad, Gujarat 382501",
   gst: "24AAXFP9081F1ZN",
-  website: process.env.NEXTAUTH_URL || "https://pupparazzi.vercel.app",
+  website: SITE_URL,
   get logo() {
     return `${this.website}/pupparazzi-logo.png`;
   },
@@ -363,6 +361,25 @@ export function welcomeEmailHtml(data: { userName: string; email: string }) {
   return baseLayout(body, `Welcome to Pupparazzi, ${data.userName}! Your pet's happiness is our mission.`);
 }
 
+export function emailVerificationOtpHtml(data: { userName: string; otp: string }) {
+  const body = `
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:40px 48px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:30px;font-weight:800;color:#FFFFFF;line-height:1.2;">Verify your email</h1>
+      <p style="margin:0;font-size:16px;color:#94A3B8;">Use this OTP to finish creating your Pupparazzi account.</p>
+    </div>
+
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Enter this code on the verification screen. It expires in 10 minutes.</p>
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:16px;padding:24px;text-align:center;margin-bottom:28px;">
+        <p style="margin:0;font-family:'Courier New',monospace;font-size:36px;font-weight:800;color:#EC4899;letter-spacing:0.18em;">${data.otp}</p>
+      </div>
+      <p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">If you did not request this code, you can ignore this email.</p>
+    </div>`;
+
+  return baseLayout(body, `Your ${BUSINESS.shortName} verification OTP is ${data.otp}`);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // TEMPLATE 4 – BOOKING CANCELLATION
 // ═══════════════════════════════════════════════════════════════
@@ -424,6 +441,37 @@ export function cancellationEmailHtml(data: {
   return baseLayout(body, `Your booking ${data.bookingId} has been cancelled`);
 }
 
+export function bookingStatusEmailHtml(data: {
+  userName: string;
+  bookingId: string;
+  serviceName: string;
+  petName: string;
+  status: string;
+  slotDate: string;
+  slotTime: string;
+}) {
+  const body = `
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:36px 48px 32px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:28px;font-weight:800;color:#FFFFFF;line-height:1.2;">Booking ${data.status}</h1>
+      <p style="margin:0;font-size:15px;color:#94A3B8;line-height:1.6;">Your Pupparazzi booking status has been updated.</p>
+    </div>
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong>,</p>
+      ${sectionTitle("Booking Details")}
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        ${infoRow("Booking ID", data.bookingId)}
+        ${infoRow("Status", data.status)}
+        ${infoRow("Service", data.serviceName)}
+        ${infoRow("Pet", data.petName)}
+        ${infoRow("Appointment", `${data.slotDate} at ${data.slotTime}`)}
+      </table>
+      ${primaryButton("View Booking", `${BUSINESS.website}/dashboard`)}
+      <p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">Questions? Reply to this email or contact us at <a href="mailto:${BUSINESS.email}" style="color:#EC4899;text-decoration:none;">${BUSINESS.email}</a></p>
+    </div>`;
+
+  return baseLayout(body, `Your booking ${data.bookingId} is now ${data.status}`);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // SEND FUNCTIONS
 // ═══════════════════════════════════════════════════════════════
@@ -437,8 +485,18 @@ interface MailOptions {
 
 export async function sendMail({ to, subject, html, attachments }: MailOptions) {
   try {
+    const smtp = await getSetting("smtp", DEFAULT_SMTP_SETTINGS);
+    const transporter = nodemailer.createTransport({
+      host: smtp.host,
+      port: Number(smtp.port),
+      secure: Boolean(smtp.secure),
+      auth: {
+        user: smtp.user,
+        pass: smtp.pass,
+      },
+    });
     const info = await transporter.sendMail({
-      from: `"${BUSINESS.name}" <${process.env.GMAIL_USER}>`,
+      from: `"${smtp.fromName || BUSINESS.name}" <${smtp.fromEmail || smtp.user || process.env.GMAIL_USER}>`,
       to,
       subject,
       html,
@@ -487,10 +545,26 @@ export async function sendWelcomeEmail(to: string, data: Parameters<typeof welco
   });
 }
 
+export async function sendEmailVerificationOtp(to: string, data: Parameters<typeof emailVerificationOtpHtml>[0]) {
+  return sendMail({
+    to,
+    subject: `${data.otp} is your ${BUSINESS.shortName} verification OTP`,
+    html: emailVerificationOtpHtml(data),
+  });
+}
+
 export async function sendCancellationEmail(to: string, data: Parameters<typeof cancellationEmailHtml>[0]) {
   return sendMail({
     to,
     subject: `Booking Cancelled – ${data.bookingId} | ${BUSINESS.shortName}`,
     html: cancellationEmailHtml(data),
+  });
+}
+
+export async function sendBookingStatusEmail(to: string, data: Parameters<typeof bookingStatusEmailHtml>[0]) {
+  return sendMail({
+    to,
+    subject: `Booking ${data.status} - ${data.bookingId} | ${BUSINESS.shortName}`,
+    html: bookingStatusEmailHtml(data),
   });
 }

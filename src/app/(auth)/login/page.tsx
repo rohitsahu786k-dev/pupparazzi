@@ -15,6 +15,8 @@ function LoginContent() {
   const { status } = useSession();
 
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [otp, setOtp] = useState("");
+  const [verificationPending, setVerificationPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -46,13 +48,78 @@ function LoginContent() {
         password: formData.password,
       });
       if (res?.error) {
-        setError("Invalid email or password");
+        if (res.error === "EMAIL_NOT_VERIFIED") {
+          const resend = await fetch("/api/auth/resend-verification", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: formData.email }),
+          });
+          if (resend.ok) {
+            setVerificationPending(true);
+            setError("");
+            return;
+          }
+          setError("Please verify your email before logging in.");
+        } else {
+          setError("Invalid email or password");
+        }
       } else {
         window.location.href = callbackUrl;
         return;
       }
     } catch {
       setError("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const verifyRes = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email, otp }),
+      });
+      const data = await verifyRes.json();
+      if (!verifyRes.ok) {
+        setError(data.message || "OTP verification failed");
+        return;
+      }
+      const signInRes = await signIn("credentials", {
+        redirect: false,
+        email: formData.email,
+        password: formData.password,
+      });
+      if (signInRes?.error) {
+        setError("Email verified. Please enter your password again.");
+        setVerificationPending(false);
+        return;
+      }
+      window.location.href = callbackUrl;
+    } catch {
+      setError("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      const data = await res.json();
+      if (!res.ok) setError(data.message || "Unable to resend OTP");
+    } catch {
+      setError("Unable to resend OTP");
     } finally {
       setLoading(false);
     }
@@ -88,15 +155,22 @@ function LoginContent() {
 
         <div className="max-w-md w-full mx-auto space-y-8">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-foreground">Login</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">{verificationPending ? "Verify Email" : "Login"}</h2>
             <p className="text-secondary mt-2">
-              New here?{" "}
-              <Link href="/register" className="text-primary font-bold hover:underline">
-                Create an account
-              </Link>
+              {verificationPending ? (
+                <>Enter the OTP sent to <span className="font-semibold text-foreground">{formData.email}</span></>
+              ) : (
+                <>New here?{" "}
+                  <Link href="/register" className="text-primary font-bold hover:underline">
+                    Create an account
+                  </Link>
+                </>
+              )}
             </p>
           </div>
 
+          {!verificationPending && (
+          <>
           {/* Google Login */}
           <button
             onClick={handleGoogleLogin}
@@ -124,8 +198,32 @@ function LoginContent() {
               <span className="bg-white px-4 text-secondary font-medium">or login with email</span>
             </div>
           </div>
+          </>
+          )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={verificationPending ? handleVerifyOtp : handleSubmit} className="space-y-4">
+            {verificationPending ? (
+              <>
+                <Input
+                  id="otp"
+                  name="otp"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Enter 6-digit OTP"
+                  required
+                  value={otp}
+                  onChange={(e) => {
+                    setOtp(e.target.value);
+                    setError("");
+                  }}
+                  className="h-14 bg-white border-2 border-border rounded-sm focus-visible:ring-0 focus-visible:border-accent font-medium text-center tracking-[0.3em]"
+                />
+                <button type="button" onClick={handleResendOtp} disabled={loading} className="text-xs font-bold text-primary hover:underline disabled:opacity-50">
+                  Resend OTP
+                </button>
+              </>
+            ) : (
+            <>
             <Input
               id="email"
               name="email"
@@ -160,6 +258,8 @@ function LoginContent() {
                 Forgot password?
               </Link>
             </div>
+            </>
+            )}
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 text-sm font-medium px-4 py-3 rounded-sm">
@@ -172,15 +272,17 @@ function LoginContent() {
               className="w-full h-14 bg-primary text-white font-bold text-lg rounded-sm hover:bg-primary/90 transition-colors"
               disabled={loading || googleLoading}
             >
-              {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Logging in...</> : "Login"}
+              {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> {verificationPending ? "Verifying..." : "Logging in..."}</> : verificationPending ? "Verify & Login" : "Login"}
             </Button>
 
+            {!verificationPending && (
             <p className="text-xs text-secondary text-center leading-5">
               By logging in, I accept the{" "}
               <Link href="/terms" className="text-foreground font-bold hover:underline">Terms & Conditions</Link>{" "}
               &{" "}
               <Link href="/privacy" className="text-foreground font-bold hover:underline">Privacy Policy</Link>
             </p>
+            )}
           </form>
         </div>
       </div>

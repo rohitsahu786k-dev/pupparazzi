@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter();
-  const [step, setStep] = useState(1); // Step 1: Account, Step 2: Profile
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
+  const verifyEmail = searchParams?.get("verifyEmail") || "";
+  const [step, setStep] = useState(verifyEmail ? 2 : 1);
   const [formData, setFormData] = useState({
-    name: "", email: "", phone: "", password: "", confirmPassword: "",
+    name: "", email: verifyEmail, phone: "", password: "", confirmPassword: "", otp: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -28,7 +31,7 @@ export default function RegisterPage() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/dashboard" });
+      await signIn("google", { callbackUrl });
     } catch {
       setError("Google sign-in failed. Please try again.");
       setGoogleLoading(false);
@@ -63,18 +66,57 @@ export default function RegisterPage() {
         setError(data.message || "Registration failed");
         return;
       }
-      const signInRes = await signIn("credentials", {
-        redirect: false,
-        email: formData.email,
-        password: formData.password,
-      });
-      if (signInRes?.error) {
-        setError(signInRes.error);
-      } else {
-        router.push("/dashboard");
-      }
+      setStep(2);
     } catch {
       setError("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email, otp: formData.otp }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || "OTP verification failed");
+        return;
+      }
+      if (formData.password) {
+        await signIn("credentials", {
+          redirect: false,
+          email: formData.email,
+          password: formData.password,
+        });
+      }
+      router.push(callbackUrl);
+    } catch {
+      setError("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      const data = await res.json();
+      if (!res.ok) setError(data.message || "Unable to resend OTP");
+    } catch {
+      setError("Unable to resend OTP");
     } finally {
       setLoading(false);
     }
@@ -109,13 +151,18 @@ export default function RegisterPage() {
 
         <div className="max-w-md w-full mx-auto space-y-8">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-foreground">Create Account</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">{step === 1 ? "Create Account" : "Verify Email"}</h2>
             <p className="text-secondary mt-2">
-              Already have an account?{" "}
-              <Link href="/login" className="text-primary font-bold hover:underline">Login</Link>
+              {step === 1 ? (
+                <>Already have an account? <Link href="/login" className="text-primary font-bold hover:underline">Login</Link></>
+              ) : (
+                <>Enter the OTP sent to <span className="font-semibold text-foreground">{formData.email}</span></>
+              )}
             </p>
           </div>
 
+          {step === 1 && (
+          <>
           {/* Google Sign up */}
           <button
             onClick={handleGoogleLogin}
@@ -139,8 +186,24 @@ export default function RegisterPage() {
               <span className="bg-white px-4 text-secondary font-medium">or sign up with email</span>
             </div>
           </div>
+          </>
+          )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={step === 1 ? handleSubmit : handleVerifyOtp} className="space-y-4">
+            {step === 2 ? (
+              <>
+                <Input
+                  id="otp" name="otp" inputMode="numeric" maxLength={6}
+                  placeholder="Enter 6-digit OTP"
+                  required value={formData.otp} onChange={handleChange}
+                  className="h-14 bg-white border-2 border-border rounded-sm focus-visible:ring-0 focus-visible:border-accent font-medium text-center tracking-[0.3em]"
+                />
+                <button type="button" onClick={handleResendOtp} disabled={loading} className="text-xs font-bold text-primary hover:underline disabled:opacity-50">
+                  Resend OTP
+                </button>
+              </>
+            ) : (
+            <>
             <Input
               id="phone" name="phone" type="tel"
               placeholder="Mobile Number"
@@ -179,6 +242,8 @@ export default function RegisterPage() {
               required value={formData.confirmPassword} onChange={handleChange}
               className="h-14 bg-white border-2 border-border rounded-sm focus-visible:ring-0 focus-visible:border-accent font-medium"
             />
+            </>
+            )}
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 text-sm font-medium px-4 py-3 rounded-sm">
@@ -189,18 +254,28 @@ export default function RegisterPage() {
             <Button type="submit"
               className="w-full h-14 bg-primary text-white font-bold text-lg rounded-sm hover:bg-primary/90"
               disabled={loading || googleLoading}>
-              {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Creating account...</> : "Create Account"}
+              {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> {step === 1 ? "Sending OTP..." : "Verifying..."}</> : step === 1 ? "Create Account" : "Verify & Continue"}
             </Button>
 
+            {step === 1 && (
             <p className="text-xs text-secondary text-center leading-5">
               By creating an account, I accept the{" "}
               <Link href="/terms" className="text-foreground font-bold hover:underline">Terms & Conditions</Link>{" "}
               &{" "}
               <Link href="/privacy" className="text-foreground font-bold hover:underline">Privacy Policy</Link>
             </p>
+            )}
           </form>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <RegisterContent />
+    </Suspense>
   );
 }

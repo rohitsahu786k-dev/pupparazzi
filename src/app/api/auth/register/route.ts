@@ -1,22 +1,23 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { sendWelcomeEmail } from "@/lib/mailer";
+import { sendVerificationOtp } from "@/lib/email-verification";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { name, email, phone, password } = body;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
 
-    if (!email || !password || !name) {
+    if (!normalizedEmail || !password || !name) {
       return NextResponse.json(
         { message: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
+    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existingUser?.emailVerified) {
       return NextResponse.json(
         { message: "User with this email already exists" },
         { status: 409 }
@@ -24,15 +25,18 @@ export async function POST(req: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await prisma.user.create({
-      data: { name, email, phone, password_hash: hashedPassword },
-    });
+    const user = existingUser
+      ? await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { name, email: normalizedEmail, phone, password_hash: hashedPassword },
+        })
+      : await prisma.user.create({
+          data: { name, email: normalizedEmail, phone, password_hash: hashedPassword },
+        });
 
-    // Send welcome email (non-blocking)
-    sendWelcomeEmail(email, { userName: name, email }).catch(console.error);
-
+    await sendVerificationOtp(normalizedEmail, name);
     return NextResponse.json(
-      { message: "User registered successfully", user: { id: newUser.id, email: newUser.email } },
+      { message: "Verification OTP sent to your email", user: { id: user.id, email: user.email } },
       { status: 201 }
     );
   } catch (error) {
