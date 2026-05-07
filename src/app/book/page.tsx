@@ -187,7 +187,7 @@ function BookPageContent() {
       setSelectedServiceId(initialService?.id || "");
       setSelectedPetId(petQuery || userPets[0]?.id || "");
     }).catch(() => {
-      setError("Booking details load nahi ho paaye. Please refresh karke try karein.");
+      setError("Booking details could not be loaded. Please refresh and try again.");
     }).finally(() => setLoading(false));
   }, [searchParams, userId]);
 
@@ -266,7 +266,7 @@ function BookPageContent() {
   async function useMyLocation() {
     setError("");
     if (!navigator.geolocation) {
-      setError("Browser location support nahi kar raha. Address manually fill karein.");
+      setError("Your browser does not support location detection. Please enter your address manually.");
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -282,17 +282,17 @@ function BookPageContent() {
             line1: data.displayName || prev.line1,
           }));
         } catch {
-          setError("Location detect hua, par address read nahi ho paya. Manual address enter karein.");
+          setError("Location was detected, but the address could not be read. Please enter your address manually.");
         }
       },
-      () => setError("Location permission nahi mili. Aap address aur pincode manually enter kar sakte hain."),
+      () => setError("Location permission was not granted. You can enter your address and pincode manually."),
       { enableHighAccuracy: true, timeout: 12000 }
     );
   }
 
   async function createPetIfNeeded() {
     if (selectedPetId) return selectedPetId;
-    if (!newPet.name.trim() || !newPet.type) throw new Error("Pet name aur type required hai.");
+    if (!newPet.name.trim() || !newPet.type) throw new Error("Pet name and type are required.");
     const res = await fetch("/api/pets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -307,7 +307,7 @@ function BookPageContent() {
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Pet save nahi ho paya.");
+    if (!res.ok) throw new Error(data.message || "Pet could not be saved.");
     setPets((prev) => [data, ...prev]);
     setSelectedPetId(data.id);
     return data.id as string;
@@ -317,15 +317,15 @@ function BookPageContent() {
     setError("");
     if (!userId) return;
     if (!selectedService) {
-      setError("Service select karein.");
+      setError("Please select a service.");
       return;
     }
     if (!selectedSlot) {
-      setError("Available time slot select karein.");
+      setError("Please select an available time slot.");
       return;
     }
     if (!address.line1 || !address.city || !address.pincode || !/^\d{6}$/.test(address.pincode)) {
-      setError("Complete service address aur valid 6-digit pincode required hai.");
+      setError("A complete service address and a valid 6-digit pincode are required.");
       return;
     }
 
@@ -351,11 +351,11 @@ function BookPageContent() {
         }),
       });
       const booking = await bookingRes.json();
-      if (!bookingRes.ok) throw new Error(booking.message || "Booking create nahi ho paayi.");
+      if (!bookingRes.ok) throw new Error(booking.message || "Booking could not be created.");
 
       router.push("/dashboard?booked=true");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Booking create nahi ho paayi.");
+      setError(err instanceof Error ? err.message : "Booking could not be created.");
     } finally {
       setSaving(false);
     }
@@ -613,7 +613,7 @@ function BookPageContent() {
                       </button>
                     ))}
                   </div>
-                  {slots.length === 0 && <p className="rounded-lg border bg-amber-50 p-3 text-sm text-amber-700">Is date par koi slot available nahi hai.</p>}
+                  {slots.length === 0 && <p className="rounded-lg border bg-amber-50 p-3 text-sm text-amber-700">No slots are available for this date.</p>}
                 </div>
               </div>
             </div>
@@ -642,7 +642,7 @@ function BookPageContent() {
                   {pincodeState === "checking" && "Checking pincode..."}
                   {pincodeState === "ok" && "All valid pincodes are enabled right now."}
                   {pincodeState === "invalid" && "Please enter a valid 6-digit pincode."}
-                  {pincodeState === "idle" && "Pincode whitelist feature ready hai; abhi sab valid pincodes allowed hain."}
+                  {pincodeState === "idle" && "Pincode whitelist support is ready; all valid pincodes are currently allowed."}
                 </p>
               </div>
             </div>
