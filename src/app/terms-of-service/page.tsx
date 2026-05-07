@@ -37,7 +37,7 @@ const SECTIONS = [
   },
   {
     icon: Calendar,
-    title: "4. Booking & Cancellations",
+    title: "4. Booking, Cancellations & Google Calendar",
     color: "bg-green-50 text-green-600",
     content:
       "All bookings are subject to service provider availability. Cancellations must be made at least 24 hours in advance to avoid a cancellation fee. Same-day cancellations may incur a fee of up to 50% of the service price. Refunds are processed within 5-7 business days to the original payment method.",
@@ -46,6 +46,7 @@ const SECTIONS = [
       "50% fee: Cancellation within 24 hours of appointment.",
       "No refund: No-show or cancellation within 2 hours.",
       "Exceptional circumstances may be reviewed on a case-by-case basis.",
+      "Google Calendar Reminders: When you sign in with Google, we automatically create a booking event with reminders (60 min and 15 min before) in your Google Calendar. We only use the calendar.events scope — your existing calendar data is never read or modified. You can remove these events at any time.",
     ],
   },
   {

@@ -30,10 +30,16 @@ const SECTIONS = [
   },
   {
     icon: Lock,
-    title: "3. Google Verification & OAuth",
+    title: "3. Google Sign-In & Calendar Access",
     color: "bg-green-50 text-green-600",
     content:
-      "Our application uses Google OAuth 2.0 for secure, passwordless sign-in. We request only the minimum permissions necessary (email and basic profile). Your Google data is never sold or shared with third parties for advertising. We comply fully with Google API Services User Data Policy, including Limited Use requirements.",
+      "Our application uses Google OAuth 2.0 for secure, passwordless sign-in. We request only the following scopes — no more:",
+    list: [
+      "Email & Basic Profile: To create and identify your account.",
+      "Google Calendar Events (calendar.events): To automatically add your booking as an event with reminders in your Google Calendar. We only create, read, and manage events created by Pupparazzi — we never access your existing calendar data.",
+    ],
+    footer:
+      "Your Google data is never sold or shared with third parties for advertising. We comply fully with the Google API Services User Data Policy, including the Limited Use requirements. You can revoke calendar access at any time from your Google Account permissions page without affecting your Pupparazzi account.",
   },
   {
     icon: MapPin,
@@ -108,6 +114,11 @@ export default function PrivacyPolicyPage() {
                             </li>
                           ))}
                         </ul>
+                      )}
+                      {(section as any).footer && (
+                        <p className="mt-4 text-sm text-slate-500 leading-relaxed border-t border-slate-100 pt-4">
+                          {(section as any).footer}
+                        </p>
                       )}
                     </div>
                   </div>
