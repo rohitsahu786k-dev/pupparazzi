@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { createCalendarEvent } from "@/lib/google-calendar";
 import { sendBookingConfirmation, sendPaymentConfirmation, sendCancellationEmail, sendBookingStatusEmail } from "@/lib/mailer";
 import { generateInvoicePdf } from "@/lib/invoice";
 
@@ -130,24 +129,6 @@ export async function POST(req: Request) {
       include: { pet: true, service: true, address: true, client: true },
     });
 
-    // Create Google Calendar event (non-blocking)
-    const calendarEventId = await createCalendarEvent({
-      userId: clientId,
-      serviceName: booking.service?.name || "Pet Service",
-      petName: booking.pet?.name || "Pet",
-      slotDate: slot_date,
-      slotTime: slot_time,
-      durationMins: booking.service?.slot_duration_mins || 60,
-      address: notes || undefined,
-    });
-
-    if (calendarEventId) {
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { google_event_id: calendarEventId },
-      });
-    }
-
     // Send booking confirmation email (non-blocking)
     const clientEmail = booking.client?.email;
     if (clientEmail) {
@@ -163,7 +144,7 @@ export async function POST(req: Request) {
       }).catch(console.error);
     }
 
-    return NextResponse.json({ ...booking, google_event_id: calendarEventId }, { status: 201 });
+    return NextResponse.json(booking, { status: 201 });
   } catch (error) {
     console.error("POST booking error:", error);
     return NextResponse.json({ message: "Failed to create booking", error: String(error) }, { status: 500 });

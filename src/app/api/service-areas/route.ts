@@ -11,13 +11,9 @@ export async function GET(req: Request) {
       if (!/^\d{6}$/.test(pincode)) {
         return NextResponse.json({ serviceable: false, message: "Invalid pincode format" });
       }
-      // Check if "allow all pincodes" mode is enabled
-      const globalSetting = await prisma.serviceArea.findFirst({ where: { pincode: "GLOBAL", is_active: true } });
-      if (globalSetting) {
-        return NextResponse.json({ serviceable: true, area: null });
-      }
-      const area = await prisma.serviceArea.findFirst({ where: { pincode, is_active: true } });
-      return NextResponse.json({ serviceable: !!area, area: area || null });
+      // Current launch mode: every valid Indian 6-digit pincode is serviceable.
+      // Admin can still maintain the whitelist for future rollout decisions.
+      return NextResponse.json({ serviceable: true, area: null, mode: "all-pincodes" });
     }
     const areas = await prisma.serviceArea.findMany({
       orderBy: [{ city: "asc" }, { pincode: "asc" }],
