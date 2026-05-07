@@ -48,29 +48,50 @@ export default function SettingsPage() {
   }, [userId]);
 
   async function detectLocation() {
-    if (!navigator.geolocation) return;
+    setError("");
+    if (!navigator.geolocation) {
+      setError("Your browser does not support location detection. Please enter address manually.");
+      return;
+    }
     setDetecting(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`,
-            { headers: { "Accept-Language": "en" } }
-          );
+          const res = await fetch(`/api/location/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
           const data = await res.json();
-          const a = data.address || {};
+          if (!res.ok) throw new Error(data.message || "Unable to detect address");
           setAddr(prev => ({
             ...prev,
-            line1: [a.road, a.house_number, a.neighbourhood, a.suburb].filter(Boolean).join(", ") || prev.line1,
-            city:  a.city || a.town || a.village || a.county || prev.city,
-            state: a.state || prev.state,
-            pincode: a.postcode || prev.pincode,
+            line1: data.line1 || prev.line1,
+            city:  data.city || prev.city,
+            state: data.state || prev.state,
+            pincode: data.pincode || prev.pincode,
           }));
-        } catch { /* silent */ }
+          if (!data.pincode) setError("Location detected, but pincode was not found. Please enter pincode manually.");
+        } catch {
+          setError("Could not fetch address from your location. Please enter it manually.");
+        }
         setDetecting(false);
       },
-      () => setDetecting(false),
-      { timeout: 8000 }
+      async (geoError) => {
+        try {
+          const res = await fetch("/api/location/ip");
+          const data = await res.json();
+          setAddr(prev => ({
+            ...prev,
+            city: data.city || prev.city,
+            state: data.state || prev.state,
+            pincode: data.pincode || prev.pincode,
+          }));
+        } catch {}
+        setError(
+          geoError.code === geoError.PERMISSION_DENIED
+            ? "Location permission was denied. Please allow location access or enter address manually."
+            : "Could not detect exact location. Please enter address manually."
+        );
+        setDetecting(false);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 600000 }
     );
   }
 

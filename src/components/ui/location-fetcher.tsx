@@ -9,21 +9,17 @@ export function LocationFetcher() {
 
   useEffect(() => {
     async function reverseGeocode(lat: number, lon: number): Promise<string> {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
-        { headers: { "Accept-Language": "en" } }
-      );
+      const res = await fetch(`/api/location/reverse?lat=${lat}&lon=${lon}`);
       const data = await res.json();
-      const addr = data.address || {};
-      const city = addr.city || addr.town || addr.village || addr.county || "";
-      const state = addr.state || "";
-      return city && state ? `${city}, ${state}` : data.display_name?.split(",")[0] || "Your Location";
+      if (!res.ok) throw new Error(data.message || "Location unavailable");
+      return data.displayName || [data.city, data.state].filter(Boolean).join(", ") || "Your Location";
     }
 
     async function ipFallback(): Promise<string> {
-      const res = await fetch("https://ipapi.co/json/");
+      const res = await fetch("/api/location/ip");
       const data = await res.json();
-      if (data.city && data.region) return `${data.city}, ${data.region}`;
+      if (data.displayName) return data.displayName;
+      if (data.city && data.state) return `${data.city}, ${data.state}`;
       return "Ahmedabad, Gujarat";
     }
 
@@ -53,7 +49,7 @@ export function LocationFetcher() {
             setLoading(false);
           }
         },
-        { timeout: 5000, maximumAge: 600000 }
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 600000 }
       );
     }
 
@@ -68,7 +64,7 @@ export function LocationFetcher() {
         <MapPin className="h-4 w-4 text-pink-500 group-hover:scale-110 transition-transform" />
       )}
       <span className="truncate max-w-45 font-medium">
-        {loading ? "Detecting location…" : location}
+        {loading ? "Detecting location..." : location}
       </span>
     </div>
   );

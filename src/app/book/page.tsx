@@ -43,6 +43,7 @@ export default function BookingFlow() {
   const [petForm, setPetForm] = useState({ name:"",type:"Dog",breed:"",gender:"Male",weight:"",size:"Medium",aggression_level:"3",allergies:"",dietary_preference:"",neutered:false,vaccination_status:"",vet_name:"",vet_contact:"" });
   const [petSaving, setPetSaving] = useState(false);
   const [error, setError] = useState("");
+  const [locationError, setLocationError] = useState("");
   const days = getNextDays(7);
 
   useEffect(()=>{
@@ -96,29 +97,50 @@ export default function BookingFlow() {
   }, [address.pincode]);
 
   async function detectLocation() {
-    if (!navigator.geolocation) return;
+    setLocationError("");
+    if (!navigator.geolocation) {
+      setLocationError("Your browser does not support location detection. Please enter address manually.");
+      return;
+    }
     setDetectingLoc(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`,
-            { headers: { "Accept-Language": "en" } }
-          );
+          const res = await fetch(`/api/location/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
           const data = await res.json();
-          const a = data.address || {};
+          if (!res.ok) throw new Error(data.message || "Unable to detect address");
           setAddress(prev => ({
             ...prev,
-            line1: [a.road, a.house_number, a.neighbourhood, a.suburb].filter(Boolean).join(", "),
-            city:  a.city || a.town || a.village || a.county || prev.city,
-            state: a.state || prev.state,
-            pincode: a.postcode || prev.pincode,
+            line1: data.line1 || prev.line1,
+            city:  data.city || prev.city,
+            state: data.state || prev.state,
+            pincode: data.pincode || prev.pincode,
           }));
-        } catch { /* silent */ }
+          if (!data.pincode) setLocationError("Location detected, but pincode was not found. Please enter pincode manually.");
+        } catch {
+          setLocationError("Could not fetch address from your location. Please enter it manually.");
+        }
         setDetectingLoc(false);
       },
-      () => setDetectingLoc(false),
-      { timeout: 8000 }
+      async (geoError) => {
+        try {
+          const res = await fetch("/api/location/ip");
+          const data = await res.json();
+          setAddress(prev => ({
+            ...prev,
+            city: data.city || prev.city,
+            state: data.state || prev.state,
+            pincode: data.pincode || prev.pincode,
+          }));
+        } catch {}
+        setLocationError(
+          geoError.code === geoError.PERMISSION_DENIED
+            ? "Location permission was denied. Please allow location access or enter address manually."
+            : "Could not detect exact location. Please enter address manually."
+        );
+        setDetectingLoc(false);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 600000 }
     );
   }
 
@@ -330,6 +352,7 @@ export default function BookingFlow() {
                       {detectingLoc ? "Detecting…" : "Use My Location"}
                     </button>
                   </div>
+                  {locationError && <p className="text-xs font-medium text-amber-600">{locationError}</p>}
                   <Input placeholder="House/Flat/Block No., Street *" value={address.line1} onChange={e=>setAddress({...address,line1:e.target.value})} className="h-12 bg-white"/>
                   <div className="grid grid-cols-3 gap-3">
                     <Input placeholder="City *" value={address.city} onChange={e=>setAddress({...address,city:e.target.value})} className="h-12 bg-white"/>
