@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
@@ -20,6 +21,39 @@ async function main() {
     await prisma.service.create({ data: s });
   }
   console.log("Seeded", services.length, "services");
+
+  // Create/update admin user
+  const adminEmail = "customer.unfoldcro@gmail.com";
+  const adminPassword = "Admin@Pupparazzi2024";
+  const passwordHash = await bcrypt.hash(adminPassword, 12);
+
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: { role: "ADMIN", password_hash: passwordHash, emailVerified: new Date() },
+    create: {
+      email: adminEmail,
+      name: "Admin",
+      role: "ADMIN",
+      password_hash: passwordHash,
+      emailVerified: new Date(),
+    },
+  });
+  console.log(`Admin user ready — email: ${adminEmail} | password: ${adminPassword}`);
+
+  // Enable "Allow All Pincodes" globally
+  await prisma.serviceArea.upsert({
+    where: { pincode: "GLOBAL" },
+    update: { is_active: true },
+    create: {
+      pincode: "GLOBAL",
+      city: "All India",
+      area_name: "Allow All Pincodes",
+      state: "India",
+      country: "India",
+      is_active: true,
+    },
+  });
+  console.log("All pincodes enabled (GLOBAL mode on)");
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());
