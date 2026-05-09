@@ -9,6 +9,7 @@ type SettingsState = {
   business: Record<string, any>;
   smtp: Record<string, any>;
   payment: Record<string, any>;
+  whatsapp: Record<string, any>;
 };
 
 export default function AdminSettingsPage() {
@@ -113,6 +114,24 @@ export default function AdminSettingsPage() {
           </label>
         </div>
         <Button className="mt-4" onClick={() => save("payment")} disabled={saving === "payment"}>{saving === "payment" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save Payment</Button>
+      </section>
+
+      <section className="rounded-lg border bg-white p-5">
+        <h2 className="mb-4 font-bold">WhatsApp Templates</h2>
+        <p className="mb-4 text-sm text-muted-foreground">These templates are used for one-click WhatsApp messages from bookings. Dynamic fields: {"{{customerName}}"}, {"{{bookingId}}"}, {"{{serviceName}}"}, {"{{advanceAmount}}"}, {"{{remainingAmount}}"}.</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          {["bookingConfirmation", "paymentSuccess", "codAdvancePaid", "codReminder", "cancellation"].map((key) => (
+            <label key={key} className="space-y-1 text-sm font-semibold">
+              <span>{key}</span>
+              <textarea className="min-h-24 w-full rounded-lg border p-3 text-sm font-normal" value={settings.whatsapp[key] || ""} onChange={(e) => update("whatsapp", key, e.target.value)} />
+            </label>
+          ))}
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={Boolean(settings.whatsapp.enabled)} onChange={(e) => update("whatsapp", "enabled", e.target.checked)} />
+            Enable WhatsApp actions
+          </label>
+        </div>
+        <Button className="mt-4" onClick={() => save("whatsapp")} disabled={saving === "whatsapp"}>{saving === "whatsapp" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save WhatsApp</Button>
       </section>
     </div>
   );

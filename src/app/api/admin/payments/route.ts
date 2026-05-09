@@ -7,7 +7,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
 
   const payments = await prisma.payment.findMany({
-    include: { client: true, booking: { include: { service: true, pet: true } } },
+    include: { client: true, booking: { include: { service: true, pet: true, invoices: true } } },
     orderBy: { created_at: "desc" },
   });
   return NextResponse.json(payments);

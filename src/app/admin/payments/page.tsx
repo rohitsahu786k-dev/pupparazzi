@@ -12,7 +12,7 @@ type Payment = {
   transaction_id?: string | null;
   created_at: string;
   client?: { name?: string | null; email?: string | null };
-  booking?: { booking_id: string; service?: { name?: string | null }; pet?: { name?: string | null } };
+  booking?: { booking_id: string; service?: { name?: string | null }; pet?: { name?: string | null }; invoices?: { id: string; invoice_id: string; status: string }[] };
 };
 
 export default function AdminPaymentsPage() {
@@ -50,7 +50,7 @@ export default function AdminPaymentsPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-225 text-left text-sm">
               <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
-                <tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Client</th><th className="px-4 py-3">Booking</th><th className="px-4 py-3">Mode</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Transaction</th></tr>
+                <tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Client</th><th className="px-4 py-3">Booking</th><th className="px-4 py-3">Mode</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Invoice</th><th className="px-4 py-3">Transaction</th></tr>
               </thead>
               <tbody className="divide-y">
                 {payments.map((payment) => (
@@ -61,6 +61,11 @@ export default function AdminPaymentsPage() {
                     <td className="px-4 py-3">{payment.mode} {payment.source ? `· ${payment.source}` : ""}</td>
                     <td className="px-4 py-3"><span className="rounded-lg bg-green-50 px-2 py-1 text-xs font-bold text-green-700">{payment.status}</span></td>
                     <td className="px-4 py-3 font-bold">Rs. {Number(payment.amount).toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-3 text-xs">
+                      {payment.booking?.invoices?.length ? payment.booking.invoices.map((invoice) => (
+                        <a key={invoice.id} href={`/api/admin/invoices/${invoice.id}/download`} className="mr-2 font-semibold text-primary hover:underline">{invoice.invoice_id}</a>
+                      )) : "-"}
+                    </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{payment.transaction_id || "-"}</td>
                   </tr>
                 ))}

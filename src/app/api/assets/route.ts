@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { unlink } from "fs/promises";
-import path from "path";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
+import { deleteStoredUpload } from "@/lib/upload-storage";
 
 export const runtime = "nodejs";
 
@@ -40,10 +39,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ message: "Asset not found" }, { status: 404 });
     }
 
-    const filePath = path.join(process.cwd(), "public", asset.path.replace(/^\//, ""));
-    if (filePath.startsWith(path.join(process.cwd(), "public", "uploads"))) {
-      await unlink(filePath).catch(() => undefined);
-    }
+    await deleteStoredUpload(asset.path, asset.id);
     await prisma.asset.delete({ where: { id } });
     return NextResponse.json({ message: "Asset deleted" });
   } catch (error) {

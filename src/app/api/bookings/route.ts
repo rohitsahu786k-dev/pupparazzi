@@ -5,9 +5,13 @@ import { authOptions } from "@/lib/auth";
 import { sendBookingConfirmation, sendPaymentConfirmation, sendCancellationEmail, sendBookingStatusEmail } from "@/lib/mailer";
 import { generateInvoicePdf } from "@/lib/invoice";
 import { calculateCouponDiscount, CouponRule, defaultCoupons, serviceBookablePrice } from "@/lib/pet-care-pricing";
-
-const BOOKING_STATUSES = ["Pending", "Confirmed", "In Progress", "Completed", "Cancelled"];
-const PAYMENT_STATUSES = ["Pending", "Paid", "Failed", "Refunded"];
+import {
+  BOOKING_STATUSES,
+  PAYMENT_STATUSES,
+  expirePastBookings,
+  formatBookingDate,
+} from "@/lib/booking-lifecycle";
+import { collectCodPayment } from "@/lib/payment-invoices";
 
 function isAdmin(role?: string | null) {
   return role === "ADMIN" || role === "STAFF";
@@ -44,6 +48,8 @@ export async function GET(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+
+    await expirePastBookings();
 
     const requestedUserId = searchParams.get("userId");
     const userId = isAdmin(session.user.role) ? requestedUserId : session.user.id;
@@ -206,14 +212,14 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !isAdmin(session.user.role)) {
-      return NextResponse.json({ message: "Admin access required" }, { status: 403 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
     const {
       id, status, payment_status, notes, internal_notes, transaction_id,
-      payment_method, staff_id, slot_date, slot_time, after_photos_json,
+      payment_method, staff_id, slot_date, slot_time, after_photos_json, collect_cod,
     } = body;
 
     if (!id) {
@@ -225,6 +231,41 @@ export async function PATCH(req: Request) {
     }
     if (payment_status && !PAYMENT_STATUSES.includes(payment_status)) {
       return NextResponse.json({ message: "Invalid payment status" }, { status: 400 });
+    }
+
+    const existingBooking = await prisma.booking.findUnique({
+      where: { id },
+      select: { client_id: true, status: true },
+    });
+    if (!existingBooking) {
+      return NextResponse.json({ message: "Booking not found" }, { status: 404 });
+    }
+
+    const admin = isAdmin(session.user.role);
+    const userCancellingOwnBooking = !admin
+      && existingBooking.client_id === session.user.id
+      && status === "Cancelled"
+      && payment_status === undefined
+      && notes === undefined
+      && internal_notes === undefined
+      && transaction_id === undefined
+      && payment_method === undefined
+      && staff_id === undefined
+      && slot_date === undefined
+      && slot_time === undefined
+      && after_photos_json === undefined
+      && collect_cod === undefined;
+
+    if (!admin && !userCancellingOwnBooking) {
+      return NextResponse.json({ message: "Admin access required" }, { status: 403 });
+    }
+    if (userCancellingOwnBooking && ["Completed", "Cancelled", "Expired"].includes(existingBooking.status)) {
+      return NextResponse.json({ message: `Booking is already ${existingBooking.status.toLowerCase()}` }, { status: 400 });
+    }
+
+    if (collect_cod) {
+      const result = await collectCodPayment({ bookingId: id, transactionId: transaction_id });
+      return NextResponse.json(result.booking);
     }
 
     const booking = await prisma.booking.update({
@@ -243,9 +284,7 @@ export async function PATCH(req: Request) {
     });
 
     const clientEmail = booking.client?.email;
-    const slotDateStr = booking.slot_date
-      ? new Date(booking.slot_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-      : "";
+    const slotDateStr = booking.slot_date ? formatBookingDate(booking.slot_date) : "";
 
     // Payment confirmed → generate and send GST invoice
     if (payment_status === "Paid" && clientEmail) {

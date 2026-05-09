@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, CreditCard, Loader2, Mail, MapPin, Phone, Search, Trash2, UserCheck } from "lucide-react";
+import { Calendar, CreditCard, Loader2, Mail, MapPin, MessageCircle, Phone, Search, Trash2, UserCheck } from "lucide-react";
 
 type Booking = {
   id: string;
@@ -20,8 +20,8 @@ type Booking = {
   address?: { line1?: string | null; city?: string | null; pincode?: string | null } | null;
 };
 
-const STATUSES = ["All", "Pending", "Confirmed", "In Progress", "Completed", "Cancelled"];
-const PAYMENT_STATUSES = ["All", "Pending", "Paid", "Failed", "Refunded"];
+const STATUSES = ["All", "Pending", "Confirmed", "In Progress", "Completed", "Cancelled", "Expired"];
+const PAYMENT_STATUSES = ["All", "Pending", "Advance Paid", "Partially Paid", "Paid", "Failed", "Cancelled", "Refunded"];
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -29,8 +29,10 @@ function formatDate(value: string) {
 
 function badgeClass(value: string) {
   if (value === "Completed" || value === "Paid") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (value === "Advance Paid" || value === "Partially Paid") return "bg-blue-50 text-blue-700 border-blue-200";
   if (value === "Confirmed" || value === "In Progress") return "bg-cyan-50 text-cyan-700 border-cyan-200";
   if (value === "Cancelled" || value === "Failed") return "bg-red-50 text-red-700 border-red-200";
+  if (value === "Expired") return "bg-slate-100 text-slate-700 border-slate-200";
   return "bg-amber-50 text-amber-700 border-amber-200";
 }
 
@@ -108,6 +110,25 @@ export default function AdminBookingsPage() {
     else if (data.message?.includes("cancelled")) setError(data.message);
     await fetchBookings();
     setSavingId("");
+  }
+
+  async function collectCodPayment(id: string) {
+    if (!confirm("Mark remaining COD payment as collected and generate final invoice?")) return;
+    await updateBooking(id, { collect_cod: true });
+  }
+
+  function whatsappLink(booking: Booking, kind: "confirmation" | "cod" | "paid") {
+    const phone = String(booking.client?.phone || "").replace(/\D/g, "");
+    const number = phone.length === 10 ? `91${phone}` : phone;
+    const customer = booking.client?.name || "there";
+    const service = booking.service?.name || "your service";
+    const amount = Number(booking.service?.discounted_price || booking.service?.price || 0).toLocaleString("en-IN");
+    const message = kind === "cod"
+      ? `Hello ${customer}, this is a reminder that COD amount is pending for booking #${booking.booking_id}. Please pay during service completion. Thank you.`
+      : kind === "paid"
+        ? `Hello ${customer}, your payment for booking #${booking.booking_id} has been completed successfully. Invoice has been generated. Thank you for choosing us.`
+        : `Hello ${customer}, your booking #${booking.booking_id} for ${service} is confirmed. Total amount: Rs. ${amount}. Thank you for booking with us.`;
+    return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
   }
 
   const todayBookings = bookings.filter((booking) => new Date(booking.slot_date).toDateString() === new Date().toDateString()).length;
@@ -240,6 +261,16 @@ export default function AdminBookingsPage() {
                         </Button>
                         <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { payment_status: "Paid", payment_method: "Admin" })}>
                           <CreditCard className="mr-1 h-3.5 w-3.5" /> Paid
+                        </Button>
+                        {(booking.payment_status === "Advance Paid" || booking.payment_status === "Partially Paid") && (
+                          <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => collectCodPayment(booking.id)}>
+                            COD
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={whatsappLink(booking, booking.payment_status === "Paid" ? "paid" : booking.payment_status === "Partially Paid" ? "cod" : "confirmation")} target="_blank" rel="noreferrer">
+                            <MessageCircle className="h-3.5 w-3.5" />
+                          </a>
                         </Button>
                         <Button size="sm" variant="destructive" disabled={savingId === booking.id} onClick={() => deleteBooking(booking.id)}>
                           {savingId === booking.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}

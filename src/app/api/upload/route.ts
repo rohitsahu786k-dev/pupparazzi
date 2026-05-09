@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
+import { saveGridFsUpload, saveLocalUpload, shouldUseGridFsUploads } from "@/lib/upload-storage";
 
 export const runtime = "nodejs";
 
@@ -43,23 +43,50 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const filename = safeFilename(file.name);
-    const relativePath = `/uploads/${folder}/${filename}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads", folder);
 
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), buffer);
+    if (!shouldUseGridFsUploads()) {
+      try {
+        const relativePath = await saveLocalUpload(folder, filename, buffer);
+        const asset = await prisma.asset.create({
+          data: {
+            filename,
+            original_name: file.name,
+            path: relativePath,
+            category,
+            ...(uploadedBy ? { uploaded_by: uploadedBy } : {}),
+          },
+        });
+
+        return NextResponse.json({ ...asset, url: relativePath, secure_url: relativePath });
+      } catch (error: any) {
+        if (error?.code !== "ENOENT" && error?.code !== "EROFS" && error?.code !== "EACCES") {
+          throw error;
+        }
+      }
+    }
 
     const asset = await prisma.asset.create({
       data: {
         filename,
         original_name: file.name,
-        path: relativePath,
+        path: "",
         category,
         ...(uploadedBy ? { uploaded_by: uploadedBy } : {}),
       },
     });
+    const relativePath = await saveGridFsUpload({
+      assetId: asset.id,
+      filename,
+      originalName: file.name,
+      contentType: file.type,
+      buffer,
+    });
+    const updatedAsset = await prisma.asset.update({
+      where: { id: asset.id },
+      data: { path: relativePath },
+    });
 
-    return NextResponse.json({ ...asset, url: relativePath, secure_url: relativePath });
+    return NextResponse.json({ ...updatedAsset, url: relativePath, secure_url: relativePath });
   } catch (error: any) {
     console.error("Local upload error:", error);
     return NextResponse.json(

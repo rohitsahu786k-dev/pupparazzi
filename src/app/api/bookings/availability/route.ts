@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-const ACTIVE_STATUSES = ["Pending", "Confirmed", "In Progress"];
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/booking-lifecycle";
 
 function startOfDay(value: Date) {
   const date = new Date(value);
@@ -49,7 +48,7 @@ export async function GET(req: Request) {
     const bookings = await prisma.booking.findMany({
       where: {
         service_id: serviceId,
-        status: { in: ACTIVE_STATUSES },
+        status: { in: ACTIVE_BOOKING_STATUSES },
         slot_date: {
           gte: startOfDay(new Date(from)),
           lte: endOfDay(new Date(to)),

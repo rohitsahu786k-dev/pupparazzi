@@ -12,6 +12,14 @@ const defaults: Record<string, unknown> = {
   business: DEFAULT_BUSINESS_SETTINGS,
   smtp: DEFAULT_SMTP_SETTINGS,
   payment: DEFAULT_PAYMENT_SETTINGS,
+  whatsapp: {
+    bookingConfirmation: "Hello {{customerName}}, your booking #{{bookingId}} for {{serviceName}} is confirmed.",
+    paymentSuccess: "Hello {{customerName}}, your payment for booking #{{bookingId}} is completed. Invoice has been generated.",
+    codAdvancePaid: "Hello {{customerName}}, advance payment of Rs. {{advanceAmount}} received. Remaining COD: Rs. {{remainingAmount}}.",
+    codReminder: "Hello {{customerName}}, Rs. {{remainingAmount}} is pending for booking #{{bookingId}}. Please pay during service completion.",
+    cancellation: "Hello {{customerName}}, your booking #{{bookingId}} has been cancelled.",
+    enabled: true,
+  },
 };
 
 export async function GET(req: Request) {
@@ -25,12 +33,13 @@ export async function GET(req: Request) {
     return NextResponse.json(await getSetting(key, defaults[key]));
   }
 
-  const [business, smtp, payment] = await Promise.all([
+  const [business, smtp, payment, whatsapp] = await Promise.all([
     getSetting("business", DEFAULT_BUSINESS_SETTINGS),
     getSetting("smtp", DEFAULT_SMTP_SETTINGS),
     getSetting("payment", DEFAULT_PAYMENT_SETTINGS),
+    getSetting("whatsapp", defaults.whatsapp),
   ]);
-  return NextResponse.json({ business, smtp: { ...smtp, pass: smtp.pass ? "********" : "" }, payment: { ...payment, razorpayKeySecret: payment.razorpayKeySecret ? "********" : "" } });
+  return NextResponse.json({ business, smtp: { ...smtp, pass: smtp.pass ? "********" : "" }, payment: { ...payment, razorpayKeySecret: payment.razorpayKeySecret ? "********" : "" }, whatsapp });
 }
 
 export async function PUT(req: Request) {

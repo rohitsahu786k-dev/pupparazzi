@@ -472,6 +472,44 @@ export function bookingStatusEmailHtml(data: {
   return baseLayout(body, `Your booking ${data.bookingId} is now ${data.status}`);
 }
 
+export function bookingReminderEmailHtml(data: {
+  userName: string;
+  bookingId: string;
+  serviceName: string;
+  petName: string;
+  slotDate: string;
+  slotTime: string;
+  reminderLabel: string;
+}) {
+  const body = `
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:36px 48px 32px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:28px;font-weight:800;color:#FFFFFF;line-height:1.2;">Booking Reminder</h1>
+      <p style="margin:0;font-size:15px;color:#94A3B8;line-height:1.6;">Your Pupparazzi appointment is coming up ${data.reminderLabel}.</p>
+    </div>
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong>,</p>
+      ${sectionTitle("Appointment Details")}
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        ${infoRow("Booking ID", data.bookingId)}
+        ${infoRow("Service", data.serviceName)}
+        ${infoRow("Pet", data.petName)}
+        ${infoRow("Date", data.slotDate)}
+        ${infoRow("Time", data.slotTime)}
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        <tr>
+          <td style="background:#FFF7ED;border-left:4px solid #F97316;border-radius:0 12px 12px 0;padding:16px 20px;">
+            <p style="margin:0;font-size:13px;color:#B45309;line-height:1.6;">Please keep your pet ready at the scheduled time. If you need help, reply to this email.</p>
+          </td>
+        </tr>
+      </table>
+      ${primaryButton("View My Booking", `${BUSINESS.website}/dashboard`)}
+      <p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">Questions? Contact us at <a href="mailto:${BUSINESS.email}" style="color:#EC4899;text-decoration:none;">${BUSINESS.email}</a></p>
+    </div>`;
+
+  return baseLayout(body, `Reminder: ${data.serviceName} on ${data.slotDate} at ${data.slotTime}`);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // SEND FUNCTIONS
 // ═══════════════════════════════════════════════════════════════
@@ -566,5 +604,13 @@ export async function sendBookingStatusEmail(to: string, data: Parameters<typeof
     to,
     subject: `Booking ${data.status} - ${data.bookingId} | ${BUSINESS.shortName}`,
     html: bookingStatusEmailHtml(data),
+  });
+}
+
+export async function sendBookingReminderEmail(to: string, data: Parameters<typeof bookingReminderEmailHtml>[0]) {
+  return sendMail({
+    to,
+    subject: `Reminder: ${data.bookingId} is coming up | ${BUSINESS.shortName}`,
+    html: bookingReminderEmailHtml(data),
   });
 }

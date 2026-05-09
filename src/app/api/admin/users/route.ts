@@ -6,6 +6,45 @@ import { sendWelcomeEmail } from "@/lib/mailer";
 
 const roles = ["CLIENT", "STAFF", "ADMIN"];
 
+function cleanEmail(value: unknown) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function cleanRole(value: unknown) {
+  const role = String(value || "CLIENT").toUpperCase();
+  return roles.includes(role) ? role : "";
+}
+
+function publicUserSelect() {
+  return {
+    id: true,
+    name: true,
+    email: true,
+    phone: true,
+    role: true,
+    is_active: true,
+    emailVerified: true,
+    wallet_balance: true,
+    outstanding_balance: true,
+    created_at: true,
+    pets: { select: { id: true, name: true, type: true } },
+    clientBookings: { select: { id: true, status: true, payment_status: true } },
+    staffProfile: { select: { id: true, role: true, services_json: true, working_hours_json: true } },
+  } as const;
+}
+
+async function syncStaffProfile(userId: string, role: string) {
+  if (role === "STAFF") {
+    await prisma.staff.upsert({
+      where: { user_id: userId },
+      update: {},
+      create: { user_id: userId, role: "Staff" },
+    });
+  } else {
+    await prisma.staff.deleteMany({ where: { user_id: userId } });
+  }
+}
+
 export async function GET(req: Request) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
@@ -26,20 +65,7 @@ export async function GET(req: Request) {
           }
         : {}),
     },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-      is_active: true,
-      emailVerified: true,
-      wallet_balance: true,
-      outstanding_balance: true,
-      created_at: true,
-      pets: { select: { id: true, name: true, type: true } },
-      clientBookings: { select: { id: true, status: true, payment_status: true } },
-    },
+    select: publicUserSelect(),
     orderBy: { created_at: "desc" },
   });
 
@@ -51,12 +77,19 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
 
   const body = await req.json();
-  const email = String(body.email || "").trim().toLowerCase();
+  const email = cleanEmail(body.email);
   const password = String(body.password || "");
+  const role = cleanRole(body.role);
   if (!email || !password || !body.name) {
     return NextResponse.json({ message: "Name, email, and password are required" }, { status: 400 });
   }
-  if (!roles.includes(body.role || "CLIENT")) {
+  if (!email.includes("@")) {
+    return NextResponse.json({ message: "Valid email is required" }, { status: 400 });
+  }
+  if (password.length < 6) {
+    return NextResponse.json({ message: "Password must be at least 6 characters" }, { status: 400 });
+  }
+  if (!role) {
     return NextResponse.json({ message: "Invalid role" }, { status: 400 });
   }
 
@@ -68,15 +101,17 @@ export async function POST(req: Request) {
       name: body.name,
       email,
       phone: body.phone || undefined,
-      role: body.role || "CLIENT",
+      role: role as any,
       password_hash: await bcrypt.hash(password, 10),
       emailVerified: new Date(),
       is_active: body.is_active ?? true,
     },
   });
+  await syncStaffProfile(user.id, role);
 
   sendWelcomeEmail(email, { userName: user.name || "there", email }).catch(console.error);
-  return NextResponse.json({ id: user.id, email: user.email }, { status: 201 });
+  const created = await prisma.user.findUnique({ where: { id: user.id }, select: publicUserSelect() });
+  return NextResponse.json(created, { status: 201 });
 }
 
 export async function PATCH(req: Request) {
@@ -85,24 +120,44 @@ export async function PATCH(req: Request) {
 
   const body = await req.json();
   if (!body.id) return NextResponse.json({ message: "User ID is required" }, { status: 400 });
-  if (body.role && !roles.includes(body.role)) return NextResponse.json({ message: "Invalid role" }, { status: 400 });
+  const existing = await prisma.user.findUnique({ where: { id: body.id } });
+  if (!existing) return NextResponse.json({ message: "User not found" }, { status: 404 });
+  const nextRole = body.role !== undefined ? cleanRole(body.role) : undefined;
+  if (body.role !== undefined && !nextRole) return NextResponse.json({ message: "Invalid role" }, { status: 400 });
+  if (body.id === session.user.id && (body.is_active === false || (nextRole && nextRole !== "ADMIN"))) {
+    return NextResponse.json({ message: "You cannot remove admin access from your own account" }, { status: 400 });
+  }
+
+  const nextEmail = body.email !== undefined ? cleanEmail(body.email) : undefined;
+  if (nextEmail !== undefined) {
+    if (!nextEmail.includes("@")) return NextResponse.json({ message: "Valid email is required" }, { status: 400 });
+    const duplicate = await prisma.user.findUnique({ where: { email: nextEmail } });
+    if (duplicate && duplicate.id !== body.id) return NextResponse.json({ message: "Email is already used by another account" }, { status: 409 });
+  }
 
   const data: any = {
-    ...(body.name !== undefined ? { name: body.name } : {}),
-    ...(body.phone !== undefined ? { phone: body.phone } : {}),
-    ...(body.role !== undefined ? { role: body.role } : {}),
+    ...(body.name !== undefined ? { name: String(body.name).trim() || null } : {}),
+    ...(nextEmail !== undefined ? { email: nextEmail } : {}),
+    ...(body.phone !== undefined ? { phone: String(body.phone).trim() || null } : {}),
+    ...(nextRole !== undefined ? { role: nextRole } : {}),
     ...(body.is_active !== undefined ? { is_active: body.is_active } : {}),
     ...(body.wallet_balance !== undefined ? { wallet_balance: Number(body.wallet_balance) } : {}),
     ...(body.outstanding_balance !== undefined ? { outstanding_balance: Number(body.outstanding_balance) } : {}),
     ...(body.emailVerified === true ? { emailVerified: new Date() } : {}),
+    ...(body.emailVerified === false ? { emailVerified: null } : {}),
   };
-  if (body.password) data.password_hash = await bcrypt.hash(String(body.password), 10);
+  if (body.password) {
+    const password = String(body.password);
+    if (password.length < 6) return NextResponse.json({ message: "Password must be at least 6 characters" }, { status: 400 });
+    data.password_hash = await bcrypt.hash(password, 10);
+  }
 
   const user = await prisma.user.update({
     where: { id: body.id },
     data,
-    select: { id: true, name: true, email: true, phone: true, role: true, is_active: true },
+    select: publicUserSelect(),
   });
+  if (nextRole) await syncStaffProfile(user.id, nextRole);
   return NextResponse.json(user);
 }
 

@@ -36,6 +36,9 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.password_hash) {
           throw new Error("Invalid credentials");
         }
+        if (!user.is_active) {
+          throw new Error("ACCOUNT_DISABLED");
+        }
         if (!user.emailVerified) {
           throw new Error("EMAIL_NOT_VERIFIED");
         }
@@ -50,6 +53,7 @@ export const authOptions: NextAuthOptions = {
       // For Google OAuth, ensure user has CLIENT role
       if (account?.provider === "google" && user?.email) {
         const existingUser = await prisma.user.findUnique({ where: { email: user.email } });
+        if (existingUser && !existingUser.is_active) return false;
         if (existingUser) {
           await prisma.user.update({
             where: { id: existingUser.id },

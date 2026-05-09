@@ -34,7 +34,8 @@ const STATUS_CFG: Record<string, { label: string; cls: string; icon: React.React
   Pending:    { label: "Pending",     cls: "bg-amber-50 text-amber-700 border border-amber-100",    icon: <Clock className="h-3 w-3" /> },
   Completed:  { label: "Completed",   cls: "bg-accent/10 text-accent border border-accent/20",      icon: <Star className="h-3 w-3 fill-current" /> },
   Cancelled:  { label: "Cancelled",   cls: "bg-red-50 text-red-600 border border-red-100",          icon: <XCircle className="h-3 w-3" /> },
-  InProgress: { label: "In Progress", cls: "bg-primary/10 text-primary border border-primary/20",   icon: <RotateCcw className="h-3 w-3 animate-spin" /> },
+  "In Progress": { label: "In Progress", cls: "bg-primary/10 text-primary border border-primary/20",   icon: <RotateCcw className="h-3 w-3 animate-spin" /> },
+  Expired:    { label: "Expired",     cls: "bg-slate-100 text-slate-600 border border-slate-200",    icon: <AlertCircle className="h-3 w-3" /> },
 };
 
 const PAY_CFG: Record<string, { label: string; cls: string }> = {
@@ -106,8 +107,8 @@ function DashboardContent() {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  const upcoming   = bookings.filter(b => b.status !== "Completed" && b.status !== "Cancelled");
-  const history    = bookings.filter(b => b.status === "Completed"  || b.status === "Cancelled");
+  const upcoming   = bookings.filter(b => !["Completed", "Cancelled", "Expired"].includes(b.status));
+  const history    = bookings.filter(b => ["Completed", "Cancelled", "Expired"].includes(b.status));
   const totalSpent = bookings
     .filter(b => b.payment_status === "Paid")
     .reduce((sum, b) => sum + (b.service?.price || 0), 0);
@@ -207,7 +208,7 @@ function DashboardContent() {
                 <div className="space-y-3">
                   {(activeTab === "upcoming" ? upcoming : history).map(b => {
                     const payCfg   = PAY_CFG[b.payment_status] ?? { label: b.payment_status, cls: "bg-muted text-secondary" };
-                    const canCancel = b.status !== "Cancelled" && b.status !== "Completed";
+                    const canCancel = !["Cancelled", "Completed", "Expired"].includes(b.status);
                     return (
                       <div key={b.id} className="group border border-border rounded-[10px] p-4 hover:border-primary/30 hover:shadow-sm transition-all">
                         <div className="flex items-start justify-between gap-3">

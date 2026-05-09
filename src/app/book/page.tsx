@@ -85,6 +85,7 @@ const BUSINESS_END = 20 * 60;
 const LUNCH_START = 13 * 60;
 const LUNCH_END = 14 * 60;
 const CLEANING_BUFFER = 15;
+const COD_ADVANCE_AMOUNT = 100;
 
 const categoryIcon: Record<string, React.ReactNode> = {
   Grooming: <Scissors className="h-4 w-4" />,
@@ -135,6 +136,24 @@ function money(value: number) {
   return `Rs. ${value.toLocaleString("en-IN")}`;
 }
 
+function paymentPlanFromMode(mode: string) {
+  return mode === "Cash on Delivery + Rs. 100 advance" ? "COD_ADVANCE" : "FULL_ONLINE";
+}
+
+function loadRazorpay() {
+  return new Promise<boolean>((resolve) => {
+    if ((window as any).Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 function monthLabel(date: Date) {
   return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 }
@@ -173,7 +192,7 @@ function BookPageContent() {
   const [staffMode, setStaffMode] = useState("Any available specialist");
   const [recurrence, setRecurrence] = useState("No repeat");
   const [notes, setNotes] = useState("");
-  const [paymentMode, setPaymentMode] = useState("Pay after confirmation");
+  const [paymentMode, setPaymentMode] = useState("Full Online Payment");
   const [availability, setAvailability] = useState<Availability>({});
   const [pincodeState, setPincodeState] = useState<"idle" | "checking" | "ok" | "invalid">("idle");
   const [loading, setLoading] = useState(true);
@@ -440,12 +459,72 @@ function BookPageContent() {
           addons_json: {
             addons: selectedAddons.map((addon) => ({ id: addon.id, name: addon.name, price: addon.price })),
             coupon: coupon ? { code: coupon.code, discount: couponDiscount, terms: coupon.terms } : null,
+            payment: {
+              plan: paymentPlanFromMode(paymentMode),
+              mode: paymentMode,
+              advanceAmount: paymentPlanFromMode(paymentMode) === "COD_ADVANCE" ? COD_ADVANCE_AMOUNT : total,
+              remainingCodAmount: paymentPlanFromMode(paymentMode) === "COD_ADVANCE" ? Math.max(0, total - COD_ADVANCE_AMOUNT) : 0,
+            },
             pricing: { servicePrice, addonTotal, subtotal, couponDiscount, total },
           },
         }),
       });
       const booking = await bookingRes.json();
       if (!bookingRes.ok) throw new Error(booking.message || "Booking could not be created.");
+
+      const paymentPlan = paymentPlanFromMode(paymentMode);
+      const paymentAmount = paymentPlan === "COD_ADVANCE" ? COD_ADVANCE_AMOUNT : total;
+      const loaded = await loadRazorpay();
+      if (!loaded) throw new Error("Payment gateway could not be loaded. Please try again.");
+
+      const orderRes = await fetch("/api/payments/razorpay/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: paymentAmount,
+          receipt: booking.booking_id,
+          notes: { bookingId: booking.id, paymentPlan },
+        }),
+      });
+      const order = await orderRes.json();
+      if (!orderRes.ok) throw new Error(order.message || "Payment order could not be created.");
+
+      await new Promise<void>((resolve, reject) => {
+        const checkout = new (window as any).Razorpay({
+          key: order.key,
+          amount: order.amount,
+          currency: order.currency || "INR",
+          name: "Pupparazzi",
+          description: paymentPlan === "COD_ADVANCE" ? "COD advance payment" : "Full booking payment",
+          order_id: order.id,
+          prefill: {
+            name: session?.user?.name || "",
+            email: session?.user?.email || "",
+            contact: address.phone,
+          },
+          handler: async (response: any) => {
+            const verifyRes = await fetch("/api/payments/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                bookingId: booking.id,
+                amount: paymentAmount,
+                paymentType: paymentPlan === "COD_ADVANCE" ? "advance" : "full",
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+            const verify = await verifyRes.json().catch(() => ({}));
+            if (!verifyRes.ok) reject(new Error(verify.message || "Payment verification failed."));
+            else resolve();
+          },
+          modal: {
+            ondismiss: () => reject(new Error("Payment was not completed. Your booking is pending until payment succeeds.")),
+          },
+        });
+        checkout.open();
+      });
 
       router.push("/dashboard?booked=true");
     } catch (err) {
@@ -851,9 +930,8 @@ function BookPageContent() {
                 </select>
                 <label className="block text-xs font-bold text-muted-foreground">Payment</label>
                 <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} className="h-11 w-full rounded-lg border bg-white px-3 text-sm">
-                  <option>Pay after confirmation</option>
-                  <option>Full online payment requested</option>
-                  <option>Deposit booking requested</option>
+                  <option>Full Online Payment</option>
+                  <option>Cash on Delivery + Rs. 100 advance</option>
                 </select>
                 <textarea
                   value={notes}
@@ -874,8 +952,10 @@ function BookPageContent() {
                 <div className="flex justify-between gap-3"><span className="text-white/65">Service price</span><span className="text-right font-bold">{selectedService ? money(servicePrice) : "-"}</span></div>
                 {addonTotal > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Add-ons</span><span className="text-right font-bold">{money(addonTotal)}</span></div>}
                 {couponDiscount > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Coupon</span><span className="text-right font-bold">-{money(couponDiscount)}</span></div>}
+                {paymentPlanFromMode(paymentMode) === "COD_ADVANCE" && <div className="flex justify-between gap-3"><span className="text-white/65">Pay now</span><span className="text-right font-bold">{money(COD_ADVANCE_AMOUNT)}</span></div>}
+                {paymentPlanFromMode(paymentMode) === "COD_ADVANCE" && <div className="flex justify-between gap-3"><span className="text-white/65">Remaining COD</span><span className="text-right font-bold">{money(Math.max(0, total - COD_ADVANCE_AMOUNT))}</span></div>}
                 <div className="border-t border-white/15 pt-3">
-                  <div className="flex justify-between gap-3 text-base"><span className="text-white/80">Payable</span><span className="text-right font-extrabold">{selectedService ? money(total) : "-"}</span></div>
+                  <div className="flex justify-between gap-3 text-base"><span className="text-white/80">Total</span><span className="text-right font-extrabold">{selectedService ? money(total) : "-"}</span></div>
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2 text-center text-[11px] text-white/70">
