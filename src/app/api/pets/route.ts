@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+function isAdmin(role?: string | null) {
+  return role === "ADMIN" || role === "STAFF";
+}
 
 // Create a new pet
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
     const body = await req.json();
     const {
       owner_id, name, type, breed, gender, dob, weight, coat_type, size,
@@ -17,6 +26,9 @@ export async function POST(req: Request) {
 
     if (!owner_id || !name || !type) {
       return NextResponse.json({ message: "owner_id, name and type are required" }, { status: 400 });
+    }
+    if (!isAdmin(session.user.role) && owner_id !== session.user.id) {
+      return NextResponse.json({ message: "You can only create pets for your own account" }, { status: 403 });
     }
 
     // Verify owner exists
@@ -71,8 +83,13 @@ export async function POST(req: Request) {
 // Get all pets (for admin use)
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id || !isAdmin(session.user.role)) {
+      return NextResponse.json({ message: "Admin access required" }, { status: 403 });
+    }
+
     const pets = await prisma.pet.findMany({
-      include: { medical: true },
+      include: { medical: true, owner: { select: { id: true, name: true, email: true, phone: true } } },
       orderBy: { created_at: "desc" }
     });
     return NextResponse.json(pets);
@@ -85,6 +102,9 @@ export async function GET() {
 // Update a pet
 export async function PUT(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
     const body = await req.json();
     const { id, ...updateData } = body;
 
@@ -92,10 +112,17 @@ export async function PUT(req: Request) {
       return NextResponse.json({ message: "Pet ID is required" }, { status: 400 });
     }
 
+    const existing = await prisma.pet.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ message: "Pet not found" }, { status: 404 });
+    if (!isAdmin(session.user.role) && existing.owner_id !== session.user.id) {
+      return NextResponse.json({ message: "You can only update your own pet" }, { status: 403 });
+    }
+
+    const { medical, owner, bookings, ...safeUpdateData } = updateData;
     const pet = await prisma.pet.update({
       where: { id },
       data: {
-        ...updateData,
+        ...safeUpdateData,
         updated_at: new Date(),
       },
       include: { medical: true },
@@ -111,6 +138,9 @@ export async function PUT(req: Request) {
 // Delete a pet
 export async function DELETE(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -118,6 +148,16 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ message: "Pet ID is required" }, { status: 400 });
     }
 
+    const pet = await prisma.pet.findUnique({ where: { id } });
+    if (!pet) return NextResponse.json({ message: "Pet not found" }, { status: 404 });
+    if (!isAdmin(session.user.role) && pet.owner_id !== session.user.id) {
+      return NextResponse.json({ message: "You can only delete your own pet" }, { status: 403 });
+    }
+
+    const bookingCount = await prisma.booking.count({ where: { pet_id: id } });
+    if (bookingCount > 0) {
+      return NextResponse.json({ message: "Pets with bookings cannot be deleted. Update the profile instead." }, { status: 409 });
+    }
     await prisma.pet.delete({ where: { id } });
     return NextResponse.json({ message: "Pet deleted successfully" });
   } catch (error) {

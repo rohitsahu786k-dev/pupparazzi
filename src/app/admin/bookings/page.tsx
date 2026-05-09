@@ -102,7 +102,10 @@ export default function AdminBookingsPage() {
   async function deleteBooking(id: string) {
     if (!confirm("Delete this booking permanently?")) return;
     setSavingId(id);
-    await fetch(`/api/bookings?id=${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/bookings?id=${id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) setError(data.message || "Unable to delete booking");
+    else if (data.message?.includes("cancelled")) setError(data.message);
     await fetchBookings();
     setSavingId("");
   }
@@ -120,6 +123,9 @@ export default function AdminBookingsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Bookings</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage schedules, status, payments, cancellations, and customer communication.</p>
         </div>
+        <Button asChild>
+          <a href="/admin/bookings/new">New Booking</a>
+        </Button>
         <div className="grid grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
           <div className="rounded-lg border bg-white px-4 py-3">
             <p className="text-muted-foreground">Today</p>

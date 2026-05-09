@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { unlink } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   try {
+    const session = await requireAdmin();
+    if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
+
     const { searchParams } = new URL(req.url);
     const category = searchParams.get("category");
     const assets = await prisma.asset.findMany({
@@ -22,6 +26,9 @@ export async function GET(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const session = await requireAdmin();
+    if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) {

@@ -81,7 +81,10 @@ export default function AdminClientsPage() {
   async function deleteUser(id: string) {
     if (!confirm("Delete this user permanently?")) return;
     setSavingId(id);
-    await fetch(`/api/admin/users?id=${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/users?id=${id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) setError(data.message || "Unable to delete user");
+    else if (data.message?.includes("disabled")) setError(data.message);
     await fetchUsers();
     setSavingId("");
   }

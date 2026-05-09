@@ -22,7 +22,9 @@ import {
   Repeat,
   Scissors,
   ShieldCheck,
+  Sparkles,
   Stethoscope,
+  TicketPercent,
   UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,10 +35,19 @@ type Service = {
   name: string;
   category: string;
   description_short?: string | null;
+  free_services_json?: string[] | null;
   price: number;
   discounted_price?: number | null;
   slot_duration_mins: number;
   max_slots_per_day?: number | null;
+  addons?: Addon[];
+};
+
+type Addon = {
+  id: string;
+  name: string;
+  description?: string | null;
+  price: number;
 };
 
 type Pet = {
@@ -59,6 +70,13 @@ type Address = {
 type Availability = {
   slotCounts?: Record<string, number>;
   dayCounts?: Record<string, number>;
+};
+
+type AppliedCoupon = {
+  code: string;
+  description: string;
+  discount: number;
+  terms: string;
 };
 
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -121,6 +139,13 @@ function monthLabel(date: Date) {
   return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 }
 
+function serviceMatchesPackage(service: Service, breed: string, coat: string, sessions: string) {
+  return service.category === "Grooming"
+    && service.name.includes(breed)
+    && service.name.includes(coat)
+    && (sessions === "Single Session" ? service.name.includes("Single Session") : service.name.includes(`${sessions} Sessions`));
+}
+
 function BookPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -131,6 +156,14 @@ function BookPageContent() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [address, setAddress] = useState<Address>({ line1: "", city: "", state: "Gujarat", pincode: "", phone: "" });
   const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [serviceCategory, setServiceCategory] = useState("Grooming");
+  const [groomingBreed, setGroomingBreed] = useState("Large Breed");
+  const [groomingCoat, setGroomingCoat] = useState("Long Coat");
+  const [groomingSessions, setGroomingSessions] = useState("12");
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
+  const [couponCode, setCouponCode] = useState("");
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponMessage, setCouponMessage] = useState("");
   const [selectedPetId, setSelectedPetId] = useState("");
   const [newPet, setNewPet] = useState({ name: "", type: "Dog", breed: "", weight: "", vaccination_status: "Vaccinated" });
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -145,11 +178,19 @@ function BookPageContent() {
   const [pincodeState, setPincodeState] = useState<"idle" | "checking" | "ok" | "invalid">("idle");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [couponChecking, setCouponChecking] = useState(false);
   const [error, setError] = useState("");
 
   const selectedService = services.find((service) => service.id === selectedServiceId) || null;
   const selectedPet = pets.find((pet) => pet.id === selectedPetId) || null;
   const today = useMemo(() => new Date(), []);
+  const selectedAddons = useMemo(() => selectedService?.addons?.filter((addon) => selectedAddonIds.includes(addon.id)) || [], [selectedAddonIds, selectedService]);
+  const servicePrice = priceOf(selectedService);
+  const addonTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
+  const subtotal = servicePrice + addonTotal;
+  const couponDiscount = Math.min(coupon?.discount || 0, subtotal);
+  const total = Math.max(0, subtotal - couponDiscount);
+  const visibleServices = useMemo(() => services.filter((service) => service.category === serviceCategory), [serviceCategory, services]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -185,11 +226,29 @@ function BookPageContent() {
         ? activeServices.find((service: Service) => service.category.toLowerCase() === serviceQuery || service.name.toLowerCase().includes(serviceQuery))
         : activeServices[0];
       setSelectedServiceId(initialService?.id || "");
+      setServiceCategory(initialService?.category || "Grooming");
       setSelectedPetId(petQuery || userPets[0]?.id || "");
     }).catch(() => {
       setError("Booking details could not be loaded. Please refresh and try again.");
     }).finally(() => setLoading(false));
   }, [searchParams, userId]);
+
+  useEffect(() => {
+    if (serviceCategory !== "Grooming") return;
+    const match = services.find((service) => serviceMatchesPackage(service, groomingBreed, groomingCoat, groomingSessions));
+    if (match) {
+      setSelectedServiceId(match.id);
+      setSelectedAddonIds([]);
+      setCoupon(null);
+      setCouponMessage("");
+    }
+  }, [groomingBreed, groomingCoat, groomingSessions, serviceCategory, services]);
+
+  useEffect(() => {
+    setSelectedAddonIds([]);
+    setCoupon(null);
+    setCouponMessage("");
+  }, [selectedServiceId]);
 
   useEffect(() => {
     if (!selectedServiceId) return;
@@ -261,7 +320,37 @@ function BookPageContent() {
     staffMode !== "Any available specialist" ? `Preferred staff: ${staffMode}` : "",
     recurrence !== "No repeat" ? `Recurring request: ${recurrence}` : "",
     paymentMode ? `Payment preference: ${paymentMode}` : "",
+    selectedAddons.length ? `Add-ons: ${selectedAddons.map((addon) => addon.name).join(", ")}` : "",
+    coupon ? `Coupon: ${coupon.code} (-${money(coupon.discount)})` : "",
   ].filter(Boolean).join("\n");
+
+  async function applyCoupon() {
+    if (!selectedService || !couponCode.trim()) return;
+    setCouponChecking(true);
+    setCouponMessage("");
+    setCoupon(null);
+    try {
+      const params = new URLSearchParams({
+        code: couponCode.trim().toUpperCase(),
+        subtotal: String(subtotal),
+        category: selectedService.category,
+      });
+      const res = await fetch(`/api/coupons?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok || !data.valid) throw new Error(data.message || "Coupon could not be applied.");
+      setCoupon({
+        code: data.coupon.code,
+        description: data.coupon.description,
+        discount: Number(data.discount || 0),
+        terms: data.coupon.terms,
+      });
+      setCouponMessage(data.message || "Coupon applied.");
+    } catch (err) {
+      setCouponMessage(err instanceof Error ? err.message : "Coupon could not be applied.");
+    } finally {
+      setCouponChecking(false);
+    }
+  }
 
   async function useMyLocation() {
     setError("");
@@ -348,6 +437,11 @@ function BookPageContent() {
           slot_time: selectedSlot,
           address,
           notes: summaryNotes || null,
+          addons_json: {
+            addons: selectedAddons.map((addon) => ({ id: addon.id, name: addon.name, price: addon.price })),
+            coupon: coupon ? { code: coupon.code, discount: couponDiscount, terms: coupon.terms } : null,
+            pricing: { servicePrice, addonTotal, subtotal, couponDiscount, total },
+          },
         }),
       });
       const booking = await bookingRes.json();
@@ -401,8 +495,45 @@ function BookPageContent() {
                 <HeartPulse className="h-5 w-5 text-primary" />
                 <h2 className="font-bold">1. Choose service</h2>
               </div>
+              <div className="mb-4 grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
+                <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/40 p-2 text-xs font-bold sm:grid-cols-5 lg:grid-cols-2">
+                  {["Grooming", "Boarding", "Walking", "Swimming", "Veterinary", "Training"].map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => {
+                        setServiceCategory(category);
+                        const first = services.find((service) => service.category === category);
+                        setSelectedServiceId(first?.id || "");
+                      }}
+                      className={`rounded-lg px-3 py-2 ${serviceCategory === category ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+                {serviceCategory === "Grooming" && (
+                  <div className="grid gap-2 rounded-lg border bg-white p-2 sm:grid-cols-3">
+                    <select value={groomingBreed} onChange={(e) => setGroomingBreed(e.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm">
+                      <option>Small Breed</option>
+                      <option>Large Breed</option>
+                      <option>Extra Large Breed</option>
+                    </select>
+                    <select value={groomingCoat} onChange={(e) => setGroomingCoat(e.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm">
+                      <option>Long Coat</option>
+                      <option>Short Coat</option>
+                    </select>
+                    <select value={groomingSessions} onChange={(e) => setGroomingSessions(e.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm">
+                      <option>Single Session</option>
+                      <option>6</option>
+                      <option>12</option>
+                      <option>24</option>
+                    </select>
+                  </div>
+                )}
+              </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {services.map((service) => (
+                {visibleServices.map((service) => (
                   <button
                     key={service.id}
                     type="button"
@@ -421,12 +552,22 @@ function BookPageContent() {
                     <h3 className="mt-3 font-bold">{service.name}</h3>
                     <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{service.description_short || service.category}</p>
                     <div className="mt-3 flex items-center justify-between text-xs">
-                      <span className="font-bold text-foreground">{money(priceOf(service))}</span>
+                      <span className="font-bold text-foreground">
+                        {service.discounted_price ? <><span className="mr-1 text-muted-foreground line-through">{money(service.price)}</span>{money(priceOf(service))}</> : money(priceOf(service))}
+                      </span>
                       <span className="text-muted-foreground">{service.slot_duration_mins >= 1440 ? "Full day" : `${service.slot_duration_mins} min + buffer`}</span>
                     </div>
                   </button>
                 ))}
               </div>
+              {selectedService?.free_services_json && (
+                <div className="mt-4 rounded-lg border bg-muted/35 p-3">
+                  <p className="flex items-center gap-2 text-sm font-bold"><Sparkles className="h-4 w-4 text-primary" /> Included</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedService.free_services_json.map((item) => <span key={item} className="rounded-lg bg-white px-2 py-1 text-xs font-medium text-muted-foreground">{item}</span>)}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="rounded-lg border bg-white p-4 shadow-sm sm:p-5">
@@ -519,6 +660,8 @@ function BookPageContent() {
                         const closed = day.getDay() === 0;
                         const outMonth = day.getMonth() !== visibleMonth.getMonth();
                         const count = availability.dayCounts?.[dateKey] || 0;
+                        const capacity = selectedService?.max_slots_per_day || 4;
+                        const dayStatus = count >= capacity ? "Fully booked" : count >= Math.max(1, capacity - 2) ? "Few slots" : "Available";
                         return (
                           <button
                             key={dateKey}
@@ -531,7 +674,8 @@ function BookPageContent() {
                             className={`min-h-14 rounded-lg border p-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-35 ${sameDay(day, selectedDate) ? "border-primary bg-primary text-white" : "hover:border-primary/50"} ${outMonth ? "bg-muted/40 text-muted-foreground" : "bg-white"}`}
                           >
                             <span className="font-bold">{day.getDate()}</span>
-                            <span className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full ${closed ? "bg-red-400" : count ? "bg-amber-400" : "bg-green-400"}`} />
+                            <span className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full ${closed || dayStatus === "Fully booked" ? "bg-red-400" : dayStatus === "Few slots" ? "bg-amber-400" : "bg-green-400"}`} />
+                            {!closed && <span className="mt-1 block truncate text-[10px]">{dayStatus}</span>}
                           </button>
                         );
                       })}
@@ -653,6 +797,44 @@ function BookPageContent() {
                 <h2 className="font-bold">Operations</h2>
               </div>
               <div className="space-y-3">
+                {selectedService?.addons?.length ? (
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground">Service add-ons</label>
+                    <div className="mt-2 space-y-2">
+                      {selectedService.addons.map((addon) => (
+                        <label key={addon.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                          <span>
+                            <span className="font-bold">{addon.name}</span>
+                            <span className="mt-0.5 block text-xs text-muted-foreground">{addon.description}</span>
+                          </span>
+                          <span className="flex items-center gap-2 font-bold">
+                            {money(addon.price)}
+                            <input
+                              type="checkbox"
+                              checked={selectedAddonIds.includes(addon.id)}
+                              onChange={(e) => {
+                                setCoupon(null);
+                                setCouponMessage("");
+                                setSelectedAddonIds((prev) => e.target.checked ? [...prev, addon.id] : prev.filter((id) => id !== addon.id));
+                              }}
+                            />
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground">Coupon code</label>
+                  <div className="mt-2 flex gap-2">
+                    <Input value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="FIRST10" />
+                    <Button type="button" variant="outline" onClick={applyCoupon} disabled={couponChecking || !couponCode.trim()}>
+                      {couponChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  {couponMessage && <p className={`mt-2 text-xs font-semibold ${coupon ? "text-green-700" : "text-red-600"}`}>{couponMessage}</p>}
+                  {coupon?.terms && <p className="mt-1 text-xs text-muted-foreground">{coupon.terms}</p>}
+                </div>
                 <label className="block text-xs font-bold text-muted-foreground">Staff preference</label>
                 <select value={staffMode} onChange={(e) => setStaffMode(e.target.value)} className="h-11 w-full rounded-lg border bg-white px-3 text-sm">
                   <option>Any available specialist</option>
@@ -689,7 +871,12 @@ function BookPageContent() {
                 <div className="flex justify-between gap-3"><span className="text-white/65">Pet</span><span className="text-right font-bold">{selectedPet?.name || newPet.name || "-"}</span></div>
                 <div className="flex justify-between gap-3"><span className="text-white/65">Date</span><span className="text-right font-bold">{selectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
                 <div className="flex justify-between gap-3"><span className="text-white/65">Slot</span><span className="text-right font-bold">{selectedSlot || "-"}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-white/65">Price</span><span className="text-right font-bold">{selectedService ? money(priceOf(selectedService)) : "-"}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-white/65">Service price</span><span className="text-right font-bold">{selectedService ? money(servicePrice) : "-"}</span></div>
+                {addonTotal > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Add-ons</span><span className="text-right font-bold">{money(addonTotal)}</span></div>}
+                {couponDiscount > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Coupon</span><span className="text-right font-bold">-{money(couponDiscount)}</span></div>}
+                <div className="border-t border-white/15 pt-3">
+                  <div className="flex justify-between gap-3 text-base"><span className="text-white/80">Payable</span><span className="text-right font-extrabold">{selectedService ? money(total) : "-"}</span></div>
+                </div>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2 text-center text-[11px] text-white/70">
                 <span className="rounded-lg bg-white/10 p-2"><Repeat className="mx-auto mb-1 h-4 w-4" />Reminders</span>

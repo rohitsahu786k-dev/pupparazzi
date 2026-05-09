@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+function canAccess(sessionUserId?: string, role?: string | null, userId?: string) {
+  return Boolean(sessionUserId && (sessionUserId === userId || role === "ADMIN" || role === "STAFF"));
+}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await getServerSession(authOptions);
     const { id } = await params;
+    if (!canAccess(session?.user?.id, session?.user?.role, id)) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
     const address = await prisma.address.findFirst({
       where: { user_id: id, is_default: true },
     });
@@ -15,7 +25,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await getServerSession(authOptions);
     const { id } = await params;
+    if (!canAccess(session?.user?.id, session?.user?.role, id)) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
     const { line1, city, state, pincode, phone, label } = await req.json();
 
     if (!line1 || !city || !pincode) {

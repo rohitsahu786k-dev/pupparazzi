@@ -4,12 +4,36 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sendBookingConfirmation, sendPaymentConfirmation, sendCancellationEmail, sendBookingStatusEmail } from "@/lib/mailer";
 import { generateInvoicePdf } from "@/lib/invoice";
+import { calculateCouponDiscount, CouponRule, defaultCoupons, serviceBookablePrice } from "@/lib/pet-care-pricing";
 
 const BOOKING_STATUSES = ["Pending", "Confirmed", "In Progress", "Completed", "Cancelled"];
 const PAYMENT_STATUSES = ["Pending", "Paid", "Failed", "Refunded"];
 
 function isAdmin(role?: string | null) {
   return role === "ADMIN" || role === "STAFF";
+}
+
+function bookingPricing(service: { price?: number | null; discounted_price?: number | null }, addonsJson: unknown) {
+  const base = serviceBookablePrice(service);
+  const data = addonsJson && typeof addonsJson === "object" ? addonsJson as any : {};
+  const addonTotal = Array.isArray(data.addons)
+    ? data.addons.reduce((sum: number, addon: any) => sum + Number(addon.price || 0), 0)
+    : 0;
+  const couponDiscount = Number(data.coupon?.discount || 0);
+  const subtotal = base + addonTotal;
+  return {
+    base,
+    addonTotal,
+    couponDiscount,
+    subtotal,
+    total: Math.max(0, subtotal - couponDiscount),
+    couponCode: data.coupon?.code,
+  };
+}
+
+async function getCoupons() {
+  const setting = await prisma.appSetting.findUnique({ where: { key: "coupons" } });
+  return (Array.isArray(setting?.value) ? setting.value : defaultCoupons) as CouponRule[];
 }
 
 // GET /api/bookings?userId=xxx&status=Pending&paymentStatus=Paid&dateFrom=2026-05-01&dateTo=2026-05-31
@@ -76,10 +100,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Pet not found or unauthorized" }, { status: 404 });
     }
 
-    const service = await prisma.service.findUnique({ where: { id: service_id } });
+    const service = await prisma.service.findUnique({ where: { id: service_id }, include: { addons: { where: { is_active: true } } } });
     if (!service || !service.is_active) {
       return NextResponse.json({ message: "Service is not available" }, { status: 404 });
     }
+
+    const requestedAddonIds = Array.isArray(addons_json?.addons) ? addons_json.addons.map((addon: any) => String(addon.id)) : [];
+    const selectedAddons = service.addons.filter((addon) => requestedAddonIds.includes(addon.id));
+    const addonTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
+    const basePrice = serviceBookablePrice(service);
+    const subtotal = basePrice + addonTotal;
+    let couponPayload = null;
+    if (addons_json?.coupon?.code) {
+      const code = String(addons_json.coupon.code).trim().toUpperCase();
+      const coupon = (await getCoupons()).find((item) => item.code.toUpperCase() === code);
+      if (!coupon || !coupon.is_active) return NextResponse.json({ message: "Coupon is not active" }, { status: 400 });
+      if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) return NextResponse.json({ message: "Coupon has expired" }, { status: 400 });
+      if (coupon.category && coupon.category !== service.category) return NextResponse.json({ message: `Coupon is valid only for ${coupon.category}` }, { status: 400 });
+      if (subtotal < coupon.minimum_order_amount) return NextResponse.json({ message: `Minimum order amount is Rs. ${coupon.minimum_order_amount}` }, { status: 400 });
+      couponPayload = { code: coupon.code, discount: calculateCouponDiscount(coupon, subtotal), terms: coupon.terms };
+    }
+    const finalAddonsJson = {
+      addons: selectedAddons.map((addon) => ({ id: addon.id, name: addon.name, price: addon.price })),
+      coupon: couponPayload,
+      pricing: {
+        servicePrice: basePrice,
+        addonTotal,
+        subtotal,
+        couponDiscount: couponPayload?.discount || 0,
+        total: Math.max(0, subtotal - (couponPayload?.discount || 0)),
+      },
+    };
 
     const existingSlotCount = await prisma.booking.count({
       where: {
@@ -122,7 +173,7 @@ export async function POST(req: Request) {
         slot_date: new Date(slot_date),
         slot_time,
         notes: notes || null,
-        addons_json: addons_json || null,
+        addons_json: finalAddonsJson,
         status: "Pending",
         payment_status: "Pending",
       },
@@ -139,7 +190,7 @@ export async function POST(req: Request) {
         petName: booking.pet?.name || "Your Pet",
         slotDate: new Date(slot_date).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
         slotTime: slot_time,
-        price: String(booking.service?.price || "0"),
+        price: String(bookingPricing(booking.service, booking.addons_json).total),
         address: booking.address ? `${booking.address.line1}, ${booking.address.city}` : undefined,
       }).catch(console.error);
     }
@@ -199,7 +250,8 @@ export async function PATCH(req: Request) {
     // Payment confirmed → generate and send GST invoice
     if (payment_status === "Paid" && clientEmail) {
       const invoiceNumber = `INV-${booking.booking_id}`;
-      const unitPrice = Number(booking.service?.price || 0);
+      const pricing = bookingPricing(booking.service, booking.addons_json);
+      const unitPrice = pricing.total;
       const gstRate = 18;
       const gstAmount = parseFloat(((unitPrice * gstRate) / 100).toFixed(2));
       const totalAmount = parseFloat((unitPrice + gstAmount).toFixed(2));
@@ -231,7 +283,7 @@ export async function PATCH(req: Request) {
             client_id: booking.client_id,
             line_items_json: [
               {
-                desc: booking.service?.name || "Pet Service",
+                desc: pricing.couponCode ? `${booking.service?.name || "Pet Service"} (${pricing.couponCode} applied)` : booking.service?.name || "Pet Service",
                 qty: 1,
                 rate: unitPrice,
                 amount: unitPrice,
@@ -321,6 +373,12 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ message: "Booking ID is required" }, { status: 400 });
     }
 
+    const paymentCount = await prisma.payment.count({ where: { booking_id: id } });
+    const invoiceCount = await prisma.invoice.count({ where: { booking_id: id } });
+    if (paymentCount > 0 || invoiceCount > 0) {
+      await prisma.booking.update({ where: { id }, data: { status: "Cancelled" } });
+      return NextResponse.json({ message: "Booking has payments/invoices, so it was cancelled instead of deleted" });
+    }
     await prisma.booking.delete({ where: { id } });
     return NextResponse.json({ message: "Booking deleted successfully" });
   } catch (error) {

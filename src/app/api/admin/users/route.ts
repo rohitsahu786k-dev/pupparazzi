@@ -115,6 +115,13 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ message: "User ID is required" }, { status: 400 });
   if (id === session.user.id) return NextResponse.json({ message: "You cannot delete your own admin account" }, { status: 400 });
 
+  const linkedRecords = await prisma.booking.count({ where: { client_id: id } });
+  const payments = await prisma.payment.count({ where: { client_id: id } });
+  if (linkedRecords > 0 || payments > 0) {
+    await prisma.user.update({ where: { id }, data: { is_active: false } });
+    return NextResponse.json({ message: "User has bookings/payments, so the account was disabled instead of deleted" });
+  }
+
   await prisma.user.delete({ where: { id } });
   return NextResponse.json({ message: "User deleted" });
 }

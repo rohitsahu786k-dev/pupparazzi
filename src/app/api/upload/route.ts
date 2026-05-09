@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 
 export const runtime = "nodejs";
 
@@ -20,11 +21,14 @@ function safeFilename(name: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireAdmin();
+    if (!session) return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const folder = safeSegment((formData.get("folder") as string) || "uploads");
     const category = (formData.get("category") as string) || "General";
-    const uploadedBy = (formData.get("uploadedBy") as string) || undefined;
+    const uploadedBy = session.user.id;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
