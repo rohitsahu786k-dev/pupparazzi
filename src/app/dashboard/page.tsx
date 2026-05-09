@@ -18,7 +18,12 @@ type Booking = {
   payment_status: string;
   slot_date: string;
   slot_time: string;
-  service?: { name: string; price: number };
+  addons_json?: {
+    pricing?: { total?: number; subtotal?: number; couponDiscount?: number; addonTotal?: number };
+    payment?: { plan?: string; advanceAmount?: number; remainingCodAmount?: number; mode?: string };
+    coupon?: { code?: string; discount?: number } | null;
+  } | null;
+  service?: { name: string; price: number; discounted_price?: number | null };
   pet?: { name: string };
 };
 
@@ -40,6 +45,8 @@ const STATUS_CFG: Record<string, { label: string; cls: string; icon: React.React
 
 const PAY_CFG: Record<string, { label: string; cls: string }> = {
   Paid:     { label: "Paid",     cls: "bg-green-50 text-green-700" },
+  "Partially Paid": { label: "Partially paid", cls: "bg-blue-50 text-blue-700" },
+  "Advance Paid": { label: "Advance paid", cls: "bg-blue-50 text-blue-700" },
   Pending:  { label: "Unpaid",   cls: "bg-amber-50 text-amber-700" },
   Refunded: { label: "Refunded", cls: "bg-accent/10 text-accent" },
 };
@@ -55,6 +62,18 @@ function StatusBadge({ status }: { status: string }) {
       {cfg.icon}{cfg.label}
     </span>
   );
+}
+
+function bookingAmount(booking: Booking) {
+  return Number(booking.addons_json?.pricing?.total ?? booking.service?.discounted_price ?? booking.service?.price ?? 0);
+}
+
+function paymentLine(booking: Booking) {
+  const payment = booking.addons_json?.payment;
+  if (payment?.plan === "COD_ADVANCE") {
+    return `Rs.${Number(payment.advanceAmount || 100).toLocaleString("en-IN")} advance, Rs.${Number(payment.remainingCodAmount || 0).toLocaleString("en-IN")} COD`;
+  }
+  return "Full online payment";
 }
 
 function DashboardContent() {
@@ -111,7 +130,7 @@ function DashboardContent() {
   const history    = bookings.filter(b => ["Completed", "Cancelled", "Expired"].includes(b.status));
   const totalSpent = bookings
     .filter(b => b.payment_status === "Paid")
-    .reduce((sum, b) => sum + (b.service?.price || 0), 0);
+    .reduce((sum, b) => sum + bookingAmount(b), 0);
 
   return (
     <div className="space-y-8">
@@ -221,10 +240,12 @@ function DashboardContent() {
                               {b.pet?.name} &nbsp;·&nbsp; {b.slot_time} &nbsp;·&nbsp; {fmt(b.slot_date)}
                             </p>
                             <div className="flex items-center gap-3 mt-2">
-                              <span className="text-xs font-bold text-foreground">Rs.{b.service?.price?.toLocaleString("en-IN")}</span>
+                              <span className="text-xs font-bold text-foreground">Rs.{bookingAmount(b).toLocaleString("en-IN")}</span>
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-[10px] ${payCfg.cls}`}>{payCfg.label}</span>
                               <span className="text-xs text-secondary">{b.booking_id}</span>
                             </div>
+                            <p className="mt-1 text-xs text-secondary">{paymentLine(b)}</p>
+                            {b.addons_json?.coupon?.code && <p className="mt-1 text-xs font-semibold text-green-700">{b.addons_json.coupon.code} coupon applied</p>}
                           </div>
                           {canCancel && (
                             <button

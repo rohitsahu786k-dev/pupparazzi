@@ -14,6 +14,11 @@ type Booking = {
   slot_time: string;
   notes?: string | null;
   internal_notes?: string | null;
+  addons_json?: {
+    pricing?: { total?: number; subtotal?: number; couponDiscount?: number; addonTotal?: number };
+    payment?: { plan?: string; advanceAmount?: number; remainingCodAmount?: number; mode?: string };
+    coupon?: { code?: string; discount?: number } | null;
+  } | null;
   client?: { name?: string | null; email?: string | null; phone?: string | null };
   pet?: { name?: string | null; type?: string | null; breed?: string | null };
   service?: { name?: string | null; price?: number | null; discounted_price?: number | null };
@@ -34,6 +39,18 @@ function badgeClass(value: string) {
   if (value === "Cancelled" || value === "Failed") return "bg-red-50 text-red-700 border-red-200";
   if (value === "Expired") return "bg-slate-100 text-slate-700 border-slate-200";
   return "bg-amber-50 text-amber-700 border-amber-200";
+}
+
+function bookingAmount(booking: Booking) {
+  return Number(booking.addons_json?.pricing?.total ?? booking.service?.discounted_price ?? booking.service?.price ?? 0);
+}
+
+function paymentSummary(booking: Booking) {
+  const payment = booking.addons_json?.payment;
+  if (payment?.plan === "COD_ADVANCE") {
+    return `COD: Rs. ${Number(payment.advanceAmount || 100).toLocaleString("en-IN")} now, Rs. ${Number(payment.remainingCodAmount || 0).toLocaleString("en-IN")} pending`;
+  }
+  return "Full online payment";
 }
 
 export default function AdminBookingsPage() {
@@ -135,7 +152,7 @@ export default function AdminBookingsPage() {
   const pending = bookings.filter((booking) => booking.status === "Pending").length;
   const revenue = bookings
     .filter((booking) => booking.payment_status === "Paid")
-    .reduce((sum, booking) => sum + Number(booking.service?.discounted_price || booking.service?.price || 0), 0);
+    .reduce((sum, booking) => sum + bookingAmount(booking), 0);
 
   return (
     <div className="space-y-6">
@@ -189,18 +206,51 @@ export default function AdminBookingsPage() {
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground">No bookings found.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-275 text-left text-sm">
+          <>
+          <div className="space-y-3 p-3 lg:hidden">
+            {filtered.map((booking) => (
+              <div key={booking.id} className="rounded-lg border bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-foreground">{booking.booking_id}</p>
+                    <p className="mt-1 truncate text-sm font-semibold">{booking.client?.name || "Customer"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{booking.service?.name || "Service"} - {booking.pet?.name || "Pet"}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.status)}`}>{booking.status}</span>
+                </div>
+                <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(booking.slot_date)} at {booking.slot_time}</p>
+                  <p className="flex items-start gap-1"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" /> {booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.pincode || ""}` : "-"}</p>
+                  <p>{paymentSummary(booking)}</p>
+                  <p className="font-bold text-foreground">Rs. {bookingAmount(booking).toLocaleString("en-IN")} - {booking.payment_status}</p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { status: "Confirmed" })}>Confirm</Button>
+                  <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { payment_status: "Paid", payment_method: "Admin" })}>Paid</Button>
+                  {(booking.payment_status === "Advance Paid" || booking.payment_status === "Partially Paid") && (
+                    <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => collectCodPayment(booking.id)}>COD</Button>
+                  )}
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={whatsappLink(booking, booking.payment_status === "Paid" ? "paid" : booking.payment_status === "Partially Paid" ? "cod" : "confirmation")} target="_blank" rel="noreferrer">
+                      <MessageCircle className="h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="w-full min-w-[1120px] table-fixed text-left text-sm">
               <thead className="border-b bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Booking</th>
-                  <th className="px-4 py-3">Client</th>
-                  <th className="px-4 py-3">Pet & Service</th>
-                  <th className="px-4 py-3">Schedule</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3">Internal Notes</th>
-                  <th className="px-4 py-3">Actions</th>
+                  <th className="w-[150px] px-4 py-3">Booking</th>
+                  <th className="w-[190px] px-4 py-3">Client</th>
+                  <th className="w-[210px] px-4 py-3">Pet & Service</th>
+                  <th className="w-[220px] px-4 py-3">Schedule</th>
+                  <th className="w-[150px] px-4 py-3">Status</th>
+                  <th className="w-[170px] px-4 py-3">Payment</th>
+                  <th className="w-[170px] px-4 py-3">Internal Notes</th>
+                  <th className="w-[220px] px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -208,21 +258,22 @@ export default function AdminBookingsPage() {
                   <tr key={booking.id} className="align-top hover:bg-muted/30">
                     <td className="px-4 py-4">
                       <p className="font-bold text-foreground">{booking.booking_id}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{booking.notes || "No customer notes"}</p>
+                      <p className="mt-1 whitespace-pre-line break-words text-xs text-muted-foreground">{booking.notes || "No customer notes"}</p>
                     </td>
                     <td className="px-4 py-4">
-                      <p className="font-semibold">{booking.client?.name || "Customer"}</p>
-                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3" /> {booking.client?.email || "-"}</p>
-                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Phone className="h-3 w-3" /> {booking.client?.phone || "-"}</p>
+                      <p className="truncate font-semibold">{booking.client?.name || "Customer"}</p>
+                      <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3 shrink-0" /> <span className="truncate">{booking.client?.email || "-"}</span></p>
+                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Phone className="h-3 w-3 shrink-0" /> {booking.client?.phone || "-"}</p>
                     </td>
                     <td className="px-4 py-4">
                       <p className="font-semibold">{booking.pet?.name || "Pet"} <span className="text-xs font-normal text-muted-foreground">{booking.pet?.breed || booking.pet?.type}</span></p>
-                      <p className="mt-1 text-xs text-muted-foreground">{booking.service?.name} · Rs. {Number(booking.service?.discounted_price || booking.service?.price || 0).toLocaleString("en-IN")}</p>
+                      <p className="mt-1 break-words text-xs text-muted-foreground">{booking.service?.name} - Rs. {bookingAmount(booking).toLocaleString("en-IN")}</p>
+                      {booking.addons_json?.coupon?.code && <p className="mt-1 text-xs font-semibold text-green-700">{booking.addons_json.coupon.code} applied</p>}
                     </td>
                     <td className="px-4 py-4">
                       <p className="flex items-center gap-1 font-semibold"><Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(booking.slot_date)}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{booking.slot_time}</p>
-                      <p className="mt-2 flex max-w-55 items-start gap-1 text-xs text-muted-foreground"><MapPin className="mt-0.5 h-3 w-3 shrink-0" /> {booking.address ? `${booking.address.line1}, ${booking.address.city}` : booking.notes?.replace("Address: ", "") || "-"}</p>
+                      <p className="mt-2 flex items-start gap-1 text-xs text-muted-foreground"><MapPin className="mt-0.5 h-3 w-3 shrink-0" /> <span className="break-words">{booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.pincode || ""}` : "-"}</span></p>
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.status)}`}>{booking.status}</span>
@@ -237,11 +288,12 @@ export default function AdminBookingsPage() {
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.payment_status)}`}>{booking.payment_status}</span>
+                      <p className="mt-2 text-xs text-muted-foreground">{paymentSummary(booking)}</p>
                       <select
                         value={booking.payment_status}
                         disabled={savingId === booking.id}
                         onChange={(e) => updateBooking(booking.id, { payment_status: e.target.value, payment_method: "Admin" })}
-                        className="mt-2 block h-9 w-32 rounded-lg border bg-white px-2 text-xs"
+                        className="mt-2 block h-9 w-full rounded-lg border bg-white px-2 text-xs"
                       >
                         {PAYMENT_STATUSES.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
                       </select>
@@ -251,11 +303,11 @@ export default function AdminBookingsPage() {
                         defaultValue={booking.internal_notes || ""}
                         onBlur={(e) => updateBooking(booking.id, { internal_notes: e.target.value })}
                         placeholder="Add private note"
-                        className="h-20 w-48 resize-none rounded-lg border bg-white p-2 text-xs outline-none focus:border-primary"
+                        className="h-20 w-full resize-none rounded-lg border bg-white p-2 text-xs outline-none focus:border-primary"
                       />
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { status: "Confirmed" })}>
                           <UserCheck className="mr-1 h-3.5 w-3.5" /> Confirm
                         </Button>
@@ -282,6 +334,7 @@ export default function AdminBookingsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>
