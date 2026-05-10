@@ -1,22 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
-  Clock,
   CreditCard,
   FileText,
   HeartPulse,
   Home,
   Loader2,
   MapPin,
+  ImagePlus,
   PawPrint,
   Plus,
   Repeat,
@@ -56,6 +57,8 @@ type Pet = {
   type: string;
   breed?: string | null;
   weight?: number | null;
+  profile_photo?: string | null;
+  photos_array?: string[] | null;
   medical?: { vaccination_status?: string | null } | null;
 };
 
@@ -137,6 +140,7 @@ function money(value: number) {
 }
 
 function paymentPlanFromMode(mode: string) {
+  if (mode === "Cash on Delivery (Testing)") return "COD_TEST";
   return mode === "Cash on Delivery + Rs. 100 advance" ? "COD_ADVANCE" : "FULL_ONLINE";
 }
 
@@ -185,20 +189,24 @@ function BookPageContent() {
   const [couponMessage, setCouponMessage] = useState("");
   const [selectedPetId, setSelectedPetId] = useState("");
   const [newPet, setNewPet] = useState({ name: "", type: "Dog", breed: "", weight: "", vaccination_status: "Vaccinated" });
+  const [petImages, setPetImages] = useState<File[]>([]);
+  const [petImagePreviews, setPetImagePreviews] = useState<string[]>([]);
+  const [uploadingPetImages, setUploadingPetImages] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [selectedSlot, setSelectedSlot] = useState("");
-  const [calendarView, setCalendarView] = useState<"month" | "week" | "day" | "timeline">("month");
+  const [calendarView, setCalendarView] = useState<"month" | "week">("month");
   const [staffMode, setStaffMode] = useState("Any available specialist");
   const [recurrence, setRecurrence] = useState("No repeat");
   const [notes, setNotes] = useState("");
-  const [paymentMode, setPaymentMode] = useState("Full Online Payment");
+  const [paymentMode, setPaymentMode] = useState("Cash on Delivery (Testing)");
   const [availability, setAvailability] = useState<Availability>({});
   const [pincodeState, setPincodeState] = useState<"idle" | "checking" | "ok" | "invalid">("idle");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [couponChecking, setCouponChecking] = useState(false);
   const [error, setError] = useState("");
+  const submittingRef = useRef(false);
 
   const selectedService = services.find((service) => service.id === selectedServiceId) || null;
   const selectedPet = pets.find((pet) => pet.id === selectedPetId) || null;
@@ -343,6 +351,12 @@ function BookPageContent() {
     coupon ? `Coupon: ${coupon.code} (-${money(coupon.discount)})` : "",
   ].filter(Boolean).join("\n");
 
+  useEffect(() => {
+    const urls = petImages.map((file) => URL.createObjectURL(file));
+    setPetImagePreviews(urls);
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, [petImages]);
+
   async function applyCoupon() {
     if (!selectedService || !couponCode.trim()) return;
     setCouponChecking(true);
@@ -401,6 +415,22 @@ function BookPageContent() {
   async function createPetIfNeeded() {
     if (selectedPetId) return selectedPetId;
     if (!newPet.name.trim() || !newPet.type) throw new Error("Pet name and type are required.");
+    setUploadingPetImages(petImages.length > 0);
+    const uploadedImages: string[] = [];
+    try {
+      for (const file of petImages) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", "pets");
+        formData.append("category", "Pets");
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+        const upload = await uploadRes.json().catch(() => ({}));
+        if (!uploadRes.ok) throw new Error(upload.error || "Pet image upload failed.");
+        uploadedImages.push(upload.secure_url || upload.url || upload.path);
+      }
+    } finally {
+      setUploadingPetImages(false);
+    }
     const res = await fetch("/api/pets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -411,6 +441,8 @@ function BookPageContent() {
         breed: newPet.breed,
         weight: newPet.weight,
         vaccination_status: newPet.vaccination_status,
+        profile_photo: uploadedImages[0] || null,
+        photos_array: uploadedImages,
         tc_accepted: true,
       }),
     });
@@ -422,22 +454,34 @@ function BookPageContent() {
   }
 
   async function submitBooking() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSaving(true);
     setError("");
-    if (!userId) return;
+    if (!userId) {
+      submittingRef.current = false;
+      setSaving(false);
+      return;
+    }
     if (!selectedService) {
       setError("Please select a service.");
+      submittingRef.current = false;
+      setSaving(false);
       return;
     }
     if (!selectedSlot) {
       setError("Please select an available time slot.");
+      submittingRef.current = false;
+      setSaving(false);
       return;
     }
     if (!address.line1 || !address.city || !address.pincode || !/^\d{6}$/.test(address.pincode)) {
       setError("A complete service address and a valid 6-digit pincode are required.");
+      submittingRef.current = false;
+      setSaving(false);
       return;
     }
 
-    setSaving(true);
     try {
       const petId = await createPetIfNeeded();
       await fetch(`/api/users/${userId}/address`, {
@@ -473,6 +517,10 @@ function BookPageContent() {
       if (!bookingRes.ok) throw new Error(booking.message || "Booking could not be created.");
 
       const paymentPlan = paymentPlanFromMode(paymentMode);
+      if (paymentPlan === "COD_TEST") {
+        router.push("/dashboard?booked=true");
+        return;
+      }
       const paymentAmount = paymentPlan === "COD_ADVANCE" ? COD_ADVANCE_AMOUNT : total;
       const loaded = await loadRazorpay();
       if (!loaded) throw new Error("Payment gateway could not be loaded. Please try again.");
@@ -530,6 +578,7 @@ function BookPageContent() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Booking could not be created.");
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   }
@@ -663,8 +712,19 @@ function BookPageContent() {
                       onClick={() => setSelectedPetId(pet.id)}
                       className={`rounded-lg border p-3 text-left ${selectedPetId === pet.id ? "border-primary bg-primary/6" : "hover:border-primary/35"}`}
                     >
-                      <p className="font-bold">{pet.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{[pet.breed, pet.type, pet.medical?.vaccination_status].filter(Boolean).join(" · ")}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-12 w-12 overflow-hidden rounded-lg bg-muted">
+                          {pet.profile_photo ? (
+                            <Image src={pet.profile_photo} alt={pet.name} fill className="object-cover" sizes="48px" />
+                          ) : (
+                            <PawPrint className="m-3 h-6 w-6 text-muted-foreground" />
+                          )}
+                        </div>
+                        <span>
+                          <span className="font-bold">{pet.name}</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">{[pet.breed, pet.type, pet.medical?.vaccination_status].filter(Boolean).join(" - ")}</span>
+                        </span>
+                      </div>
                     </button>
                   ))}
                   <button
@@ -694,6 +754,26 @@ function BookPageContent() {
                     <option>Not vaccinated</option>
                     <option>Unknown</option>
                   </select>
+                  <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-center text-sm font-bold text-muted-foreground transition hover:border-primary/50 hover:text-foreground sm:col-span-2">
+                    <ImagePlus className="h-5 w-5 text-primary" />
+                    <span>{petImages.length ? `${petImages.length} image selected` : "Upload pet images"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="sr-only"
+                      onChange={(e) => setPetImages(Array.from(e.target.files || []).slice(0, 4))}
+                    />
+                  </label>
+                  {petImagePreviews.length > 0 && (
+                    <div className="grid grid-cols-4 gap-2 sm:col-span-2">
+                      {petImagePreviews.map((src, index) => (
+                        <div key={src} className="relative aspect-square overflow-hidden rounded-lg border bg-muted">
+                          <Image src={src} alt={`Pet preview ${index + 1}`} fill className="object-cover" sizes="96px" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -704,8 +784,8 @@ function BookPageContent() {
                   <CalendarDays className="h-5 w-5 text-primary" />
                   <h2 className="font-bold">3. Advanced calendar</h2>
                 </div>
-                <div className="grid grid-cols-4 rounded-lg bg-muted p-1 text-xs font-bold">
-                  {(["month", "week", "day", "timeline"] as const).map((view) => (
+                <div className="grid grid-cols-2 rounded-lg bg-muted p-1 text-xs font-bold">
+                  {(["month", "week"] as const).map((view) => (
                     <button
                       key={view}
                       type="button"
@@ -719,19 +799,19 @@ function BookPageContent() {
               </div>
 
               <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
-                <div className="rounded-lg border p-3">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border">
+                <div className="rounded-lg border bg-white p-3 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-muted/45 p-2">
+                    <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-white">
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <p className="text-sm font-extrabold">{calendarView === "day" ? selectedDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }) : monthLabel(visibleMonth)}</p>
-                    <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border">
+                    <p className="text-sm font-extrabold">{monthLabel(visibleMonth)}</p>
+                    <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-white">
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
 
                   {calendarView === "month" && (
-                    <div className="grid grid-cols-7 gap-1 text-center">
+                    <div className="grid grid-cols-7 gap-1.5 text-center">
                       {WEEK_DAYS.map((day) => <div key={day} className="py-2 text-[11px] font-bold text-muted-foreground">{day}</div>)}
                       {monthDays.map((day) => {
                         const dateKey = toDateKey(day);
@@ -750,11 +830,11 @@ function BookPageContent() {
                               setSelectedDate(day);
                               setSelectedSlot("");
                             }}
-                            className={`min-h-14 rounded-lg border p-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-35 ${sameDay(day, selectedDate) ? "border-primary bg-primary text-white" : "hover:border-primary/50"} ${outMonth ? "bg-muted/40 text-muted-foreground" : "bg-white"}`}
+                            className={`min-h-18 rounded-lg border p-1.5 text-xs transition disabled:cursor-not-allowed disabled:opacity-35 ${sameDay(day, selectedDate) ? "border-primary bg-primary text-white shadow-sm" : "hover:border-primary/50"} ${outMonth ? "bg-muted/40 text-muted-foreground" : "bg-white"}`}
                           >
-                            <span className="font-bold">{day.getDate()}</span>
-                            <span className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full ${closed || dayStatus === "Fully booked" ? "bg-red-400" : dayStatus === "Few slots" ? "bg-amber-400" : "bg-green-400"}`} />
-                            {!closed && <span className="mt-1 block truncate text-[10px]">{dayStatus}</span>}
+                            <span className="block text-left font-bold">{day.getDate()}</span>
+                            <span className={`mx-auto mt-2 block h-1.5 w-1.5 rounded-full ${closed || dayStatus === "Fully booked" ? "bg-red-400" : dayStatus === "Few slots" ? "bg-amber-400" : "bg-green-400"}`} />
+                            <span className="mt-1 block truncate text-[10px]">{closed ? "Closed" : dayStatus}</span>
                           </button>
                         );
                       })}
@@ -783,45 +863,12 @@ function BookPageContent() {
                     </div>
                   )}
 
-                  {calendarView === "day" && (
-                    <div className="space-y-2">
-                      {Array.from({ length: 12 }, (_, index) => BUSINESS_START + index * 60).map((minute) => (
-                        <button
-                          key={minute}
-                          type="button"
-                          onClick={() => setSelectedSlot(minutesToLabel(minute))}
-                          className={`flex w-full items-center justify-between rounded-lg border px-3 py-3 text-sm ${selectedSlot === minutesToLabel(minute) ? "border-primary bg-primary/8" : "bg-white"}`}
-                        >
-                          <span className="font-bold">{minutesToLabel(minute)}</span>
-                          <span className="text-xs text-muted-foreground">{minute >= LUNCH_START && minute < LUNCH_END ? "Break" : "Service window"}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {calendarView === "timeline" && (
-                    <div className="space-y-2">
-                      {slots.map((slot) => (
-                        <button
-                          key={slot.label}
-                          type="button"
-                          disabled={slot.disabled}
-                          onClick={() => setSelectedSlot(slot.label)}
-                          className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left disabled:opacity-40 ${selectedSlot === slot.label ? "border-primary bg-primary/8" : "bg-white"}`}
-                        >
-                          <Clock className="h-4 w-4 text-primary" />
-                          <span className="font-bold">{slot.label}</span>
-                          <span className="ml-auto text-xs text-muted-foreground">{slot.booked ? "Booked" : "Open"}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-3">
                   <div className="rounded-lg border bg-muted/35 p-3">
                     <p className="text-sm font-bold">{selectedDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Sunday closed, lunch break blocked, past slots disabled, cleaning buffer included.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Choose one open slot. Past slots, lunch break and Sunday are blocked.</p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2">
                     {slots.map((slot) => (
@@ -930,6 +977,7 @@ function BookPageContent() {
                 </select>
                 <label className="block text-xs font-bold text-muted-foreground">Payment</label>
                 <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} className="h-11 w-full rounded-lg border bg-white px-3 text-sm">
+                  <option>Cash on Delivery (Testing)</option>
                   <option>Full Online Payment</option>
                   <option>Cash on Delivery + Rs. 100 advance</option>
                 </select>
@@ -954,6 +1002,8 @@ function BookPageContent() {
                 {couponDiscount > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Coupon</span><span className="text-right font-bold">-{money(couponDiscount)}</span></div>}
                 {paymentPlanFromMode(paymentMode) === "COD_ADVANCE" && <div className="flex justify-between gap-3"><span className="text-white/65">Pay now</span><span className="text-right font-bold">{money(COD_ADVANCE_AMOUNT)}</span></div>}
                 {paymentPlanFromMode(paymentMode) === "COD_ADVANCE" && <div className="flex justify-between gap-3"><span className="text-white/65">Remaining COD</span><span className="text-right font-bold">{money(Math.max(0, total - COD_ADVANCE_AMOUNT))}</span></div>}
+                {paymentPlanFromMode(paymentMode) === "COD_TEST" && <div className="flex justify-between gap-3"><span className="text-white/65">Pay now</span><span className="text-right font-bold">Rs. 0</span></div>}
+                {paymentPlanFromMode(paymentMode) === "COD_TEST" && <div className="flex justify-between gap-3"><span className="text-white/65">Cash on delivery</span><span className="text-right font-bold">{money(total)}</span></div>}
                 <div className="border-t border-white/15 pt-3">
                   <div className="flex justify-between gap-3 text-base"><span className="text-white/80">Total</span><span className="text-right font-extrabold">{selectedService ? money(total) : "-"}</span></div>
                 </div>
@@ -963,9 +1013,9 @@ function BookPageContent() {
                 <span className="rounded-lg bg-white/10 p-2"><CreditCard className="mx-auto mb-1 h-4 w-4" />Payment</span>
                 <span className="rounded-lg bg-white/10 p-2"><FileText className="mx-auto mb-1 h-4 w-4" />Invoice</span>
               </div>
-              <Button type="button" className="mt-5 w-full bg-white text-foreground hover:bg-white/90" onClick={submitBooking} disabled={saving}>
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-                Confirm booking
+              <Button type="button" className="mt-5 w-full bg-white text-foreground hover:bg-white/90" onClick={submitBooking} disabled={saving || uploadingPetImages}>
+                {saving || uploadingPetImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                {saving || uploadingPetImages ? "Booking..." : "Confirm booking"}
               </Button>
             </div>
           </aside>

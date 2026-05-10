@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { saveGridFsUpload, saveLocalUpload, shouldUseGridFsUploads } from "@/lib/upload-storage";
 
 export const runtime = "nodejs";
@@ -21,13 +23,18 @@ function safeFilename(name: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAdmin();
-    if (!session) return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const folder = safeSegment((formData.get("folder") as string) || "uploads");
     const category = (formData.get("category") as string) || "General";
+    const isPetUpload = folder === "pets" && category === "Pets";
+    if (session.user.role !== "ADMIN" && !isPetUpload) {
+      const adminSession = await requireAdmin();
+      if (!adminSession) return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
     const uploadedBy = session.user.id;
 
     if (!file) {

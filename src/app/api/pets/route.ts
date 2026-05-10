@@ -17,6 +17,7 @@ export async function POST(req: Request) {
     const {
       owner_id, name, type, breed, gender, dob, weight, coat_type, size,
       aggression_level, neutered, allergies, dietary_preference, preferences,
+      profile_photo, photos_array,
       local_guardian_name, local_guardian_contact, tc_accepted,
       walk_schedule_1, walk_schedule_2, walk_schedule_3,
       // Medical info
@@ -49,6 +50,8 @@ export async function POST(req: Request) {
         coat_type: coat_type || null,
         size: size || null,
         aggression_level: aggression_level ? parseInt(aggression_level) : 1,
+        profile_photo: profile_photo || null,
+        photos_array: Array.isArray(photos_array) ? photos_array : [],
         neutered: neutered ?? false,
         allergies: allergies || null,
         dietary_preference: dietary_preference || null,

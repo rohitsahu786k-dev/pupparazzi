@@ -6,6 +6,7 @@ import { sendBookingConfirmation, sendPaymentConfirmation, sendCancellationEmail
 import { generateInvoicePdf } from "@/lib/invoice";
 import { calculateCouponDiscount, CouponRule, defaultCoupons, serviceBookablePrice } from "@/lib/pet-care-pricing";
 import {
+  ACTIVE_BOOKING_STATUSES,
   BOOKING_STATUSES,
   PAYMENT_STATUSES,
   expirePastBookings,
@@ -129,6 +130,7 @@ export async function POST(req: Request) {
     const finalAddonsJson = {
       addons: selectedAddons.map((addon) => ({ id: addon.id, name: addon.name, price: addon.price })),
       coupon: couponPayload,
+      payment: addons_json?.payment && typeof addons_json.payment === "object" ? addons_json.payment : null,
       pricing: {
         servicePrice: basePrice,
         addonTotal,
@@ -137,16 +139,36 @@ export async function POST(req: Request) {
         total: Math.max(0, subtotal - (couponPayload?.discount || 0)),
       },
     };
+    const requestedDate = new Date(slot_date);
+
+    const duplicateUserBooking = await prisma.booking.findFirst({
+      where: {
+        client_id: clientId,
+        pet_id,
+        service_id,
+        slot_date: requestedDate,
+        slot_time,
+        status: { in: ACTIVE_BOOKING_STATUSES },
+      },
+      select: { id: true, booking_id: true },
+    });
+    if (duplicateUserBooking) {
+      return NextResponse.json(
+        { message: `This booking already exists as ${duplicateUserBooking.booking_id}.` },
+        { status: 409 }
+      );
+    }
 
     const existingSlotCount = await prisma.booking.count({
       where: {
         service_id,
-        slot_date: new Date(slot_date),
+        slot_date: requestedDate,
         slot_time,
-        status: { not: "Cancelled" },
+        status: { in: ACTIVE_BOOKING_STATUSES },
       },
     });
-    if (service.max_slots_per_day && existingSlotCount >= service.max_slots_per_day) {
+    const slotCapacity = service.max_slots_per_day || 1;
+    if (existingSlotCount >= slotCapacity) {
       return NextResponse.json({ message: "This slot is no longer available" }, { status: 409 });
     }
 
@@ -166,8 +188,7 @@ export async function POST(req: Request) {
       bookingAddressId = createdAddress.id;
     }
 
-    const count = await prisma.booking.count();
-    const booking_id = `BKG-${String(count + 1001).padStart(4, "0")}`;
+    const booking_id = `BKG-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
     const booking = await prisma.booking.create({
       data: {
@@ -176,7 +197,7 @@ export async function POST(req: Request) {
         pet_id,
         service_id,
         address_id: bookingAddressId,
-        slot_date: new Date(slot_date),
+        slot_date: requestedDate,
         slot_time,
         notes: notes || null,
         addons_json: finalAddonsJson,
