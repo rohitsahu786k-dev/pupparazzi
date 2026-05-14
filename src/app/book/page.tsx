@@ -188,7 +188,7 @@ function BookPageContent() {
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const [couponMessage, setCouponMessage] = useState("");
   const [selectedPetId, setSelectedPetId] = useState("");
-  const [newPet, setNewPet] = useState({ name: "", type: "Dog", breed: "", weight: "", vaccination_status: "Vaccinated" });
+  const [newPet, setNewPet] = useState({ name: "", type: "Dog", breed: "", vaccination_status: "Vaccinated" });
   const [petImages, setPetImages] = useState<File[]>([]);
   const [petImagePreviews, setPetImagePreviews] = useState<string[]>([]);
   const [uploadingPetImages, setUploadingPetImages] = useState(false);
@@ -439,7 +439,6 @@ function BookPageContent() {
         name: newPet.name.trim(),
         type: newPet.type,
         breed: newPet.breed,
-        weight: newPet.weight,
         vaccination_status: newPet.vaccination_status,
         profile_photo: uploadedImages[0] || null,
         photos_array: uploadedImages,
@@ -738,17 +737,16 @@ function BookPageContent() {
                 </div>
               )}
               {(!selectedPetId || pets.length === 0) && (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <Input placeholder="Pet name" value={newPet.name} onChange={(e) => setNewPet({ ...newPet, name: e.target.value })} />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input placeholder="Pet name *" value={newPet.name} onChange={(e) => setNewPet({ ...newPet, name: e.target.value })} />
                   <select value={newPet.type} onChange={(e) => setNewPet({ ...newPet, type: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm">
                     <option>Dog</option>
                     <option>Cat</option>
                     <option>Bird</option>
                     <option>Other</option>
                   </select>
-                  <Input placeholder="Breed" value={newPet.breed} onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })} />
-                  <Input placeholder="Weight kg" inputMode="decimal" value={newPet.weight} onChange={(e) => setNewPet({ ...newPet, weight: e.target.value.replace(/[^\d.]/g, "") })} />
-                  <select value={newPet.vaccination_status} onChange={(e) => setNewPet({ ...newPet, vaccination_status: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm sm:col-span-2">
+                  <Input placeholder="Breed (optional)" value={newPet.breed} onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })} />
+                  <select value={newPet.vaccination_status} onChange={(e) => setNewPet({ ...newPet, vaccination_status: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm">
                     <option>Vaccinated</option>
                     <option>Partially vaccinated</option>
                     <option>Not vaccinated</option>
