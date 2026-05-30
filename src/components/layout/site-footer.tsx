@@ -1,7 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 export function SiteFooter() {
+  const pathname = usePathname();
+
+  // Hide footer on dashboard and admin pages (they have their own layouts)
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <footer className="w-full bg-white py-16 border-t border-border">
       <div className="container mx-auto px-4 lg:px-8">

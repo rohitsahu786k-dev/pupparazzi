@@ -254,7 +254,7 @@ function LoginContent() {
               </button>
             </div>
             <div className="flex justify-end">
-              <Link href="/forgot-password" className="text-xs font-bold text-primary hover:underline">
+              <Link href="mailto:pupparazzipetstore@gmail.com" className="text-xs font-bold text-primary hover:underline">
                 Forgot password?
               </Link>
             </div>
@@ -278,9 +278,9 @@ function LoginContent() {
             {!verificationPending && (
             <p className="text-xs text-secondary text-center leading-5">
               By logging in, I accept the{" "}
-              <Link href="/terms" className="text-foreground font-bold hover:underline">Terms & Conditions</Link>{" "}
+              <Link href="/terms-of-service" className="text-foreground font-bold hover:underline">Terms & Conditions</Link>{" "}
               &{" "}
-              <Link href="/privacy" className="text-foreground font-bold hover:underline">Privacy Policy</Link>
+              <Link href="/privacy-policy" className="text-foreground font-bold hover:underline">Privacy Policy</Link>
             </p>
             )}
           </form>

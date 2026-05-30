@@ -260,9 +260,9 @@ function RegisterContent() {
             {step === 1 && (
             <p className="text-xs text-secondary text-center leading-5">
               By creating an account, I accept the{" "}
-              <Link href="/terms" className="text-foreground font-bold hover:underline">Terms & Conditions</Link>{" "}
+              <Link href="/terms-of-service" className="text-foreground font-bold hover:underline">Terms & Conditions</Link>{" "}
               &{" "}
-              <Link href="/privacy" className="text-foreground font-bold hover:underline">Privacy Policy</Link>
+              <Link href="/privacy-policy" className="text-foreground font-bold hover:underline">Privacy Policy</Link>
             </p>
             )}
           </form>

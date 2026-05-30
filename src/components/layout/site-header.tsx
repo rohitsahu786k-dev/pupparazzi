@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, LogOut, Search, Settings, Star, UserCircle2 } from "lucide-react";
@@ -12,6 +13,12 @@ export function SiteHeader() {
   const { data: session, status } = useSession();
   const [openMenu, setOpenMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+
+  // Hide header on dashboard and admin pages (they have their own navigation)
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
+    return null;
+  }
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
