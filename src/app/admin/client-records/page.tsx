@@ -203,20 +203,35 @@ export default function ClientRecordsPage() {
         setImporting(false);
         return;
       }
-      const res = await fetch("/api/client-records", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bulk: true, records: rows }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage(data.message);
-        setImportResult(data);
-        setPage(1);
-        await fetchRecords();
-      } else {
-        setError(data.message || "Import failed");
+
+      // Send in batches of 50 to avoid body size limits
+      const BATCH_SIZE = 50;
+      let totalImported = 0;
+      let allErrors: string[] = [];
+
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+        const res = await fetch("/api/client-records", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bulk: true, records: batch }),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          let msg = "Import failed";
+          try { msg = JSON.parse(text).message || msg; } catch {}
+          allErrors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${msg}`);
+          continue;
+        }
+        const data = await res.json();
+        totalImported += data.imported || 0;
+        if (data.errors?.length) allErrors = allErrors.concat(data.errors);
       }
+
+      setMessage(`Imported ${totalImported} of ${rows.length} records`);
+      setImportResult({ imported: totalImported, total: rows.length, errors: allErrors.slice(0, 20) });
+      setPage(1);
+      await fetchRecords();
     } catch (err: any) {
       setError(err.message || "Failed to read file");
     }

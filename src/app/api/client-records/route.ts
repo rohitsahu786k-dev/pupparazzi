@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 
+// Increase body size limit for bulk imports
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
+export async function generateStaticParams() { return []; }
+
+
 // CSV column mapping to database fields
 const CSV_FIELD_MAP: Record<string, string> = {
   "Pet ID": "pet_id_number",
@@ -105,7 +112,12 @@ export async function POST(req: Request) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
 
-  const body = await req.json();
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ message: "Invalid JSON body. File may be too large or malformed." }, { status: 400 });
+  }
 
   // Bulk import
   if (body.bulk && Array.isArray(body.records)) {
