@@ -22,7 +22,7 @@ export function AdminLayoutShell({ sidebar, children }: AdminLayoutShellProps) {
   }, [mobileOpen]);
 
   return (
-    <div className="flex h-screen w-full bg-muted/30 overflow-hidden">
+    <div className="flex min-h-screen w-full bg-muted/30 overflow-hidden">
       <div className="hidden md:block shrink-0">
         {sidebar}
       </div>

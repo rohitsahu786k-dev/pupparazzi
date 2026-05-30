@@ -616,7 +616,7 @@ function BookPageContent() {
         )}
 
         <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="space-y-4">
+          <section className="space-y-4 min-w-0">
             <div className="rounded-lg border bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center gap-2">
                 <HeartPulse className="h-5 w-5 text-primary" />
@@ -796,7 +796,7 @@ function BookPageContent() {
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+              <div className="grid gap-4 lg:grid-cols-[1fr_0.9fr]">
                 <div className="rounded-lg border bg-white p-3 shadow-sm">
                   <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-muted/45 p-2">
                     <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-white">
@@ -809,8 +809,8 @@ function BookPageContent() {
                   </div>
 
                   {calendarView === "month" && (
-                    <div className="grid grid-cols-7 gap-1.5 text-center">
-                      {WEEK_DAYS.map((day) => <div key={day} className="py-2 text-[11px] font-bold text-muted-foreground">{day}</div>)}
+                    <div className="grid grid-cols-7 gap-1 text-center sm:gap-1.5">
+                      {WEEK_DAYS.map((day) => <div key={day} className="py-1 text-[10px] font-bold text-muted-foreground sm:py-2 sm:text-[11px]">{day}</div>)}
                       {monthDays.map((day) => {
                         const dateKey = toDateKey(day);
                         const past = day < new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -828,11 +828,11 @@ function BookPageContent() {
                               setSelectedDate(day);
                               setSelectedSlot("");
                             }}
-                            className={`min-h-18 rounded-lg border p-1.5 text-xs transition disabled:cursor-not-allowed disabled:opacity-35 ${sameDay(day, selectedDate) ? "border-primary bg-primary text-white shadow-sm" : "hover:border-primary/50"} ${outMonth ? "bg-muted/40 text-muted-foreground" : "bg-white"}`}
+                            className={`min-h-12 rounded-lg border p-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-18 sm:p-1.5 ${sameDay(day, selectedDate) ? "border-primary bg-primary text-white shadow-sm" : "hover:border-primary/50"} ${outMonth ? "bg-muted/40 text-muted-foreground" : "bg-white"}`}
                           >
                             <span className="block text-left font-bold">{day.getDate()}</span>
-                            <span className={`mx-auto mt-2 block h-1.5 w-1.5 rounded-full ${closed || dayStatus === "Fully booked" ? "bg-red-400" : dayStatus === "Few slots" ? "bg-amber-400" : "bg-green-400"}`} />
-                            <span className="mt-1 block truncate text-[10px]">{closed ? "Closed" : dayStatus}</span>
+                            <span className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full sm:mt-2 ${closed || dayStatus === "Fully booked" ? "bg-red-400" : dayStatus === "Few slots" ? "bg-amber-400" : "bg-green-400"}`} />
+                            <span className="mt-0.5 hidden truncate text-[10px] sm:mt-1 sm:block">{closed ? "Closed" : dayStatus}</span>
                           </button>
                         );
                       })}
@@ -840,7 +840,7 @@ function BookPageContent() {
                   )}
 
                   {calendarView === "week" && (
-                    <div className="grid grid-cols-7 gap-2">
+                    <div className="grid grid-cols-7 gap-1 sm:gap-2">
                       {weekDays.map((day) => (
                         <button
                           key={toDateKey(day)}
@@ -851,11 +851,11 @@ function BookPageContent() {
                             setVisibleMonth(startOfMonth(day));
                             setSelectedSlot("");
                           }}
-                          className={`min-h-28 rounded-lg border p-2 text-center disabled:opacity-35 ${sameDay(day, selectedDate) ? "border-primary bg-primary text-white" : "bg-white hover:border-primary/50"}`}
+                          className={`min-h-20 rounded-lg border p-1.5 text-center disabled:opacity-35 sm:min-h-28 sm:p-2 ${sameDay(day, selectedDate) ? "border-primary bg-primary text-white" : "bg-white hover:border-primary/50"}`}
                         >
-                          <p className="text-xs font-bold">{WEEK_DAYS[day.getDay()]}</p>
-                          <p className="mt-2 text-2xl font-extrabold">{day.getDate()}</p>
-                          <p className="mt-2 text-[11px]">{day.getDay() === 0 ? "Closed" : `${availability.dayCounts?.[toDateKey(day)] || 0} booked`}</p>
+                          <p className="text-[10px] font-bold sm:text-xs">{WEEK_DAYS[day.getDay()]}</p>
+                          <p className="mt-1 text-lg font-extrabold sm:mt-2 sm:text-2xl">{day.getDate()}</p>
+                          <p className="mt-1 text-[9px] sm:mt-2 sm:text-[11px]">{day.getDay() === 0 ? "Closed" : `${availability.dayCounts?.[toDateKey(day)] || 0} booked`}</p>
                         </button>
                       ))}
                     </div>
@@ -868,14 +868,14 @@ function BookPageContent() {
                     <p className="text-sm font-bold">{selectedDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</p>
                     <p className="mt-1 text-xs text-muted-foreground">Choose one open slot. Past slots, lunch break and Sunday are blocked.</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-3">
                     {slots.map((slot) => (
                       <button
                         key={slot.label}
                         type="button"
                         disabled={slot.disabled}
                         onClick={() => setSelectedSlot(slot.label)}
-                        className={`min-h-12 rounded-lg border px-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-35 ${selectedSlot === slot.label ? "border-primary bg-primary text-white" : "bg-white hover:border-primary/45"}`}
+                        className={`min-h-11 rounded-lg border px-2 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-12 sm:px-3 sm:text-sm ${selectedSlot === slot.label ? "border-primary bg-primary text-white" : "bg-white hover:border-primary/45"}`}
                       >
                         {slot.label}
                       </button>

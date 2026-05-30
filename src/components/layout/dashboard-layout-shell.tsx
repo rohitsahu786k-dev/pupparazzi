@@ -24,7 +24,7 @@ export function DashboardLayoutShell({ sidebar, children }: DashboardLayoutShell
   }, [mobileOpen]);
 
   return (
-    <div className="flex h-screen w-full bg-muted/20 overflow-hidden">
+    <div className="flex min-h-screen w-full bg-muted/20 overflow-hidden">
       <div className="hidden md:block shrink-0">
         {sidebar}
       </div>
