@@ -322,3 +322,64 @@ model AppSetting {
   updated_at DateTime @updatedAt
   created_at DateTime @default(now())
 }
+
+model ClientRecord {
+  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
+  pet_id_number           Int?      // Pet ID from CSV
+  name                    String
+  phone                   String
+  email                   String?
+  pet_name                String?
+  pet_type                String?
+  breed                   String?
+  gender                  String?
+  pet_birthday            String?
+  address                 String?
+  latest_booking_date     String?
+  onboarding_date         String?
+  number_of_bookings      Int?      @default(0)
+  number_of_sessions      Int?      @default(0)
+  client_tags             String?
+  home_outlet             String?
+  coat                    String?
+  breed_size              String?
+  weight_kg               Float?
+  anti_rabies             String?
+  dhppil                  String?
+  corona                  String?
+  kennel_cough            String?
+  local_guardian_name     String?
+  local_guardian_contact  String?
+  status                  String?   @default("Active")
+  archive_reason          String?
+  pet_social_media        String?
+  consent_photos          String?
+  special_occasion        String?
+  special_occasion_date   String?
+  microchip_number        String?
+  adoption_status         String?
+  neutered_or_spayed      String?
+  last_heat_month         String?
+  last_heat_year          String?
+  first_walk_schedule     String?
+  second_walk_schedule    String?
+  third_walk_schedule     String?
+  dietary_preference      String?
+  additional_meals        String?
+  preferences_or_allergies String?
+  vaccination_status      String?
+  tick_prevention         String?
+  last_tick_prevention_date String?
+  tick_prevention_method  String?
+  ongoing_medication      String?
+  medication_detail       String?
+  major_illness_history   String?
+  deworming_date          String?
+  veterinarian_name       String?
+  veterinarian_contact    String?
+  tc_accepted             String?
+  wallet_balance          Float?    @default(0)
+  outstanding_balance     Float?    @default(0)
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
+}
