@@ -27,18 +27,18 @@ export function SiteFooter() {
           <div className="space-y-5">
             <h4 className="font-bold text-foreground uppercase tracking-widest text-xs">Company</h4>
             <ul className="space-y-3 text-sm font-medium text-secondary">
-              <li><Link href="#" className="hover:text-primary transition-colors">About Us</Link></li>
-              <li><Link href="#" className="hover:text-primary transition-colors">Careers</Link></li>
-              <li><Link href="#" className="hover:text-primary transition-colors">Partner with Us</Link></li>
+              <li><Link href="/about" className="hover:text-primary transition-colors">About Us</Link></li>
+              <li><Link href="/careers" className="hover:text-primary transition-colors">Careers</Link></li>
+              <li><Link href="/partner" className="hover:text-primary transition-colors">Partner with Us</Link></li>
             </ul>
           </div>
 
           <div className="space-y-5">
             <h4 className="font-bold text-foreground uppercase tracking-widest text-xs">Support</h4>
             <ul className="space-y-3 text-sm font-medium text-secondary">
-              <li><Link href="#" className="hover:text-primary transition-colors">Help Center</Link></li>
-              <li><Link href="#" className="hover:text-primary transition-colors">Contact Us</Link></li>
-              <li><Link href="#" className="hover:text-primary transition-colors">Refund Policy</Link></li>
+              <li><Link href="/contact" className="hover:text-primary transition-colors">Help Center</Link></li>
+              <li><Link href="/contact" className="hover:text-primary transition-colors">Contact Us</Link></li>
+              <li><Link href="/refund-policy" className="hover:text-primary transition-colors">Refund Policy</Link></li>
             </ul>
           </div>
 
@@ -47,7 +47,7 @@ export function SiteFooter() {
             <ul className="space-y-3 text-sm font-medium text-secondary">
               <li><Link href="/terms-of-service" className="hover:text-primary transition-colors">Terms &amp; Conditions</Link></li>
               <li><Link href="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
-              <li><Link href="#" className="hover:text-primary transition-colors">Cookie Policy</Link></li>
+              <li><Link href="/privacy-policy" className="hover:text-primary transition-colors">Cookie Policy</Link></li>
             </ul>
           </div>
 

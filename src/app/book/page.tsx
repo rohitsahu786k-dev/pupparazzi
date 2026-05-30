@@ -851,11 +851,11 @@ function BookPageContent() {
                             setVisibleMonth(startOfMonth(day));
                             setSelectedSlot("");
                           }}
-                          className={`min-h-20 rounded-lg border p-1.5 text-center disabled:opacity-35 sm:min-h-28 sm:p-2 ${sameDay(day, selectedDate) ? "border-primary bg-primary text-white" : "bg-white hover:border-primary/50"}`}
+                          className={`min-h-20 overflow-hidden rounded-lg border p-1 text-center disabled:opacity-35 sm:min-h-28 sm:p-2 ${sameDay(day, selectedDate) ? "border-primary bg-primary text-white" : "bg-white hover:border-primary/50"}`}
                         >
                           <p className="text-[10px] font-bold sm:text-xs">{WEEK_DAYS[day.getDay()]}</p>
                           <p className="mt-1 text-lg font-extrabold sm:mt-2 sm:text-2xl">{day.getDate()}</p>
-                          <p className="mt-1 text-[9px] sm:mt-2 sm:text-[11px]">{day.getDay() === 0 ? "Closed" : `${availability.dayCounts?.[toDateKey(day)] || 0} booked`}</p>
+                          <p className="mt-1 truncate text-[8px] sm:mt-2 sm:text-[11px]">{day.getDay() === 0 ? "Closed" : `${availability.dayCounts?.[toDateKey(day)] || 0} bkd`}</p>
                         </button>
                       ))}
                     </div>
