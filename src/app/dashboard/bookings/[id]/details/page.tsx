@@ -150,7 +150,10 @@ export default function BookingDetailsPage() {
     fetchBooking();
   }, [params.id]);
 
-  const missingDocuments = useMemo(() => REQUIRED_DOCS.filter((doc) => !form.documents_json[doc.key]?.assetId), [form.documents_json]);
+  const missingDocuments = useMemo(
+    () => REQUIRED_DOCS.filter((doc) => !form.documents_json[doc.key]?.assetId && !form.documents_json[doc.key]?.path),
+    [form.documents_json]
+  );
 
   function setField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
