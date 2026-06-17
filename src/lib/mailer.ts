@@ -1,12 +1,6 @@
 import nodemailer from "nodemailer";
 import { DEFAULT_SMTP_SETTINGS, getSetting } from "@/lib/settings";
-
-export const SITE_URL = (
-  process.env.NEXTAUTH_URL ||
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
-  "https://pupparazzi.iprixmedia.com"
-).replace(/\/$/, "");
+import { SITE_URL } from "@/lib/booking-detail-forms";
 
 export const BUSINESS = {
   name: "Pupparazzi Pet Store & Grooming Salon",
@@ -124,22 +118,28 @@ function baseLayout(body: string, preheader = "") {
 
 export function bookingConfirmationHtml(data: {
   userName: string;
+  bookingDatabaseId?: string;
   bookingId: string;
   serviceName: string;
+  serviceCategory?: string;
   petName: string;
   slotDate: string;
   slotTime: string;
   price: string;
   address?: string;
+  detailFormLink?: string | null;
+  detailFormService?: string | null;
 }) {
+  const detailFormName = data.detailFormService || data.serviceCategory || data.serviceName;
+  const hasDetailForm = Boolean(data.detailFormLink);
   const body = `
     <!-- Header Band -->
     <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:36px 48px 32px;text-align:center;">
       <div style="display:inline-block;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:100px;padding:6px 18px;margin-bottom:20px;">
         <span style="color:#10B981;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;"> Booking Confirmed</span>
       </div>
-      <h1 style="margin:0 0 10px;font-size:28px;font-weight:800;color:#FFFFFF;line-height:1.2;">You&rsquo;re all set, ${data.userName}!</h1>
-      <p style="margin:0;font-size:15px;color:#94A3B8;line-height:1.6;">Your appointment has been confirmed. We&rsquo;ll see you soon!</p>
+      <h1 style="margin:0 0 10px;font-size:28px;font-weight:800;color:#FFFFFF;line-height:1.2;">${hasDetailForm ? `Complete your ${detailFormName} details` : `You&rsquo;re all set, ${data.userName}!`}</h1>
+      <p style="margin:0;font-size:15px;color:#94A3B8;line-height:1.6;">${hasDetailForm ? "Your booking has been created. Please complete the remaining form details before the appointment." : "Your appointment has been confirmed. We&rsquo;ll see you soon!"}</p>
     </div>
 
     <!-- Body -->
@@ -167,6 +167,19 @@ export function bookingConfirmationHtml(data: {
         ${infoRow("Amount", `₹${data.price}`)}
       </table>
 
+      ${hasDetailForm ? `
+      <!-- Detail Form Box -->
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        <tr>
+          <td style="background:#FDF2F8;border-left:4px solid #EC4899;border-radius:0 12px 12px 0;padding:16px 20px;">
+            <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#9D174D;">Complete Your ${detailFormName} Booking Details</p>
+            <p style="margin:0;font-size:13px;color:#BE185D;line-height:1.6;">Some customer, pet, service, and booking details may already be pre-filled. Kindly complete the remaining details and upload the required documents.</p>
+          </td>
+        </tr>
+      </table>
+
+      ${primaryButton(`Complete ${detailFormName} Details`, data.detailFormLink || `${BUSINESS.website}/dashboard`)}
+      ` : `
       <!-- Reminder Box -->
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
         <tr>
@@ -178,11 +191,17 @@ export function bookingConfirmationHtml(data: {
       </table>
 
       ${primaryButton("View My Bookings", `${BUSINESS.website}/dashboard`)}
+      `}
 
       <p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">Questions? Reply to this email or write to us at <a href="mailto:${BUSINESS.email}" style="color:#EC4899;text-decoration:none;">${BUSINESS.email}</a></p>
     </div>`;
 
-  return baseLayout(body, `Your booking ${data.bookingId} is confirmed – ${data.serviceName} on ${data.slotDate}`);
+  return baseLayout(
+    body,
+    hasDetailForm
+      ? `Complete your ${detailFormName} booking details for ${data.bookingId}`
+      : `Your booking ${data.bookingId} is confirmed - ${data.serviceName} on ${data.slotDate}`
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -549,6 +568,14 @@ export async function sendMail({ to, subject, html, attachments }: MailOptions) 
 }
 
 export async function sendBookingConfirmation(to: string, data: Parameters<typeof bookingConfirmationHtml>[0]) {
+  const detailFormName = data.detailFormService || data.serviceCategory || data.serviceName;
+  if (data.detailFormLink) {
+    return sendMail({
+      to,
+      subject: `Complete Your ${detailFormName} Booking Details - ${data.bookingId} | ${BUSINESS.shortName}`,
+      html: bookingConfirmationHtml(data),
+    });
+  }
   return sendMail({
     to,
     subject: `Booking Confirmed – ${data.bookingId} | ${BUSINESS.shortName}`,

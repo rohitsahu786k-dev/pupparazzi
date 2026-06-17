@@ -123,7 +123,7 @@ export async function POST(req: Request) {
   if (body.bulk && Array.isArray(body.records)) {
     const records = body.records;
     let imported = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     for (let i = 0; i < records.length; i++) {
       const row = records[i];

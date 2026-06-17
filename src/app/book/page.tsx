@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FILE_COMPRESSOR_URL, isUploadTooLarge, MAX_UPLOAD_FILE_SIZE_MB, UPLOAD_SIZE_ERROR_MESSAGE } from "@/lib/upload-limits";
 
 type Service = {
   id: string;
@@ -364,6 +365,18 @@ function BookPageContent() {
     setPetImagePreviews(urls);
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, [petImages]);
+
+  function handlePetImageSelection(files?: FileList | null) {
+    const selectedFiles = Array.from(files || []).slice(0, 4);
+    const oversizedFile = selectedFiles.find((file) => isUploadTooLarge(file));
+    if (oversizedFile) {
+      setError(UPLOAD_SIZE_ERROR_MESSAGE);
+      setPetImages([]);
+      return;
+    }
+    setError("");
+    setPetImages(selectedFiles);
+  }
 
   async function applyCoupon() {
     if (!selectedService || !couponCode.trim()) return;
@@ -776,12 +789,21 @@ function BookPageContent() {
                   <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-center text-sm font-bold text-muted-foreground transition hover:border-primary/50 hover:text-foreground sm:col-span-2">
                     <ImagePlus className="h-5 w-5 text-primary" />
                     <span>{petImages.length ? `${petImages.length} image selected` : "Upload pet images"}</span>
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Up to {MAX_UPLOAD_FILE_SIZE_MB} MB each. Need to reduce your document size?{" "}
+                      <a href={FILE_COMPRESSOR_URL} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline">
+                        Compress your file here
+                      </a>
+                    </span>
                     <input
                       type="file"
                       accept="image/*"
                       multiple
                       className="sr-only"
-                      onChange={(e) => setPetImages(Array.from(e.target.files || []).slice(0, 4))}
+                      onChange={(e) => {
+                        handlePetImageSelection(e.target.files);
+                        e.currentTarget.value = "";
+                      }}
                     />
                   </label>
                   {petImagePreviews.length > 0 && (

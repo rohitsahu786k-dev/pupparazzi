@@ -13,7 +13,7 @@ const defaults: Record<string, unknown> = {
   smtp: DEFAULT_SMTP_SETTINGS,
   payment: DEFAULT_PAYMENT_SETTINGS,
   whatsapp: {
-    bookingConfirmation: "Hello {{customerName}}, your booking #{{bookingId}} for {{serviceName}} is confirmed.",
+    bookingConfirmation: "Hello {{customerName}}, thank you for choosing us for your {{serviceName}} booking. Booking ID: {{bookingId}}. Pet Name: {{petName}}. Please complete your {{serviceName}} booking details here: {{detailedFormLink}}",
     paymentSuccess: "Hello {{customerName}}, your payment for booking #{{bookingId}} is completed. Invoice has been generated.",
     codAdvancePaid: "Hello {{customerName}}, advance payment of Rs. {{advanceAmount}} received. Remaining COD: Rs. {{remainingAmount}}.",
     codReminder: "Hello {{customerName}}, Rs. {{remainingAmount}} is pending for booking #{{bookingId}}. Please pay during service completion.",

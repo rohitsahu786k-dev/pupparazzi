@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Download, Eye, Loader2, Printer, Share2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FILE_COMPRESSOR_URL, isUploadTooLarge, MAX_UPLOAD_FILE_SIZE_MB, UPLOAD_SIZE_ERROR_MESSAGE } from "@/lib/upload-limits";
 
 type Asset = {
   id: string;
@@ -157,6 +158,10 @@ export default function BookingDetailsPage() {
 
   async function uploadDocument(doc: (typeof REQUIRED_DOCS)[number], file?: File) {
     if (!file || !booking) return;
+    if (isUploadTooLarge(file)) {
+      setError(UPLOAD_SIZE_ERROR_MESSAGE);
+      return;
+    }
     setUploadingKey(doc.key);
     setError("");
     const formData = new FormData();
@@ -338,6 +343,12 @@ export default function BookingDetailsPage() {
         <aside className="space-y-5">
           <div className="rounded-lg border bg-white p-5">
             <h2 className="font-bold">KYC and Documents</h2>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Maximum file size per document: {MAX_UPLOAD_FILE_SIZE_MB} MB. Need to reduce your document size? Compress your file here:{" "}
+              <a href={FILE_COMPRESSOR_URL} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline">
+                {FILE_COMPRESSOR_URL}
+              </a>
+            </p>
             <div className="mt-4 space-y-3">
               {REQUIRED_DOCS.map((doc) => {
                 const saved = form.documents_json[doc.key];
@@ -354,7 +365,15 @@ export default function BookingDetailsPage() {
                       <label className="inline-flex h-9 cursor-pointer items-center rounded-lg border px-3 text-xs font-bold hover:bg-muted">
                         {uploadingKey === doc.key ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1 h-3.5 w-3.5" />}
                         Upload
-                        <input type="file" accept="image/*,.pdf" className="sr-only" onChange={(e) => uploadDocument(doc, e.target.files?.[0])} />
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="sr-only"
+                          onChange={(e) => {
+                            uploadDocument(doc, e.target.files?.[0]);
+                            e.currentTarget.value = "";
+                          }}
+                        />
                       </label>
                       {saved?.path && (
                         <>

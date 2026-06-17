@@ -5,10 +5,10 @@ import { requireAdmin } from "@/lib/admin";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { saveGridFsUpload, saveLocalUpload, shouldUseGridFsUploads } from "@/lib/upload-storage";
+import { MAX_UPLOAD_FILE_SIZE_BYTES, UPLOAD_SIZE_ERROR_MESSAGE } from "@/lib/upload-limits";
 
 export const runtime = "nodejs";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]);
 const CLIENT_DOCUMENT_CATEGORIES = new Set(["KYC", "Documents", "Bookings", "Vaccination"]);
 
@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
     if (!ALLOWED_TYPES.has(file.type)) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
     }
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: "File size must be 10MB or less" }, { status: 400 });
+    if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
+      return NextResponse.json({ error: UPLOAD_SIZE_ERROR_MESSAGE }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();

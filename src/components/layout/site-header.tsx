@@ -15,11 +15,6 @@ export function SiteHeader() {
   const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
-  // Hide header on dashboard and admin pages (they have their own navigation)
-  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
-    return null;
-  }
-
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (!menuRef.current) return;
@@ -39,6 +34,11 @@ export function SiteHeader() {
       document.removeEventListener("keydown", onEscape);
     };
   }, []);
+
+  // Hide header on dashboard and admin pages (they have their own navigation)
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
+    return null;
+  }
 
   const userName = session?.user?.name || "My Account";
   const userEmail = session?.user?.email || "";

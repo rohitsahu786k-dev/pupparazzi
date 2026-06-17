@@ -13,6 +13,7 @@ import {
   formatBookingDate,
 } from "@/lib/booking-lifecycle";
 import { collectCodPayment } from "@/lib/payment-invoices";
+import { bookingDetailFormUrl, detailFormService } from "@/lib/booking-detail-forms";
 
 function isAdmin(role?: string | null) {
   return role === "ADMIN" || role === "STAFF";
@@ -314,15 +315,20 @@ export async function POST(req: Request) {
     // Send booking confirmation email (non-blocking)
     const clientEmail = booking.client?.email;
     if (clientEmail) {
+      const detailFormLink = bookingDetailFormUrl(booking.id, booking.service);
       sendBookingConfirmation(clientEmail, {
         userName: booking.client?.name || "Valued Customer",
+        bookingDatabaseId: booking.id,
         bookingId: booking_id,
         serviceName: booking.service?.name || "Pet Service",
+        serviceCategory: booking.service?.category || undefined,
         petName: booking.pet?.name || "Your Pet",
         slotDate: new Date(slot_date).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
         slotTime: slot_time,
         price: String(bookingPricing(booking.service, booking.addons_json).total),
         address: booking.address ? `${booking.address.line1}, ${booking.address.city}` : undefined,
+        detailFormLink,
+        detailFormService: detailFormService(booking.service),
       }).catch(console.error);
     }
 

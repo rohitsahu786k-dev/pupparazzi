@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Copy, Download, Eye, ImagePlus, Loader2, Printer, Share2, Trash2, Upload } from "lucide-react";
+import { FILE_COMPRESSOR_URL, isUploadTooLarge, MAX_UPLOAD_FILE_SIZE_MB, UPLOAD_SIZE_ERROR_MESSAGE } from "@/lib/upload-limits";
 
 type Asset = {
   id: string;
@@ -45,8 +46,13 @@ export default function AdminAssetsPage() {
   async function uploadAsset() {
     const file = fileRef.current?.files?.[0];
     if (!file) return;
-    setUploading(true);
     setError("");
+    if (isUploadTooLarge(file)) {
+      setError(UPLOAD_SIZE_ERROR_MESSAGE);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setUploading(true);
     const formData = new FormData();
     formData.set("file", file);
     formData.set("category", category);
@@ -100,6 +106,12 @@ export default function AdminAssetsPage() {
             Upload
           </Button>
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Maximum file size per asset: {MAX_UPLOAD_FILE_SIZE_MB} MB. Need to reduce your document size? Compress your file here:{" "}
+          <a href={FILE_COMPRESSOR_URL} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline">
+            {FILE_COMPRESSOR_URL}
+          </a>
+        </p>
         {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
       </div>
 
