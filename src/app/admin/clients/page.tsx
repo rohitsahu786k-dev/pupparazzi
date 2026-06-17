@@ -215,7 +215,7 @@ export default function AdminClientsPage() {
 
       <div className="rounded-lg border bg-white p-5">
         <h2 className="mb-4 font-bold">Create User</h2>
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-[1fr_1fr_160px_160px_140px_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_160px_140px_auto]">
           <Input placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -233,7 +233,7 @@ export default function AdminClientsPage() {
       </div>
 
       <div className="rounded-lg border bg-white p-4">
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-[1fr_180px_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_180px_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fetchUsers()} placeholder="Search users..." className="pl-9" />
@@ -251,7 +251,50 @@ export default function AdminClientsPage() {
         ) : users.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground">No users found.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="grid gap-3 p-3 lg:hidden">
+            {filtered.map((user) => (
+              <div key={user.id} className="rounded-lg border bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-bold">{user.name || "Unnamed user"}</p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{user.email || "-"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{user.phone || "-"}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-lg px-2 py-1 text-xs font-bold ${user.is_active ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                    {user.is_active ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg bg-muted/45 p-2">
+                    <p className="text-muted-foreground">Role</p>
+                    <p className="mt-1 font-bold">{user.role}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/45 p-2">
+                    <p className="text-muted-foreground">Pets / Bookings</p>
+                    <p className="mt-1 font-bold">{user.pets.length} / {user.clientBookings.length}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/45 p-2">
+                    <p className="text-muted-foreground">Wallet</p>
+                    <p className="mt-1 font-bold">Rs. {Number(user.wallet_balance || 0).toLocaleString("en-IN")}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/45 p-2">
+                    <p className="text-muted-foreground">Outstanding</p>
+                    <p className="mt-1 font-bold">Rs. {Number(user.outstanding_balance || 0).toLocaleString("en-IN")}</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => openProfile(user)}><Eye className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="outline" onClick={() => updateUser(user.id, { is_active: !user.is_active })}>{user.is_active ? "Disable" : "Activate"}</Button>
+                  <Button size="sm" variant="outline" onClick={() => updateUser(user.id, { emailVerified: !user.emailVerified })}>{user.emailVerified ? "Verified" : "Verify"}</Button>
+                  <Button size="sm" variant="destructive" disabled={savingId === user.id} onClick={() => deleteUser(user.id)}>
+                    {savingId === user.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto lg:block">
             <table className="w-full min-w-250 text-left text-sm">
               <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
                 <tr>
@@ -328,6 +371,7 @@ export default function AdminClientsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

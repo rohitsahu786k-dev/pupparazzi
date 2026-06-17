@@ -68,7 +68,7 @@ export default function AdminSettingsPage() {
 
       <section className="rounded-lg border bg-white p-5">
         <h2 className="mb-4 font-bold">Business Profile</h2>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           {["name", "shortName", "email", "phone", "website", "gst", "logoUrl"].map((key) => (
             <Input key={key} placeholder={key} value={settings.business[key] || ""} onChange={(e) => update("business", key, e.target.value)} />
           ))}
@@ -79,7 +79,7 @@ export default function AdminSettingsPage() {
 
       <section className="rounded-lg border bg-white p-5">
         <h2 className="mb-4 font-bold">SMTP Settings</h2>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           <Input placeholder="Host" value={settings.smtp.host || ""} onChange={(e) => update("smtp", "host", e.target.value)} />
           <Input placeholder="Port" type="number" value={settings.smtp.port || ""} onChange={(e) => update("smtp", "port", Number(e.target.value))} />
           <Input placeholder="SMTP User" value={settings.smtp.user || ""} onChange={(e) => update("smtp", "user", e.target.value)} />
@@ -100,7 +100,7 @@ export default function AdminSettingsPage() {
 
       <section className="rounded-lg border bg-white p-5">
         <h2 className="mb-4 font-bold">Payment Gateway</h2>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           <select value={settings.payment.provider || "manual"} onChange={(e) => update("payment", "provider", e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
             <option value="manual">Manual</option>
             <option value="razorpay">Razorpay</option>
@@ -119,7 +119,7 @@ export default function AdminSettingsPage() {
       <section className="rounded-lg border bg-white p-5">
         <h2 className="mb-4 font-bold">WhatsApp Templates</h2>
         <p className="mb-4 text-sm text-muted-foreground">These templates are used for one-click WhatsApp messages from bookings. Dynamic fields: {"{{customerName}}"}, {"{{bookingId}}"}, {"{{serviceName}}"}, {"{{advanceAmount}}"}, {"{{remainingAmount}}"}.</p>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           {["bookingConfirmation", "paymentSuccess", "codAdvancePaid", "codReminder", "cancellation"].map((key) => (
             <label key={key} className="space-y-1 text-sm font-semibold">
               <span>{key}</span>

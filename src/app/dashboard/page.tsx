@@ -150,18 +150,18 @@ function DashboardContent() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Hello, {userName}</h1>
           <p className="text-secondary mt-1">Welcome to your Pupparazzi dashboard.</p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/book">+ Book a Service</Link>
         </Button>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 md:gap-4">
         {[
           { icon: <Calendar className="h-5 w-5 text-primary" />,   bg: "bg-primary/10", label: "Total Bookings", value: bookings.length },
           { icon: <Clock className="h-5 w-5 text-amber-500" />,    bg: "bg-amber-50",   label: "Upcoming",       value: upcoming.length },

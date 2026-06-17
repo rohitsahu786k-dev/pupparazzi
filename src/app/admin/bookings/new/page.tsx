@@ -92,7 +92,7 @@ export default function NewAdminBookingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">New Booking</h1>
           <p className="mt-1 text-sm text-muted-foreground">Create a booking on behalf of a customer.</p>
@@ -104,7 +104,7 @@ export default function NewAdminBookingPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <section className="space-y-4 rounded-lg border bg-white p-5">
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 text-sm font-bold">Customer
               <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal">
                 {users.map((user) => <option key={user.id} value={user.id}>{user.name || user.email || user.phone || "Customer"}</option>)}
@@ -124,7 +124,7 @@ export default function NewAdminBookingPage() {
             <Input value={slotTime} onChange={(e) => setSlotTime(e.target.value)} placeholder="10:00 AM" />
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Input placeholder="House / society / area" value={address.line1} onChange={(e) => setAddress({ ...address, line1: e.target.value })} />
             <Input placeholder="City" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
             <Input placeholder="State" value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} />

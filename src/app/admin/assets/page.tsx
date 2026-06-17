@@ -95,7 +95,7 @@ export default function AdminAssetsPage() {
       </div>
 
       <div className="rounded-lg border bg-white p-5">
-        <div className="grid gap-3 md:grid-cols-[1fr_180px_180px_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_180px_180px_auto]">
           <Input ref={fileRef} type="file" accept="image/*,.pdf" />
           <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
             {CATEGORIES.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}

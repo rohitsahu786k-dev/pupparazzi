@@ -131,7 +131,7 @@ export default function AdminCouponsPage() {
 
       <section className="rounded-lg border bg-white p-4">
         <h2 className="mb-4 flex items-center gap-2 font-bold">{editingCode ? <Edit3 className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4 text-primary" />} {editingCode ? `Edit ${editingCode}` : "Create coupon"}</h2>
-        <div className="grid gap-3 md:grid-cols-[160px_1fr_160px_140px_140px_140px_130px]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[160px_1fr_160px_140px_140px_140px_130px]">
           <Input placeholder="Code" value={form.code} disabled={Boolean(editingCode)} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
           <Input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm">
@@ -145,7 +145,7 @@ export default function AdminCouponsPage() {
           <Input placeholder="Minimum" inputMode="decimal" value={form.minimum_order_amount} onChange={(e) => setForm({ ...form, minimum_order_amount: e.target.value.replace(/[^\d.]/g, "") })} />
           <Input placeholder="Usage" inputMode="numeric" value={form.usage_limit} onChange={(e) => setForm({ ...form, usage_limit: e.target.value.replace(/\D/g, "") })} />
         </div>
-        <div className="mt-3 grid gap-3 md:grid-cols-[160px_1fr_160px]">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[160px_1fr_160px]">
           <Input type="date" value={form.expires_at} onChange={(e) => setForm({ ...form, expires_at: e.target.value })} />
           <Input placeholder="Terms" value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value })} />
           <label className="flex h-11 items-center gap-2 rounded-lg border px-3 text-sm"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Active</label>

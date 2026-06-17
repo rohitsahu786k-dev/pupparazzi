@@ -215,7 +215,45 @@ export default function AdminServicesPage() {
           {loading ? (
             <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="grid gap-3 p-3 lg:hidden">
+              {filtered.map((service) => (
+                <div key={service.id} className="rounded-lg border bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold">{service.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{service.description_short || "-"}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-lg border px-2 py-1 text-xs font-bold ${service.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+                      {service.is_active ? "Available" : "Disabled"}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-lg bg-muted/45 p-2">
+                      <p className="text-muted-foreground">Category</p>
+                      <p className="mt-1 font-bold">{service.category}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/45 p-2">
+                      <p className="text-muted-foreground">Price</p>
+                      <p className="mt-1 font-bold">{service.discounted_price ? money(service.discounted_price) : money(service.price)}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/45 p-2">
+                      <p className="text-muted-foreground">Duration</p>
+                      <p className="mt-1 font-bold">{service.slot_duration_mins} min</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/45 p-2">
+                      <p className="text-muted-foreground">Slots</p>
+                      <p className="mt-1 font-bold">{service.max_slots_per_day || "No cap"}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => editService(service)}><Edit3 className="h-3.5 w-3.5" /></Button>
+                    <Button size="sm" variant="destructive" onClick={() => deleteService(service.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-225 text-left text-sm">
                 <thead className="border-b bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
@@ -253,6 +291,7 @@ export default function AdminServicesPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
       </div>

@@ -91,7 +91,25 @@ export default async function AdminDashboard() {
           {upcomingBookings.length === 0 ? (
             <div className="rounded-lg border bg-muted/35 p-8 text-center text-sm text-muted-foreground">No upcoming bookings.</div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
+            <>
+            <div className="grid gap-3 lg:hidden">
+              {upcomingBookings.map((booking) => (
+                <div key={booking.id} className="rounded-lg border bg-white p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold">{booking.booking_id}</p>
+                      <p className="mt-1 truncate text-sm text-muted-foreground">{booking.client?.name || "Customer"}</p>
+                    </div>
+                    <span className="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">{booking.status}</span>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                    <p>{booking.pet?.name || "Pet"} - {booking.service?.name || "-"}</p>
+                    <p>{booking.slot_date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} - {booking.slot_time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto rounded-lg border lg:block">
               <table className="w-full min-w-175 text-left text-sm">
                 <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
                   <tr>
@@ -117,6 +135,7 @@ export default async function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
           <div className="mt-4 flex justify-end">
             <Button variant="link" asChild><Link href="/admin/bookings">View all bookings</Link></Button>

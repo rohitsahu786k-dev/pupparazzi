@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
   // !rounded-[10px] enforces 10px radius regardless of any class override
-  "inline-flex items-center justify-center whitespace-nowrap !rounded-[10px] text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex max-w-full items-center justify-center gap-2 whitespace-nowrap !rounded-[10px] text-center text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {

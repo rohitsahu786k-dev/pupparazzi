@@ -24,18 +24,18 @@ export function DashboardLayoutShell({ sidebar, children }: DashboardLayoutShell
   }, [mobileOpen]);
 
   return (
-    <div className="flex min-h-screen w-full bg-muted/20 overflow-hidden">
-      <div className="hidden md:block shrink-0">
+    <div className="flex min-h-dvh w-full overflow-hidden bg-muted/20">
+      <div className="hidden shrink-0 lg:block">
         {sidebar}
       </div>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="absolute left-0 top-0 h-full w-64 z-10 shadow-2xl">
+          <div className="absolute left-0 top-0 z-10 h-full w-[min(88vw,20rem)] shadow-2xl">
             <button
               onClick={() => setMobileOpen(false)}
               className="absolute top-3 right-3 z-20 p-1.5 rounded-lg bg-black/10 hover:bg-black/20 transition-colors"
@@ -48,8 +48,8 @@ export function DashboardLayoutShell({ sidebar, children }: DashboardLayoutShell
         </div>
       )}
 
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="h-14 border-b bg-background flex items-center justify-between px-4 shadow-sm z-10 shrink-0 md:hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b bg-background px-3 shadow-sm sm:px-4 lg:hidden">
           <button
             onClick={() => setMobileOpen(true)}
             className="p-2 rounded-lg hover:bg-muted transition-colors"
@@ -62,7 +62,7 @@ export function DashboardLayoutShell({ sidebar, children }: DashboardLayoutShell
           </Link>
           <div className="w-9" />
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto px-3 py-4 sm:px-4 md:px-5 lg:px-8 lg:py-8">
           {children}
         </main>
       </div>

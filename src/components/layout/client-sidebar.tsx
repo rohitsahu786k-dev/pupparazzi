@@ -21,13 +21,13 @@ export function ClientSidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-full w-64 flex-col bg-card border-r shadow-sm">
-      <div className="p-6">
+    <div className="flex h-full w-full flex-col border-r bg-card shadow-sm lg:w-72">
+      <div className="border-b p-5 lg:p-6">
         <Link href="/dashboard" className="flex items-center" aria-label="Pupparazzi dashboard">
           <Image src="/pupparazzi-logo.png" alt="Pupparazzi" width={190} height={38} className="h-10 w-auto" />
         </Link>
       </div>
-      <div className="flex-1 px-4 space-y-1 overflow-y-auto">
+      <div className="flex-1 space-y-1 overflow-y-auto px-3 py-3 lg:px-4">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -36,14 +36,14 @@ export function ClientSidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                 isActive
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <Icon className="h-5 w-5" />
-              {item.name}
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="min-w-0 truncate">{item.name}</span>
             </Link>
           );
         })}

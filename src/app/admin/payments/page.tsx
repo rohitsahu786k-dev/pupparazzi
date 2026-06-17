@@ -46,8 +46,42 @@ export default function AdminPaymentsPage() {
       <div className="rounded-lg border bg-white">
         {loading ? (
           <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        ) : payments.length === 0 ? (
+          <div className="p-10 text-center text-sm text-muted-foreground">No payments found.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="grid gap-3 p-3 lg:hidden">
+            {payments.map((payment) => (
+              <div key={payment.id} className="rounded-lg border bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-bold">{payment.client?.name || "Customer"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{payment.booking?.booking_id || "-"}</p>
+                  </div>
+                  <span className="shrink-0 rounded-lg bg-green-50 px-2 py-1 text-xs font-bold text-green-700">{payment.status}</span>
+                </div>
+                <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                  <div className="rounded-lg bg-muted/45 p-2">
+                    <p className="text-muted-foreground">Amount</p>
+                    <p className="mt-1 font-bold">Rs. {Number(payment.amount).toLocaleString("en-IN")}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/45 p-2">
+                    <p className="text-muted-foreground">Mode</p>
+                    <p className="mt-1 font-bold">{payment.mode}{payment.source ? ` - ${payment.source}` : ""}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/45 p-2">
+                    <p className="text-muted-foreground">Date</p>
+                    <p className="mt-1 font-bold">{new Date(payment.created_at).toLocaleDateString("en-IN")}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/45 p-2">
+                    <p className="text-muted-foreground">Service</p>
+                    <p className="mt-1 truncate font-bold">{payment.booking?.service?.name || "-"}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto lg:block">
             <table className="w-full min-w-225 text-left text-sm">
               <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
                 <tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Client</th><th className="px-4 py-3">Booking</th><th className="px-4 py-3">Mode</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Invoice</th><th className="px-4 py-3">Transaction</th></tr>
@@ -72,6 +106,7 @@ export default function AdminPaymentsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

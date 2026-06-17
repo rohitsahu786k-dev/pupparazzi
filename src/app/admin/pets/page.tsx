@@ -99,7 +99,39 @@ export default function AdminPetsPage() {
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground">No pets found.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="grid gap-3 p-3 lg:hidden">
+            {filtered.map((pet) => (
+              <div key={pet.id} className="rounded-lg border bg-white p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <PawPrint className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-bold">{pet.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{[pet.type, pet.breed, pet.weight ? `${pet.weight} kg` : ""].filter(Boolean).join(" - ")}</p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{pet.owner?.name || "Customer"} - {pet.owner?.phone || pet.owner?.email || "-"}</p>
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                  <div className="rounded-lg bg-muted/45 p-2">
+                    <p className="text-muted-foreground">Care</p>
+                    <p className="mt-1 font-semibold">{[pet.size, pet.coat_type, pet.dietary_preference].filter(Boolean).join(" - ") || "Not recorded"}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/45 p-2">
+                    <p className="text-muted-foreground">Medical</p>
+                    <p className="mt-1 font-semibold">{pet.medical?.vaccination_status || "Not recorded"}</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <Button size="sm" variant="destructive" disabled={savingId === pet.id} onClick={() => deletePet(pet.id)}>
+                    {savingId === pet.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto lg:block">
             <table className="w-full min-w-250 text-left text-sm">
               <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
                 <tr>
@@ -155,6 +187,7 @@ export default function AdminPetsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>
