@@ -41,6 +41,74 @@ async function getCoupons() {
   return (Array.isArray(setting?.value) ? setting.value : defaultCoupons) as CouponRule[];
 }
 
+function dayRange(value: Date) {
+  const start = new Date(value);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(value);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+function nullableString(value: unknown) {
+  const text = String(value ?? "").trim();
+  return text || null;
+}
+
+function nullableNumber(value: unknown) {
+  if (value === "" || value === null || value === undefined) return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function nullableDate(value: unknown) {
+  if (!value) return null;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function bookingDetailData(body: any) {
+  return {
+    ...(body.boarding_type !== undefined ? { boarding_type: nullableString(body.boarding_type) } : {}),
+    ...(body.check_in_date !== undefined ? { check_in_date: nullableDate(body.check_in_date) } : {}),
+    ...(body.check_out_date !== undefined ? { check_out_date: nullableDate(body.check_out_date) } : {}),
+    ...(body.check_in_time !== undefined ? { check_in_time: nullableString(body.check_in_time) } : {}),
+    ...(body.check_out_time !== undefined ? { check_out_time: nullableString(body.check_out_time) } : {}),
+    ...(body.check_in_slot !== undefined ? { check_in_slot: nullableString(body.check_in_slot) } : {}),
+    ...(body.check_out_slot !== undefined ? { check_out_slot: nullableString(body.check_out_slot) } : {}),
+    ...(body.weight !== undefined ? { weight: nullableNumber(body.weight) } : {}),
+    ...(body.check_out_weight !== undefined ? { check_out_weight: nullableNumber(body.check_out_weight) } : {}),
+    ...(body.meal_type !== undefined ? { meal_type: nullableString(body.meal_type) } : {}),
+    ...(body.kennel !== undefined ? { kennel: nullableString(body.kennel) } : {}),
+    ...(body.final_amount !== undefined ? { final_amount: nullableNumber(body.final_amount) } : {}),
+    ...(body.late_checkout_fees !== undefined ? { late_checkout_fees: nullableNumber(body.late_checkout_fees) } : {}),
+    ...(body.refund_amount !== undefined ? { refund_amount: nullableNumber(body.refund_amount) } : {}),
+    ...(body.refund_reason !== undefined ? { refund_reason: nullableString(body.refund_reason) } : {}),
+    ...(body.companion_name !== undefined ? { companion_name: nullableString(body.companion_name) } : {}),
+    ...(body.companion_phone !== undefined ? { companion_phone: nullableString(body.companion_phone) } : {}),
+    ...(body.end_time !== undefined ? { end_time: nullableString(body.end_time) } : {}),
+    ...(body.staff_name !== undefined ? { staff_name: nullableString(body.staff_name) } : {}),
+    ...(body.services_json !== undefined ? { services_json: body.services_json || null } : {}),
+    ...(body.documents_json !== undefined ? { documents_json: body.documents_json || null } : {}),
+    ...(body.details_completed !== undefined ? { details_completed: Boolean(body.details_completed) } : {}),
+  };
+}
+
+function missingDetailFields(serviceCategory: string, body: any) {
+  const required = serviceCategory === "Boarding"
+    ? ["boarding_type", "check_in_date", "check_out_date", "check_in_time", "check_out_time"]
+    : serviceCategory === "Grooming"
+      ? ["slot_date", "slot_time", "end_time", "staff_name", "services_json"]
+      : [];
+  return required.filter((field) => {
+    const value = body[field];
+    if (field === "services_json") return !Array.isArray(value) || value.length === 0;
+    return value === undefined || value === null || String(value).trim() === "";
+  }).concat(["aadhaar_front", "aadhaar_back", "pan_card", "vaccination_certificate"].filter((field) => {
+    const docs = body.documents_json && typeof body.documents_json === "object" ? body.documents_json : {};
+    return !docs[field]?.assetId && !docs[field]?.path;
+  }));
+}
+
 // GET /api/bookings?userId=xxx&status=Pending&paymentStatus=Paid&dateFrom=2026-05-01&dateTo=2026-05-31
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -58,12 +126,22 @@ export async function GET(req: Request) {
     const paymentStatus = searchParams.get("paymentStatus");
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
+    const bookingId = searchParams.get("bookingId");
+    const serviceCategory = searchParams.get("serviceCategory");
+    const period = searchParams.get("period");
+    const now = new Date();
+    const today = dayRange(now);
 
     const bookings = await prisma.booking.findMany({
       where: {
+        ...(bookingId ? { id: bookingId } : {}),
         ...(userId ? { client_id: userId } : {}),
         ...(status && status !== "All" ? { status } : {}),
         ...(paymentStatus && paymentStatus !== "All" ? { payment_status: paymentStatus } : {}),
+        ...(serviceCategory && serviceCategory !== "All" ? { service: { category: serviceCategory } } : {}),
+        ...(period === "upcoming" ? { slot_date: { gt: today.end } } : {}),
+        ...(period === "current" ? { slot_date: { gte: today.start, lte: today.end } } : {}),
+        ...(period === "past" ? { slot_date: { lt: today.start } } : {}),
         ...((dateFrom || dateTo)
           ? {
               slot_date: {
@@ -76,7 +154,18 @@ export async function GET(req: Request) {
       include: { pet: true, service: true, address: true, client: true, staff: true, payments: true, invoices: true },
       orderBy: [{ slot_date: "desc" }, { created_at: "desc" }],
     });
-    return NextResponse.json(bookings);
+    const bookingIds = bookings.map((booking) => booking.id);
+    const assets = bookingIds.length
+      ? await prisma.asset.findMany({
+          where: { booking_id: { in: bookingIds } },
+          orderBy: { created_at: "desc" },
+        })
+      : [];
+    const withDocuments = bookings.map((booking) => ({
+      ...booking,
+      documents: assets.filter((asset) => asset.booking_id === booking.id),
+    }));
+    return NextResponse.json(bookingId ? withDocuments[0] || null : withDocuments);
   } catch (error) {
     console.error("GET bookings error:", error);
     return NextResponse.json({ message: "Failed to fetch bookings", error: String(error) }, { status: 500 });
@@ -172,6 +261,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "This slot is no longer available" }, { status: 409 });
     }
 
+    if (!isAdmin(session.user.role) && service.category === "Grooming") {
+      const { start, end } = dayRange(requestedDate);
+      const groomingCount = await prisma.booking.count({
+        where: {
+          slot_date: { gte: start, lte: end },
+          status: { in: ACTIVE_BOOKING_STATUSES },
+          service: { category: "Grooming" },
+        },
+      });
+      if (groomingCount >= 15) {
+        return NextResponse.json({ message: "Online grooming bookings are full for this date. Please choose another date." }, { status: 409 });
+      }
+    }
+
     let bookingAddressId = address_id || null;
     if (!bookingAddressId && address?.line1 && address?.city && address?.state && address?.pincode) {
       const createdAddress = await prisma.address.create({
@@ -201,6 +304,7 @@ export async function POST(req: Request) {
         slot_time,
         notes: notes || null,
         addons_json: finalAddonsJson,
+        ...bookingDetailData(body),
         status: "Pending",
         payment_status: "Pending",
       },
@@ -256,13 +360,24 @@ export async function PATCH(req: Request) {
 
     const existingBooking = await prisma.booking.findUnique({
       where: { id },
-      select: { client_id: true, status: true },
+      include: { service: true },
     });
     if (!existingBooking) {
       return NextResponse.json({ message: "Booking not found" }, { status: 404 });
     }
 
     const admin = isAdmin(session.user.role);
+    const userSavingOwnDetails = !admin
+      && existingBooking.client_id === session.user.id
+      && status === undefined
+      && payment_status === undefined
+      && internal_notes === undefined
+      && transaction_id === undefined
+      && payment_method === undefined
+      && staff_id === undefined
+      && after_photos_json === undefined
+      && collect_cod === undefined
+      && body.details_completed !== undefined;
     const userCancellingOwnBooking = !admin
       && existingBooking.client_id === session.user.id
       && status === "Cancelled"
@@ -277,7 +392,7 @@ export async function PATCH(req: Request) {
       && after_photos_json === undefined
       && collect_cod === undefined;
 
-    if (!admin && !userCancellingOwnBooking) {
+    if (!admin && !userCancellingOwnBooking && !userSavingOwnDetails) {
       return NextResponse.json({ message: "Admin access required" }, { status: 403 });
     }
     if (userCancellingOwnBooking && ["Completed", "Cancelled", "Expired"].includes(existingBooking.status)) {
@@ -287,6 +402,13 @@ export async function PATCH(req: Request) {
     if (collect_cod) {
       const result = await collectCodPayment({ bookingId: id, transactionId: transaction_id });
       return NextResponse.json(result.booking);
+    }
+
+    if (body.details_completed) {
+      const missing = missingDetailFields(existingBooking.service?.category || "", { ...body, slot_date: slot_date || existingBooking.slot_date, slot_time: slot_time || existingBooking.slot_time });
+      if (missing.length > 0) {
+        return NextResponse.json({ message: `Missing required detail fields: ${missing.join(", ")}` }, { status: 400 });
+      }
     }
 
     const booking = await prisma.booking.update({
@@ -300,6 +422,7 @@ export async function PATCH(req: Request) {
         ...(slot_date && { slot_date: new Date(slot_date) }),
         ...(slot_time && { slot_time }),
         ...(after_photos_json !== undefined && { after_photos_json }),
+        ...bookingDetailData(body),
       },
       include: { pet: true, service: true, client: true, payments: true, invoices: true },
     });

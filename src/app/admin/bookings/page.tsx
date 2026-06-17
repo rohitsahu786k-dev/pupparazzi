@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, CreditCard, Loader2, Mail, MapPin, MessageCircle, Phone, Search, Trash2, UserCheck } from "lucide-react";
+import { Calendar, CreditCard, Download, Eye, Grid2X2, List, Loader2, Mail, MapPin, MessageCircle, Phone, Printer, Search, Share2, Trash2, UserCheck } from "lucide-react";
 
 type Booking = {
   id: string;
@@ -21,12 +21,20 @@ type Booking = {
   } | null;
   client?: { name?: string | null; email?: string | null; phone?: string | null };
   pet?: { name?: string | null; type?: string | null; breed?: string | null };
-  service?: { name?: string | null; price?: number | null; discounted_price?: number | null };
+  service?: { name?: string | null; category?: string | null; price?: number | null; discounted_price?: number | null };
   address?: { line1?: string | null; city?: string | null; pincode?: string | null } | null;
+  documents?: { id: string; original_name: string; path: string; document_type?: string | null }[];
 };
 
 const STATUSES = ["All", "Pending", "Confirmed", "In Progress", "Completed", "Cancelled", "Expired"];
 const PAYMENT_STATUSES = ["All", "Pending", "Advance Paid", "Partially Paid", "Paid", "Failed", "Cancelled", "Refunded"];
+const SERVICE_FILTERS = ["All", "Grooming", "Boarding", "Swimming", "Walking", "Veterinary", "Training"];
+const PERIODS = [
+  { label: "All dates", value: "all" },
+  { label: "Upcoming", value: "upcoming" },
+  { label: "Current", value: "current" },
+  { label: "Past", value: "past" },
+];
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -53,6 +61,21 @@ function paymentSummary(booking: Booking) {
   return "Full online payment";
 }
 
+function serviceColor(category?: string | null) {
+  if (category === "Grooming") return "border-pink-200 bg-pink-50 text-pink-700";
+  if (category === "Swimming") return "border-sky-200 bg-sky-50 text-sky-700";
+  if (category === "Boarding") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (category === "Walking") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (category === "Veterinary") return "border-red-200 bg-red-50 text-red-700";
+  if (category === "Training") return "border-violet-200 bg-violet-50 text-violet-700";
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function dateKey(value: string | Date) {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +83,11 @@ export default function AdminBookingsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All");
   const [paymentStatus, setPaymentStatus] = useState("All");
+  const [serviceCategory, setServiceCategory] = useState("All");
+  const [period, setPeriod] = useState("all");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => dateKey(new Date()));
+  const [viewer, setViewer] = useState<{ label: string; path: string } | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [error, setError] = useState("");
@@ -70,6 +98,8 @@ export default function AdminBookingsPage() {
     const params = new URLSearchParams();
     if (status !== "All") params.set("status", status);
     if (paymentStatus !== "All") params.set("paymentStatus", paymentStatus);
+    if (serviceCategory !== "All") params.set("serviceCategory", serviceCategory);
+    if (period !== "all") params.set("period", period);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     const res = await fetch(`/api/bookings?${params.toString()}`);
@@ -83,7 +113,7 @@ export default function AdminBookingsPage() {
 
   useEffect(() => {
     fetchBookings();
-  }, [status, paymentStatus, dateFrom, dateTo]);
+  }, [status, paymentStatus, serviceCategory, period, dateFrom, dateTo]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -134,6 +164,20 @@ export default function AdminBookingsPage() {
     await updateBooking(id, { collect_cod: true });
   }
 
+  async function shareDocument(path: string) {
+    const url = new URL(path, window.location.origin).toString();
+    if (navigator.share) {
+      await navigator.share({ url }).catch(() => undefined);
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+  }
+
+  function printDocument(path: string) {
+    const win = window.open(path, "_blank");
+    win?.addEventListener("load", () => win.print());
+  }
+
   function whatsappLink(booking: Booking, kind: "confirmation" | "cod" | "paid") {
     const phone = String(booking.client?.phone || "").replace(/\D/g, "");
     const number = phone.length === 10 ? `91${phone}` : phone;
@@ -153,6 +197,18 @@ export default function AdminBookingsPage() {
   const revenue = bookings
     .filter((booking) => booking.payment_status === "Paid")
     .reduce((sum, booking) => sum + bookingAmount(booking), 0);
+  const calendarDays = useMemo(() => {
+    const base = selectedCalendarDate ? new Date(selectedCalendarDate) : new Date();
+    const start = new Date(base.getFullYear(), base.getMonth(), 1);
+    const gridStart = new Date(start);
+    gridStart.setDate(start.getDate() - start.getDay());
+    return Array.from({ length: 42 }, (_, index) => {
+      const day = new Date(gridStart);
+      day.setDate(gridStart.getDate() + index);
+      return day;
+    });
+  }, [selectedCalendarDate]);
+  const selectedDateBookings = filtered.filter((booking) => dateKey(booking.slot_date) === selectedCalendarDate);
 
   return (
     <div className="space-y-6">
@@ -181,7 +237,7 @@ export default function AdminBookingsPage() {
       </div>
 
       <div className="rounded-lg border bg-white p-4">
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search booking, client, pet, email..." className="pl-9" />
@@ -192,15 +248,80 @@ export default function AdminBookingsPage() {
           <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
             {PAYMENT_STATUSES.map((item) => <option key={item}>{item}</option>)}
           </select>
+          <select value={serviceCategory} onChange={(e) => setServiceCategory(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
+            {SERVICE_FILTERS.map((item) => <option key={item}>{item}</option>)}
+          </select>
+          <select value={period} onChange={(e) => setPeriod(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
+            {PERIODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
           <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
           <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           <Button variant="outline" onClick={fetchBookings}>Refresh</Button>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button type="button" size="sm" variant={viewMode === "list" ? "default" : "outline"} onClick={() => setViewMode("list")}><List className="mr-1 h-3.5 w-3.5" /> List</Button>
+          <Button type="button" size="sm" variant={viewMode === "calendar" ? "default" : "outline"} onClick={() => setViewMode("calendar")}><Grid2X2 className="mr-1 h-3.5 w-3.5" /> Calendar</Button>
+          <Input type="date" value={selectedCalendarDate} onChange={(e) => setSelectedCalendarDate(e.target.value)} className="h-9 w-44" />
         </div>
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>}
 
-      <div className="rounded-lg border bg-white">
+      {viewMode === "calendar" && (
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-lg border bg-white p-4">
+            <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-muted-foreground">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="py-2">{day}</div>)}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {calendarDays.map((day) => {
+                const key = dateKey(day);
+                const dayBookings = filtered.filter((booking) => dateKey(booking.slot_date) === key);
+                const active = key === selectedCalendarDate;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSelectedCalendarDate(key)}
+                    className={`min-h-24 rounded-lg border p-2 text-left transition ${active ? "border-primary bg-primary/6" : "bg-white hover:border-primary/40"}`}
+                  >
+                    <span className="text-xs font-bold">{day.getDate()}</span>
+                    <div className="mt-2 space-y-1">
+                      {dayBookings.slice(0, 3).map((booking) => (
+                        <span key={booking.id} className={`block truncate rounded border px-1.5 py-0.5 text-[10px] font-semibold ${serviceColor(booking.service?.category)}`}>
+                          {booking.service?.category || "Service"} - {booking.pet?.name || "Pet"}
+                        </span>
+                      ))}
+                      {dayBookings.length > 3 && <span className="block text-[10px] text-muted-foreground">+{dayBookings.length - 3} more</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-white p-4">
+            <h2 className="font-bold">{new Date(selectedCalendarDate).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}</h2>
+            <div className="mt-4 space-y-3">
+              {selectedDateBookings.length === 0 ? (
+                <p className="rounded-lg border bg-muted/35 p-4 text-sm text-muted-foreground">No bookings for this date.</p>
+              ) : selectedDateBookings.map((booking) => (
+                <div key={booking.id} className="rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold">{booking.booking_id}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{booking.client?.name || "Customer"} - {booking.pet?.name || "Pet"}</p>
+                    </div>
+                    <span className={`rounded-lg border px-2 py-1 text-xs font-bold ${serviceColor(booking.service?.category)}`}>{booking.service?.category || "Service"}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">{booking.service?.name || "-"} at {booking.slot_time}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewMode === "list" && <div className="rounded-lg border bg-white">
         {loading ? (
           <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : filtered.length === 0 ? (
@@ -223,6 +344,7 @@ export default function AdminBookingsPage() {
                   <p className="flex items-start gap-1"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" /> {booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.pincode || ""}` : "-"}</p>
                   <p>{paymentSummary(booking)}</p>
                   <p className="font-bold text-foreground">Rs. {bookingAmount(booking).toLocaleString("en-IN")} - {booking.payment_status}</p>
+                  {booking.documents?.length ? <p>{booking.documents.length} document(s) linked</p> : null}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { status: "Confirmed" })}>Confirm</Button>
@@ -268,7 +390,21 @@ export default function AdminBookingsPage() {
                     <td className="px-4 py-4">
                       <p className="font-semibold">{booking.pet?.name || "Pet"} <span className="text-xs font-normal text-muted-foreground">{booking.pet?.breed || booking.pet?.type}</span></p>
                       <p className="mt-1 break-words text-xs text-muted-foreground">{booking.service?.name} - Rs. {bookingAmount(booking).toLocaleString("en-IN")}</p>
+                      <span className={`mt-2 inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-bold ${serviceColor(booking.service?.category)}`}>{booking.service?.category || "Service"}</span>
                       {booking.addons_json?.coupon?.code && <p className="mt-1 text-xs font-semibold text-green-700">{booking.addons_json.coupon.code} applied</p>}
+                      {booking.documents?.length ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {booking.documents.map((doc) => (
+                            <span key={doc.id} className="inline-flex items-center gap-1 rounded-lg border bg-muted/30 px-2 py-1 text-[11px] font-semibold">
+                              {doc.document_type || doc.original_name}
+                              <button type="button" onClick={() => setViewer({ label: doc.document_type || doc.original_name, path: doc.path })}><Eye className="h-3 w-3" /></button>
+                              <a href={doc.path} download><Download className="h-3 w-3" /></a>
+                              <button type="button" onClick={() => shareDocument(doc.path)}><Share2 className="h-3 w-3" /></button>
+                              <button type="button" onClick={() => printDocument(doc.path)}><Printer className="h-3 w-3" /></button>
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-4">
                       <p className="flex items-center gap-1 font-semibold"><Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(booking.slot_date)}</p>
@@ -336,7 +472,22 @@ export default function AdminBookingsPage() {
           </div>
           </>
         )}
-      </div>
+      </div>}
+      {viewer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setViewer(null)}>
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg bg-white" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b p-4">
+              <p className="font-bold">{viewer.label}</p>
+              <Button size="sm" variant="outline" onClick={() => setViewer(null)}>Close</Button>
+            </div>
+            {/\.(png|jpe?g|webp|gif)$/i.test(viewer.path) ? (
+              <img src={viewer.path} alt={viewer.label} className="max-h-[75vh] w-full object-contain" />
+            ) : (
+              <iframe src={viewer.path} title={viewer.label} className="h-[75vh] w-full" />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

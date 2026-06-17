@@ -24,7 +24,7 @@ async function main() {
   console.log("Seeded", petCareServices.length, "services");
 
   // Create/update admin user
-  const adminEmail = "customer.unfoldcro@gmail.com";
+  const adminEmail = "admin@pupparazzi.local";
   const adminPassword = "Admin@Pupparazzi2024";
   const passwordHash = await bcrypt.hash(adminPassword, 12);
 

@@ -132,6 +132,8 @@ model PetMedical {
   ongoing_medication    Boolean?  @default(false)
   medication_detail     String?
   illness_history       String?
+  vaccination_certificate_asset_id String? @db.ObjectId
+  vaccination_certificate_path String?
   last_heat_month       Int?
   last_heat_year        Int?
   vet_name              String?
@@ -206,6 +208,28 @@ model Booking {
   notes            String?
   internal_notes   String?
   after_photos_json Json?    // Array of strings (URLs)
+  boarding_type    String?
+  check_in_date    DateTime?
+  check_out_date   DateTime?
+  check_in_time    String?
+  check_out_time   String?
+  check_in_slot    String?
+  check_out_slot   String?
+  weight           Float?
+  check_out_weight Float?
+  meal_type        String?
+  kennel           String?
+  final_amount     Float?
+  late_checkout_fees Float?
+  refund_amount    Float?
+  refund_reason    String?
+  companion_name   String?
+  companion_phone  String?
+  end_time         String?
+  staff_name       String?
+  services_json    Json?
+  documents_json   Json?
+  details_completed Boolean  @default(false)
   google_event_id  String?
   created_at       DateTime  @default(now())
   updated_at       DateTime  @updatedAt
@@ -300,6 +324,11 @@ model Asset {
   original_name String
   path          String
   category      String   // Services, Hero, Testimonials, Staff, General
+  document_type String?
+  client_id     String?  @db.ObjectId
+  pet_id        String?  @db.ObjectId
+  booking_id    String?  @db.ObjectId
+  notes         String?
   uploaded_by   String?  @db.ObjectId
   created_at    DateTime @default(now())
 }

@@ -12,8 +12,18 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const category = searchParams.get("category");
+    const clientId = searchParams.get("clientId");
+    const petId = searchParams.get("petId");
+    const bookingId = searchParams.get("bookingId");
+    const documentType = searchParams.get("documentType");
     const assets = await prisma.asset.findMany({
-      where: category && category !== "All" ? { category } : {},
+      where: {
+        ...(category && category !== "All" ? { category } : {}),
+        ...(clientId ? { client_id: clientId } : {}),
+        ...(petId ? { pet_id: petId } : {}),
+        ...(bookingId ? { booking_id: bookingId } : {}),
+        ...(documentType && documentType !== "All" ? { document_type: documentType } : {}),
+      },
       orderBy: { created_at: "desc" },
     });
     return NextResponse.json(assets);

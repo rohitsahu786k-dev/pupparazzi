@@ -193,6 +193,14 @@ function BookPageContent() {
   const [petImagePreviews, setPetImagePreviews] = useState<string[]>([]);
   const [uploadingPetImages, setUploadingPetImages] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [boardingSchedule, setBoardingSchedule] = useState({
+    check_in_date: toDateKey(new Date()),
+    check_out_date: "",
+    check_in_time: "",
+    check_out_time: "",
+    check_in_slot: "",
+    check_out_slot: "",
+  });
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [selectedSlot, setSelectedSlot] = useState("");
   const [calendarView, setCalendarView] = useState<"month" | "week">("month");
@@ -468,8 +476,14 @@ function BookPageContent() {
       setSaving(false);
       return;
     }
-    if (!selectedSlot) {
+    if (!selectedSlot && selectedService.category !== "Boarding") {
       setError("Please select an available time slot.");
+      submittingRef.current = false;
+      setSaving(false);
+      return;
+    }
+    if (selectedService.category === "Boarding" && (!boardingSchedule.check_in_date || !boardingSchedule.check_out_date || !boardingSchedule.check_in_time || !boardingSchedule.check_out_time)) {
+      setError("Check-in date, check-out date, check-in time, and check-out time are required for boarding.");
       submittingRef.current = false;
       setSaving(false);
       return;
@@ -495,8 +509,15 @@ function BookPageContent() {
         body: JSON.stringify({
           pet_id: petId,
           service_id: selectedService.id,
-          slot_date: toDateKey(selectedDate),
-          slot_time: selectedSlot,
+          slot_date: selectedService.category === "Boarding" ? boardingSchedule.check_in_date : toDateKey(selectedDate),
+          slot_time: selectedService.category === "Boarding" ? boardingSchedule.check_in_time : selectedSlot,
+          check_in_date: selectedService.category === "Boarding" ? boardingSchedule.check_in_date : undefined,
+          check_out_date: selectedService.category === "Boarding" ? boardingSchedule.check_out_date : undefined,
+          check_in_time: selectedService.category === "Boarding" ? boardingSchedule.check_in_time : undefined,
+          check_out_time: selectedService.category === "Boarding" ? boardingSchedule.check_out_time : undefined,
+          check_in_slot: selectedService.category === "Boarding" ? boardingSchedule.check_in_slot : undefined,
+          check_out_slot: selectedService.category === "Boarding" ? boardingSchedule.check_out_slot : undefined,
+          boarding_type: selectedService.category === "Boarding" ? selectedService.name : undefined,
           address,
           notes: summaryNotes || null,
           addons_json: {
@@ -517,7 +538,7 @@ function BookPageContent() {
 
       const paymentPlan = paymentPlanFromMode(paymentMode);
       if (paymentPlan === "COD_TEST") {
-        router.push("/dashboard?booked=true");
+        router.push(`/dashboard/bookings/${booking.id}/details`);
         return;
       }
       const paymentAmount = paymentPlan === "COD_ADVANCE" ? COD_ADVANCE_AMOUNT : total;
@@ -573,7 +594,7 @@ function BookPageContent() {
         checkout.open();
       });
 
-      router.push("/dashboard?booked=true");
+      router.push(`/dashboard/bookings/${booking.id}/details`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Booking could not be created.");
     } finally {
@@ -776,11 +797,53 @@ function BookPageContent() {
               )}
             </div>
 
+            {selectedService?.category === "Boarding" && (
+              <div className="rounded-lg border bg-white p-4 shadow-sm sm:p-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <Home className="h-5 w-5 text-primary" />
+                  <h2 className="font-bold">3. Boarding schedule</h2>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-muted-foreground">Check-in date *</label>
+                    <Input
+                      type="date"
+                      value={boardingSchedule.check_in_date}
+                      onChange={(e) => {
+                        setBoardingSchedule((prev) => ({ ...prev, check_in_date: e.target.value }));
+                        if (e.target.value) {
+                          const next = new Date(e.target.value);
+                          if (!Number.isNaN(next.getTime())) {
+                            setSelectedDate(next);
+                            setVisibleMonth(startOfMonth(next));
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-muted-foreground">Check-out date *</label>
+                    <Input type="date" value={boardingSchedule.check_out_date} onChange={(e) => setBoardingSchedule((prev) => ({ ...prev, check_out_date: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-muted-foreground">Check-in time *</label>
+                    <Input type="time" value={boardingSchedule.check_in_time} onChange={(e) => setBoardingSchedule((prev) => ({ ...prev, check_in_time: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-muted-foreground">Check-out time *</label>
+                    <Input type="time" value={boardingSchedule.check_out_time} onChange={(e) => setBoardingSchedule((prev) => ({ ...prev, check_out_time: e.target.value }))} />
+                  </div>
+                  <Input placeholder="Check-in slot (optional)" value={boardingSchedule.check_in_slot} onChange={(e) => setBoardingSchedule((prev) => ({ ...prev, check_in_slot: e.target.value }))} />
+                  <Input placeholder="Check-out slot (optional)" value={boardingSchedule.check_out_slot} onChange={(e) => setBoardingSchedule((prev) => ({ ...prev, check_out_slot: e.target.value }))} />
+                </div>
+              </div>
+            )}
+
             <div className="rounded-lg border bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                   <CalendarDays className="h-5 w-5 text-primary" />
-                  <h2 className="font-bold">3. Advanced calendar</h2>
+                  <h2 className="font-bold">{selectedService?.category === "Boarding" ? "4" : "3"}. Advanced calendar</h2>
                 </div>
                 <div className="grid grid-cols-2 rounded-lg bg-muted p-1 text-xs font-bold">
                   {(["month", "week"] as const).map((view) => (
@@ -891,7 +954,7 @@ function BookPageContent() {
             <div className="rounded-lg border bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-primary" />
-                <h2 className="font-bold">4. Address and pincode</h2>
+                <h2 className="font-bold">{selectedService?.category === "Boarding" ? "5" : "4"}. Address and pincode</h2>
               </div>
               <div className="space-y-3">
                 <Button type="button" variant="outline" className="w-full" onClick={useMyLocation}>
@@ -993,8 +1056,8 @@ function BookPageContent() {
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex justify-between gap-3"><span className="text-white/65">Service</span><span className="text-right font-bold">{selectedService?.name || "-"}</span></div>
                 <div className="flex justify-between gap-3"><span className="text-white/65">Pet</span><span className="text-right font-bold">{selectedPet?.name || newPet.name || "-"}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-white/65">Date</span><span className="text-right font-bold">{selectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-white/65">Slot</span><span className="text-right font-bold">{selectedSlot || "-"}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-white/65">Date</span><span className="text-right font-bold">{selectedService?.category === "Boarding" && boardingSchedule.check_in_date ? new Date(boardingSchedule.check_in_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : selectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-white/65">Slot</span><span className="text-right font-bold">{selectedService?.category === "Boarding" ? boardingSchedule.check_in_time || "-" : selectedSlot || "-"}</span></div>
                 <div className="flex justify-between gap-3"><span className="text-white/65">Service price</span><span className="text-right font-bold">{selectedService ? money(servicePrice) : "-"}</span></div>
                 {addonTotal > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Add-ons</span><span className="text-right font-bold">{money(addonTotal)}</span></div>}
                 {couponDiscount > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Coupon</span><span className="text-right font-bold">-{money(couponDiscount)}</span></div>}

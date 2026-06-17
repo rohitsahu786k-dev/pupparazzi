@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, ImagePlus, Loader2, Trash2, Upload } from "lucide-react";
+import { Copy, Download, Eye, ImagePlus, Loader2, Printer, Share2, Trash2, Upload } from "lucide-react";
 
 type Asset = {
   id: string;
@@ -12,10 +12,11 @@ type Asset = {
   original_name: string;
   path: string;
   category: string;
+  document_type?: string | null;
   created_at: string;
 };
 
-const CATEGORIES = ["All", "Hero", "Services", "Pets", "Bookings", "General"];
+const CATEGORIES = ["All", "Hero", "Services", "Pets", "Bookings", "KYC", "Documents", "Vaccination", "General"];
 
 export default function AdminAssetsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -25,6 +26,7 @@ export default function AdminAssetsPage() {
   const [folder, setFolder] = useState("general");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [viewer, setViewer] = useState<{ label: string; path: string } | null>(null);
   const [error, setError] = useState("");
 
   async function fetchAssets() {
@@ -65,6 +67,20 @@ export default function AdminAssetsPage() {
     await fetchAssets();
   }
 
+  async function shareAsset(path: string) {
+    const url = new URL(path, window.location.origin).toString();
+    if (navigator.share) {
+      await navigator.share({ url }).catch(() => undefined);
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+  }
+
+  function printAsset(path: string) {
+    const win = window.open(path, "_blank");
+    win?.addEventListener("load", () => win.print());
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -87,7 +103,7 @@ export default function AdminAssetsPage() {
         {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {CATEGORIES.map((item) => (
           <button
             key={item}
@@ -120,7 +136,7 @@ export default function AdminAssetsPage() {
               <div className="space-y-3 p-4">
                 <div>
                   <p className="truncate text-sm font-bold">{asset.original_name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{asset.category} · {new Date(asset.created_at).toLocaleDateString("en-IN")}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{asset.document_type || asset.category} - {new Date(asset.created_at).toLocaleDateString("en-IN")}</p>
                 </div>
                 <Input readOnly value={asset.path} className="h-9 text-xs" />
                 <div className="flex gap-2">
@@ -131,9 +147,31 @@ export default function AdminAssetsPage() {
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
+                <div className="grid grid-cols-4 gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setViewer({ label: asset.original_name, path: asset.path })}><Eye className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="outline" asChild><a href={asset.path} download><Download className="h-3.5 w-3.5" /></a></Button>
+                  <Button size="sm" variant="outline" onClick={() => shareAsset(asset.path)}><Share2 className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="outline" onClick={() => printAsset(asset.path)}><Printer className="h-3.5 w-3.5" /></Button>
+                </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {viewer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setViewer(null)}>
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg bg-white" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b p-4">
+              <p className="font-bold">{viewer.label}</p>
+              <Button size="sm" variant="outline" onClick={() => setViewer(null)}>Close</Button>
+            </div>
+            {/\.(png|jpe?g|webp|gif)$/i.test(viewer.path) ? (
+              <img src={viewer.path} alt={viewer.label} className="max-h-[75vh] w-full object-contain" />
+            ) : (
+              <iframe src={viewer.path} title={viewer.label} className="h-[75vh] w-full" />
+            )}
+          </div>
         </div>
       )}
     </div>

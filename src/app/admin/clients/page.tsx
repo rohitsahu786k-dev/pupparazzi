@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CheckCircle2, KeyRound, Loader2, Search, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { Calendar, CheckCircle2, Download, Eye, FileText, KeyRound, Loader2, Printer, Search, Share2, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 
 type AdminUser = {
   id: string;
@@ -21,6 +21,38 @@ type AdminUser = {
   clientBookings: { id: string; status: string; payment_status: string }[];
 };
 
+type Booking = {
+  id: string;
+  booking_id: string;
+  status: string;
+  payment_status: string;
+  slot_date: string;
+  slot_time: string;
+  service?: { name?: string | null; category?: string | null };
+  pet?: { name?: string | null; type?: string | null; breed?: string | null };
+  documents?: Asset[];
+};
+
+type PetProfile = {
+  id: string;
+  owner_id: string;
+  name: string;
+  type: string;
+  breed?: string | null;
+  weight?: number | null;
+  medical?: { vaccination_status?: string | null; vaccination_certificate_path?: string | null } | null;
+};
+
+type Asset = {
+  id: string;
+  original_name: string;
+  path: string;
+  category: string;
+  document_type?: string | null;
+  pet_id?: string | null;
+  booking_id?: string | null;
+};
+
 const roles = ["All", "CLIENT", "STAFF", "ADMIN"];
 
 export default function AdminClientsPage() {
@@ -32,6 +64,12 @@ export default function AdminClientsPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [creating, setCreating] = useState(false);
+  const [profileUser, setProfileUser] = useState<AdminUser | null>(null);
+  const [profileBookings, setProfileBookings] = useState<Booking[]>([]);
+  const [profilePets, setProfilePets] = useState<PetProfile[]>([]);
+  const [profileAssets, setProfileAssets] = useState<Asset[]>([]);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [viewer, setViewer] = useState<{ label: string; path: string } | null>(null);
   const [passwords, setPasswords] = useState<Record<string, string>>({});
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", role: "CLIENT" });
 
@@ -115,6 +153,37 @@ export default function AdminClientsPage() {
     else setMessage("User deleted.");
     await fetchUsers();
     setSavingId("");
+  }
+
+  async function openProfile(user: AdminUser) {
+    setProfileUser(user);
+    setProfileLoading(true);
+    const [bookingRes, assetRes, petRes] = await Promise.all([
+      fetch(`/api/bookings?userId=${user.id}`),
+      fetch(`/api/assets?clientId=${user.id}`),
+      fetch("/api/pets"),
+    ]);
+    if (bookingRes.ok) setProfileBookings(await bookingRes.json());
+    if (assetRes.ok) setProfileAssets(await assetRes.json());
+    if (petRes.ok) {
+      const allPets = await petRes.json();
+      setProfilePets(Array.isArray(allPets) ? allPets.filter((pet: PetProfile) => pet.owner_id === user.id) : []);
+    }
+    setProfileLoading(false);
+  }
+
+  async function shareDocument(path: string) {
+    const url = new URL(path, window.location.origin).toString();
+    if (navigator.share) {
+      await navigator.share({ url }).catch(() => undefined);
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+  }
+
+  function printDocument(path: string) {
+    const win = window.open(path, "_blank");
+    win?.addEventListener("load", () => win.print());
   }
 
   const totalUsers = users.length;
@@ -247,6 +316,9 @@ export default function AdminClientsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-4">
+                      <Button size="sm" variant="outline" className="mr-2" onClick={() => openProfile(user)}>
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
                       <Button size="sm" variant="destructive" disabled={savingId === user.id} onClick={() => deleteUser(user.id)}>
                         {savingId === user.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                       </Button>
@@ -258,6 +330,88 @@ export default function AdminClientsPage() {
           </div>
         )}
       </div>
+
+      {profileUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setProfileUser(null)}>
+          <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-lg bg-white" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white p-4">
+              <div>
+                <p className="text-xs font-bold uppercase text-primary">Client Profile</p>
+                <h2 className="text-xl font-bold">{profileUser.name || "Client"}</h2>
+                <p className="text-sm text-muted-foreground">{profileUser.email || "-"} - {profileUser.phone || "-"}</p>
+              </div>
+              <Button variant="outline" onClick={() => setProfileUser(null)}>Close</Button>
+            </div>
+
+            {profileLoading ? (
+              <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+            ) : (
+              <div className="grid gap-4 p-4 lg:grid-cols-3">
+                <section className="rounded-lg border p-4">
+                  <h3 className="flex items-center gap-2 font-bold"><Calendar className="h-4 w-4 text-primary" /> Bookings</h3>
+                  <div className="mt-3 space-y-2">
+                    {profileBookings.length === 0 ? <p className="text-sm text-muted-foreground">No bookings.</p> : profileBookings.map((booking) => (
+                      <div key={booking.id} className="rounded-lg border bg-muted/25 p-3">
+                        <p className="font-bold">{booking.booking_id}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{booking.service?.name || "Service"} - {booking.pet?.name || "Pet"}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{new Date(booking.slot_date).toLocaleDateString("en-IN")} at {booking.slot_time}</p>
+                        <p className="mt-1 text-xs font-semibold">{booking.status} - {booking.payment_status}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-lg border p-4">
+                  <h3 className="font-bold">Pets and Dogs</h3>
+                  <div className="mt-3 space-y-2">
+                    {profilePets.length === 0 ? <p className="text-sm text-muted-foreground">No pets.</p> : profilePets.map((pet) => (
+                      <div key={pet.id} className="rounded-lg border bg-muted/25 p-3">
+                        <p className="font-bold">{pet.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{[pet.type, pet.breed, pet.weight ? `${pet.weight} kg` : ""].filter(Boolean).join(" - ")}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Vaccination: {pet.medical?.vaccination_status || "Not recorded"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-lg border p-4">
+                  <h3 className="flex items-center gap-2 font-bold"><FileText className="h-4 w-4 text-primary" /> Documents</h3>
+                  <div className="mt-3 space-y-2">
+                    {profileAssets.length === 0 ? <p className="text-sm text-muted-foreground">No linked documents.</p> : profileAssets.map((asset) => (
+                      <div key={asset.id} className="rounded-lg border bg-muted/25 p-3">
+                        <p className="truncate font-bold">{asset.document_type || asset.original_name}</p>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">{asset.category} - {asset.original_name}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setViewer({ label: asset.document_type || asset.original_name, path: asset.path })}><Eye className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="outline" asChild><a href={asset.path} download><Download className="h-3.5 w-3.5" /></a></Button>
+                          <Button size="sm" variant="outline" onClick={() => shareDocument(asset.path)}><Share2 className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="outline" onClick={() => printDocument(asset.path)}><Printer className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {viewer && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setViewer(null)}>
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg bg-white" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b p-4">
+              <p className="font-bold">{viewer.label}</p>
+              <Button size="sm" variant="outline" onClick={() => setViewer(null)}>Close</Button>
+            </div>
+            {/\.(png|jpe?g|webp|gif)$/i.test(viewer.path) ? (
+              <img src={viewer.path} alt={viewer.label} className="max-h-[75vh] w-full object-contain" />
+            ) : (
+              <iframe src={viewer.path} title={viewer.label} className="h-[75vh] w-full" />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
