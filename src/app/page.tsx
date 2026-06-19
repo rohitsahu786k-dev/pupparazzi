@@ -2,14 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
+import { groomingIncludes, serviceCatalog } from "@/lib/pet-care-pricing";
 import {
   ArrowRight,
   Award,
   CalendarCheck,
   CheckCircle2,
-  Clock,
-  Footprints,
-  GraduationCap,
   HeartPulse,
   Home,
   MapPin,
@@ -19,28 +17,8 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
-  Stethoscope,
-  Waves,
   Quote,
 } from "lucide-react";
-
-const iconMap: Record<string, any> = {
-  Grooming: Scissors,
-  Boarding: Home,
-  Walking: Footprints,
-  Veterinary: Stethoscope,
-  Training: GraduationCap,
-  Swimming: Waves,
-};
-
-const imageMap: Record<string, string> = {
-  Grooming: "/service-grooming.png",
-  Boarding: "/service-boarding.png",
-  Walking: "/service-walking.png",
-  Veterinary: "/service-veterinary.png",
-  Training: "/service-training.png",
-  Swimming: "/service-swimming.png",
-};
 
 const proof = [
   { value: "4.9/5", label: "parent rating" },
@@ -50,28 +28,10 @@ const proof = [
 ];
 
 const promises = [
-  { icon: ShieldCheck, title: "Verified Professionals", copy: "Every groomer, walker, trainer, and care partner is screened before assignment." },
+  { icon: ShieldCheck, title: "Verified Professionals", copy: "Every groomer and boarding care partner is screened before assignment." },
   { icon: HeartPulse, title: "Pet-First Handling", copy: "Temperament, allergies, vaccination status, and care notes travel with every booking." },
   { icon: CalendarCheck, title: "Managed From Admin", copy: "Bookings, payments, service areas, client notes, and updates stay organized in one backend." },
 ];
-
-async function getServices() {
-  const services = await prisma.service.findMany({
-    where: { is_active: true },
-    orderBy: [{ category: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, category: true, description_short: true, price: true, discounted_price: true, images_json: true, is_bestseller: true },
-  });
-  // Deduplicate by category - show one card per category
-  const seen = new Set<string>();
-  const unique: typeof services = [];
-  for (const s of services) {
-    if (!seen.has(s.category)) {
-      seen.add(s.category);
-      unique.push(s);
-    }
-  }
-  return unique;
-}
 
 async function getTestimonials() {
   return prisma.testimonial.findMany({
@@ -81,8 +41,13 @@ async function getTestimonials() {
   });
 }
 
+function money(value?: number) {
+  if (value === undefined) return "";
+  return `₹${value.toLocaleString("en-IN")}`;
+}
+
 export default async function LandingPage() {
-  const [services, testimonials] = await Promise.all([getServices(), getTestimonials()]);
+  const testimonials = await getTestimonials();
 
   return (
     <main className="bg-white text-foreground">
@@ -100,7 +65,7 @@ export default async function LandingPage() {
               Pupparazzi pet care, booked beautifully.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/80 md:text-xl">
-              Grooming, boarding, walking, training, swimming, and veterinary care with a polished booking experience and a backend built for daily operations.
+              Premium dog boarding and grooming services with transparent pricing, clean booking flows, and a backend built for daily operations.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Button size="lg" asChild>
@@ -126,57 +91,84 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Services - Dynamic from DB */}
+      {/* Services */}
       <section id="services" className="py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-primary">Services</p>
-              <h2 className="mt-3 text-4xl font-extrabold tracking-tight md:text-5xl">Designed for pets with standards.</h2>
+              <h2 className="mt-3 text-4xl font-extrabold tracking-tight md:text-5xl">Clear care, clear pricing.</h2>
             </div>
             <Button variant="outline" asChild>
               <Link href="/book">See Availability <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           </div>
 
-          <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {services.map((service) => {
-              const Icon = iconMap[service.category] || PawPrint;
-              const img = (service.images_json as string[] | null)?.[0] || imageMap[service.category] || "/service-grooming.png";
-              const displayPrice = service.discounted_price || service.price;
+          <div className="mt-12 space-y-6">
+            {serviceCatalog.map((service) => {
+              const Icon = service.section.includes("Boarding") ? Home : Scissors;
               return (
-                <Link
-                  key={service.id}
-                  href={`/book?service=${service.category.toLowerCase()}`}
-                  className="group relative overflow-hidden rounded-2xl border border-border/50 bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
-                >
-                  <div className="relative aspect-[16/10] overflow-hidden">
-                    <Image src={img} alt={service.category} fill className="object-cover transition-transform duration-700 group-hover:scale-110" sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                    <div className="absolute left-4 top-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/95 text-primary shadow-lg backdrop-blur-sm">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    {service.is_bestseller && (
-                      <div className="absolute right-4 top-4 rounded-full bg-accent px-3 py-1 text-xs font-bold text-white shadow">
-                        Bestseller
+                <article key={service.section} className="rounded-2xl border border-border/60 bg-white p-5 shadow-sm sm:p-6">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="flex gap-4">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-foreground text-white">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-bold uppercase tracking-[0.16em] text-primary">{service.category}</p>
+                        <h3 className="mt-1 text-2xl font-extrabold tracking-tight">{service.section}</h3>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{service.description}</p>
                       </div>
+                    </div>
+                    {service.section !== "Boarding Policies" && (
+                      <Button asChild>
+                        <Link href={`/book?service=${service.section.includes("Boarding") ? "boarding" : "grooming"}`}>Book Now</Link>
+                      </Button>
                     )}
                   </div>
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <h3 className="text-xl font-bold">{service.category}</h3>
-                      <span className="rounded-full bg-foreground/5 px-4 py-1.5 text-sm font-bold text-foreground">
-                        ₹{displayPrice}+
-                      </span>
+
+                  {service.section === "Complete Grooming Services" && (
+                    <div className="mt-5 rounded-lg border bg-muted/35 p-4">
+                      <p className="text-sm font-bold">Complete grooming includes</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {groomingIncludes.map((item) => (
+                          <span key={item} className="rounded-lg border bg-white px-3 py-1.5 text-xs font-semibold text-muted-foreground">{item}</span>
+                        ))}
+                      </div>
                     </div>
-                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                      {service.description_short || `Professional ${service.category.toLowerCase()} services for your pet.`}
-                    </p>
-                    <div className="mt-5 flex items-center text-sm font-bold text-primary transition-colors group-hover:text-accent">
-                      Book service <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </div>
+                  )}
+
+                  <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                    {service.subCategories.map((subCategory) => (
+                      <div key={subCategory.title} className="rounded-lg border bg-white p-4">
+                        <h4 className="font-bold">{subCategory.title}</h4>
+                        <div className="mt-3 divide-y">
+                          {subCategory.items.map((item) => (
+                            <div key={item.label} className="flex items-start justify-between gap-4 py-3 text-sm">
+                              <span className="leading-6 text-muted-foreground">{item.label}</span>
+                              {"price" in item && item.price !== undefined ? (
+                                <span className="text-right font-extrabold text-foreground">
+                                  {"originalPrice" in item && item.originalPrice ? <span className="mr-2 text-xs font-bold text-muted-foreground line-through">{money(item.originalPrice)}</span> : null}
+                                  {money(item.price)}
+                                  {"note" in item && item.note ? <span className="mt-1 block text-xs font-bold text-primary">{item.note}</span> : null}
+                                </span>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </Link>
+
+                  {"notes" in service && service.notes?.length ? (
+                    <div className="mt-5 rounded-lg border bg-muted/35 p-4">
+                      <p className="text-sm font-bold">Notes</p>
+                      <ul className="mt-3 grid gap-2 text-sm leading-6 text-muted-foreground md:grid-cols-2">
+                        {service.notes.map((note) => <li key={note} className="flex gap-2"><CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" /> {note}</li>)}
+                      </ul>
+                    </div>
+                  ) : null}
+                </article>
               );
             })}
           </div>
@@ -298,7 +290,7 @@ export default async function LandingPage() {
               {[
                 { name: "Priya Sharma", pet: "Bruno, Golden Retriever", text: "The grooming was polished, gentle, and on time. Bruno looked fresh without feeling stressed." },
                 { name: "Rahul Mehta", pet: "Miso, Persian Cat", text: "Boarding updates gave us real peace of mind. Clean facility, calm staff, great follow-up." },
-                { name: "Anita Patel", pet: "Coco, Beagle", text: "The vet visit at home saved us a stressful drive. Professional, patient, and thorough." },
+                { name: "Anita Patel", pet: "Coco, Beagle", text: "The boarding care was clean, calm, and well managed. We came back to a happy pet." },
               ].map((review) => (
                 <div key={review.name} className="group relative rounded-2xl border border-white/10 bg-white/5 p-7 backdrop-blur-sm">
                   <Quote className="absolute right-5 top-5 h-8 w-8 text-white/10" />

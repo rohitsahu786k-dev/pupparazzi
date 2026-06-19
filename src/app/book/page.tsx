@@ -22,9 +22,7 @@ import {
   Plus,
   Repeat,
   Scissors,
-  ShieldCheck,
   Sparkles,
-  Stethoscope,
   TicketPercent,
   UserCheck,
 } from "lucide-react";
@@ -93,10 +91,7 @@ const COD_ADVANCE_AMOUNT = 100;
 
 const categoryIcon: Record<string, React.ReactNode> = {
   Grooming: <Scissors className="h-4 w-4" />,
-  Veterinary: <Stethoscope className="h-4 w-4" />,
   Boarding: <Home className="h-4 w-4" />,
-  Training: <ShieldCheck className="h-4 w-4" />,
-  Walking: <PawPrint className="h-4 w-4" />,
 };
 
 function toDateKey(date: Date) {
@@ -137,12 +132,12 @@ function priceOf(service?: Service | null) {
 }
 
 function money(value: number) {
-  return `Rs. ${value.toLocaleString("en-IN")}`;
+  return `₹${value.toLocaleString("en-IN")}`;
 }
 
 function paymentPlanFromMode(mode: string) {
   if (mode === "Cash on Delivery (Testing)") return "COD_TEST";
-  return mode === "Cash on Delivery + Rs. 100 advance" ? "COD_ADVANCE" : "FULL_ONLINE";
+  return mode === "Cash on Delivery + ₹100 advance" ? "COD_ADVANCE" : "FULL_ONLINE";
 }
 
 function loadRazorpay() {
@@ -658,7 +653,7 @@ function BookPageContent() {
               </div>
               <div className="mb-4 grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
                 <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/40 p-2 text-xs font-bold sm:grid-cols-5 lg:grid-cols-2">
-                  {["Grooming", "Boarding", "Walking", "Swimming", "Veterinary", "Training"].map((category) => (
+                  {["Grooming", "Boarding"].map((category) => (
                     <button
                       key={category}
                       type="button"
@@ -1048,7 +1043,7 @@ function BookPageContent() {
                 <select value={staffMode} onChange={(e) => setStaffMode(e.target.value)} className="h-11 w-full rounded-lg border bg-white px-3 text-sm">
                   <option>Any available specialist</option>
                   <option>Senior groomer</option>
-                  <option>Vet/doctor only</option>
+                  <option>Boarding attendant</option>
                   <option>Same handler as last visit</option>
                 </select>
                 <label className="block text-xs font-bold text-muted-foreground">Recurring booking</label>
@@ -1062,7 +1057,7 @@ function BookPageContent() {
                 <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} className="h-11 w-full rounded-lg border bg-white px-3 text-sm">
                   <option>Cash on Delivery (Testing)</option>
                   <option>Full Online Payment</option>
-                  <option>Cash on Delivery + Rs. 100 advance</option>
+                  <option>Cash on Delivery + ₹100 advance</option>
                 </select>
                 <textarea
                   value={notes}
@@ -1085,7 +1080,7 @@ function BookPageContent() {
                 {couponDiscount > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Coupon</span><span className="text-right font-bold">-{money(couponDiscount)}</span></div>}
                 {paymentPlanFromMode(paymentMode) === "COD_ADVANCE" && <div className="flex justify-between gap-3"><span className="text-white/65">Pay now</span><span className="text-right font-bold">{money(COD_ADVANCE_AMOUNT)}</span></div>}
                 {paymentPlanFromMode(paymentMode) === "COD_ADVANCE" && <div className="flex justify-between gap-3"><span className="text-white/65">Remaining COD</span><span className="text-right font-bold">{money(Math.max(0, total - COD_ADVANCE_AMOUNT))}</span></div>}
-                {paymentPlanFromMode(paymentMode) === "COD_TEST" && <div className="flex justify-between gap-3"><span className="text-white/65">Pay now</span><span className="text-right font-bold">Rs. 0</span></div>}
+                {paymentPlanFromMode(paymentMode) === "COD_TEST" && <div className="flex justify-between gap-3"><span className="text-white/65">Pay now</span><span className="text-right font-bold">₹0</span></div>}
                 {paymentPlanFromMode(paymentMode) === "COD_TEST" && <div className="flex justify-between gap-3"><span className="text-white/65">Cash on delivery</span><span className="text-right font-bold">{money(total)}</span></div>}
                 <div className="border-t border-white/15 pt-3">
                   <div className="flex justify-between gap-3 text-base"><span className="text-white/80">Total</span><span className="text-right font-extrabold">{selectedService ? money(total) : "-"}</span></div>

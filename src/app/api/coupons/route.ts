@@ -61,7 +61,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ valid: false, message: `Coupon is valid only for ${coupon.category}.` }, { status: 400 });
     }
     if (subtotal < coupon.minimum_order_amount) {
-      return NextResponse.json({ valid: false, message: `Minimum order amount is Rs. ${coupon.minimum_order_amount}.` }, { status: 400 });
+      return NextResponse.json({ valid: false, message: `Minimum order amount is ₹${coupon.minimum_order_amount}.` }, { status: 400 });
     }
 
     return NextResponse.json({

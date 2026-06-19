@@ -309,10 +309,8 @@ export function welcomeEmailHtml(data: { userName: string; email: string }) {
   const services = [
     { icon: "", name: "Premium Grooming", desc: "Certified groomers, spa treatments" },
     { icon: "", name: "Luxury Boarding", desc: "Climate-controlled, 24/7 care" },
-    { icon: "", name: "Daily Dog Walking", desc: "GPS-tracked, individual walks" },
-    { icon: "", name: "Home Vet Visits", desc: "Expert vets at your doorstep" },
-    { icon: "", name: "Professional Training", desc: "Positive reinforcement methods" },
-    { icon: "", name: "Pet Swimming", desc: "Hydrotherapy & fun pool sessions" },
+    { icon: "", name: "Boarding Packages", desc: "Flexible prepaid stay packages" },
+    { icon: "", name: "Individual Grooming", desc: "Focused add-on grooming care" },
   ];
 
   const body = `

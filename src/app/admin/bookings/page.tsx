@@ -24,11 +24,14 @@ type Booking = {
   service?: { name?: string | null; category?: string | null; price?: number | null; discounted_price?: number | null };
   address?: { line1?: string | null; city?: string | null; pincode?: string | null } | null;
   documents?: { id: string; original_name: string; path: string; document_type?: string | null }[];
+  payments?: { id: string; amount: number; mode: string; source?: string | null; status: string; transaction_id?: string | null; created_at: string }[];
+  invoices?: { id: string; invoice_id: string; total: number; status: string; created_at: string }[];
+  final_amount?: number | null;
 };
 
 const STATUSES = ["All", "Pending", "Confirmed", "In Progress", "Completed", "Cancelled", "Expired"];
 const PAYMENT_STATUSES = ["All", "Pending", "Advance Paid", "Partially Paid", "Paid", "Failed", "Cancelled", "Refunded"];
-const SERVICE_FILTERS = ["All", "Grooming", "Boarding", "Swimming", "Walking", "Veterinary", "Training"];
+const SERVICE_FILTERS = ["All", "Grooming", "Boarding"];
 const PERIODS = [
   { label: "All dates", value: "all" },
   { label: "Upcoming", value: "upcoming" },
@@ -50,25 +53,54 @@ function badgeClass(value: string) {
 }
 
 function bookingAmount(booking: Booking) {
-  return Number(booking.addons_json?.pricing?.total ?? booking.service?.discounted_price ?? booking.service?.price ?? 0);
+  return Number(booking.final_amount ?? booking.addons_json?.pricing?.total ?? booking.service?.discounted_price ?? booking.service?.price ?? 0);
 }
 
 function paymentSummary(booking: Booking) {
   const payment = booking.addons_json?.payment;
   if (payment?.plan === "COD_ADVANCE") {
-    return `COD: Rs. ${Number(payment.advanceAmount || 100).toLocaleString("en-IN")} now, Rs. ${Number(payment.remainingCodAmount || 0).toLocaleString("en-IN")} pending`;
+    return `COD: ₹${Number(payment.advanceAmount || 100).toLocaleString("en-IN")} now, ₹${Number(payment.remainingCodAmount || 0).toLocaleString("en-IN")} pending`;
   }
   return "Full online payment";
 }
 
+function money(value: unknown) {
+  return `Rs. ${Number(value || 0).toLocaleString("en-IN")}`;
+}
+
+function paymentHistory(booking: Booking) {
+  const payments = booking.payments || [];
+  const invoices = booking.invoices || [];
+  if (!payments.length && !invoices.length) return null;
+  return (
+    <div className="mt-2 space-y-1 rounded-lg border bg-muted/25 p-2 text-xs">
+      {payments.map((payment) => (
+        <div key={payment.id} className="border-b border-border/60 pb-1 last:border-b-0 last:pb-0">
+          <p className="font-semibold">{money(payment.amount)} - {payment.status}</p>
+          <p className="text-muted-foreground">{new Date(payment.created_at).toLocaleString("en-IN")} - {payment.mode}{payment.source ? ` / ${payment.source}` : ""}</p>
+          {payment.transaction_id && <p className="break-all text-muted-foreground">Txn: {payment.transaction_id}</p>}
+        </div>
+      ))}
+      {invoices.map((invoice) => (
+        <div key={invoice.id} className="border-b border-border/60 pb-1 last:border-b-0 last:pb-0">
+          <p className="font-semibold">{invoice.invoice_id} - {money(invoice.total)}</p>
+          <p className="text-muted-foreground">{invoice.status} - {new Date(invoice.created_at).toLocaleString("en-IN")}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function serviceColor(category?: string | null) {
   if (category === "Grooming") return "border-pink-200 bg-pink-50 text-pink-700";
-  if (category === "Swimming") return "border-sky-200 bg-sky-50 text-sky-700";
   if (category === "Boarding") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (category === "Walking") return "border-amber-200 bg-amber-50 text-amber-700";
-  if (category === "Veterinary") return "border-red-200 bg-red-50 text-red-700";
-  if (category === "Training") return "border-violet-200 bg-violet-50 text-violet-700";
   return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function detailsLink(booking: Booking) {
+  const category = booking.service?.category?.toLowerCase();
+  if (category !== "boarding" && category !== "grooming") return "";
+  return `/dashboard/bookings/${booking.id}/details?service=${category}`;
 }
 
 function dateKey(value: string | Date) {
@@ -183,12 +215,13 @@ export default function AdminBookingsPage() {
     const number = phone.length === 10 ? `91${phone}` : phone;
     const customer = booking.client?.name || "there";
     const service = booking.service?.name || "your service";
-    const amount = Number(booking.service?.discounted_price || booking.service?.price || 0).toLocaleString("en-IN");
+    const amount = bookingAmount(booking).toLocaleString("en-IN");
+    const detailUrl = detailsLink(booking) ? new URL(detailsLink(booking), window.location.origin).toString() : "";
     const message = kind === "cod"
       ? `Hello ${customer}, this is a reminder that COD amount is pending for booking #${booking.booking_id}. Please pay during service completion. Thank you.`
       : kind === "paid"
         ? `Hello ${customer}, your payment for booking #${booking.booking_id} has been completed successfully. Invoice has been generated. Thank you for choosing us.`
-        : `Hello ${customer}, your booking #${booking.booking_id} for ${service} is confirmed. Total amount: Rs. ${amount}. Thank you for booking with us.`;
+        : `Hello ${customer}, your booking #${booking.booking_id} for ${service} is confirmed. Total amount: ₹${amount}.${detailUrl ? ` Please complete booking details/KYC here: ${detailUrl}` : ""} Thank you for booking with us.`;
     return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
   }
 
@@ -231,7 +264,7 @@ export default function AdminBookingsPage() {
           </div>
           <div className="rounded-lg border bg-white px-4 py-3">
             <p className="text-muted-foreground">Paid</p>
-            <p className="text-xl font-bold">Rs. {revenue.toLocaleString("en-IN")}</p>
+            <p className="text-xl font-bold">₹{revenue.toLocaleString("en-IN")}</p>
           </div>
         </div>
       </div>
@@ -343,7 +376,8 @@ export default function AdminBookingsPage() {
                   <p className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(booking.slot_date)} at {booking.slot_time}</p>
                   <p className="flex items-start gap-1"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" /> {booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.pincode || ""}` : "-"}</p>
                   <p>{paymentSummary(booking)}</p>
-                  <p className="font-bold text-foreground">Rs. {bookingAmount(booking).toLocaleString("en-IN")} - {booking.payment_status}</p>
+                  <p className="font-bold text-foreground">{money(bookingAmount(booking))} - {booking.payment_status}</p>
+                  {paymentHistory(booking)}
                   {booking.documents?.length ? <p>{booking.documents.length} document(s) linked</p> : null}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -357,6 +391,11 @@ export default function AdminBookingsPage() {
                       <MessageCircle className="h-3.5 w-3.5" />
                     </a>
                   </Button>
+                  {detailsLink(booking) && (
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={detailsLink(booking)} target="_blank" rel="noreferrer">Details/KYC</a>
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -389,7 +428,7 @@ export default function AdminBookingsPage() {
                     </td>
                     <td className="px-4 py-4">
                       <p className="font-semibold">{booking.pet?.name || "Pet"} <span className="text-xs font-normal text-muted-foreground">{booking.pet?.breed || booking.pet?.type}</span></p>
-                      <p className="mt-1 break-words text-xs text-muted-foreground">{booking.service?.name} - Rs. {bookingAmount(booking).toLocaleString("en-IN")}</p>
+                      <p className="mt-1 break-words text-xs text-muted-foreground">{booking.service?.name} - {money(bookingAmount(booking))}</p>
                       <span className={`mt-2 inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-bold ${serviceColor(booking.service?.category)}`}>{booking.service?.category || "Service"}</span>
                       {booking.addons_json?.coupon?.code && <p className="mt-1 text-xs font-semibold text-green-700">{booking.addons_json.coupon.code} applied</p>}
                       {booking.documents?.length ? (
@@ -425,6 +464,7 @@ export default function AdminBookingsPage() {
                     <td className="px-4 py-4">
                       <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.payment_status)}`}>{booking.payment_status}</span>
                       <p className="mt-2 text-xs text-muted-foreground">{paymentSummary(booking)}</p>
+                      {paymentHistory(booking)}
                       <select
                         value={booking.payment_status}
                         disabled={savingId === booking.id}
@@ -460,6 +500,11 @@ export default function AdminBookingsPage() {
                             <MessageCircle className="h-3.5 w-3.5" />
                           </a>
                         </Button>
+                        {detailsLink(booking) && (
+                          <Button size="sm" variant="outline" asChild>
+                            <a href={detailsLink(booking)} target="_blank" rel="noreferrer">Details/KYC</a>
+                          </Button>
+                        )}
                         <Button size="sm" variant="destructive" disabled={savingId === booking.id} onClick={() => deleteBooking(booking.id)}>
                           {savingId === booking.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                         </Button>

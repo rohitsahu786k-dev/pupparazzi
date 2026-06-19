@@ -135,7 +135,7 @@ export default function AdminCouponsPage() {
           <Input placeholder="Code" value={form.code} disabled={Boolean(editingCode)} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
           <Input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm">
-            {["All", "Grooming", "Boarding", "Walking", "Swimming", "Veterinary", "Training"].map((item) => <option key={item}>{item}</option>)}
+            {["All", "Grooming", "Boarding"].map((item) => <option key={item}>{item}</option>)}
           </select>
           <select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value as "PERCENTAGE" | "FLAT" })} className="h-11 rounded-lg border bg-white px-3 text-sm">
             <option value="PERCENTAGE">Percent</option>
@@ -178,8 +178,8 @@ export default function AdminCouponsPage() {
                 {coupons.map((coupon) => (
                   <tr key={coupon.code}>
                     <td className="px-4 py-3 font-bold">{coupon.code}</td>
-                    <td className="px-4 py-3">{coupon.description}<br /><span className="text-xs text-muted-foreground">{coupon.discount_type === "FLAT" ? "Rs. " : ""}{coupon.discount_value}{coupon.discount_type === "PERCENTAGE" ? "%" : ""} off</span></td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{coupon.category || "All services"} · min Rs. {coupon.minimum_order_amount} · expires {coupon.expires_at || "-"}</td>
+                    <td className="px-4 py-3">{coupon.description}<br /><span className="text-xs text-muted-foreground">{coupon.discount_type === "FLAT" ? "₹" : ""}{coupon.discount_value}{coupon.discount_type === "PERCENTAGE" ? "%" : ""} off</span></td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{coupon.category || "All services"} · min ₹{coupon.minimum_order_amount} · expires {coupon.expires_at || "-"}</td>
                     <td className="px-4 py-3"><span className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${coupon.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>{coupon.is_active ? "Active" : "Disabled"}</span></td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">

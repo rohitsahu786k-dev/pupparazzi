@@ -32,31 +32,48 @@ export type CouponRule = {
   terms: string;
 };
 
+export const activeServiceCategories = ["Boarding", "Grooming"] as const;
+
+export const boardingPolicies = [
+  "Dogs will only be checked in with prior booking specifying exact dates and checkout dates.",
+  "If there are any changes in boarding days, the pet parent must inform us one day in advance.",
+  "Pet parents are requested to keep their pet tick and flea free before boarding.",
+  "A complete health check-up by the preferred vet is recommended before boarding to ensure the pet is completely healthy.",
+  "Pupparazzi will not be responsible for any pre-existing medical conditions.",
+  "Some physical or behavioral changes may be observed after boarding due to change in environment.",
+  "Long-stay pets may take time to adjust after returning home.",
+  "Pet parents should watch for signs such as being too calm or quiet, mild behavioral changes, or weight change.",
+  "If the pet loses weight but remains healthy, active and playful, it may be due to extra activity, feeding routine, nutritional meals and open-space play.",
+  "Pets are given open-space play at least 2 to 3 times a day.",
+  "In case of incident or accident, contact the assigned emergency vet immediately and inform the pet parent.",
+  "If emergency contact is not reachable, contact in-house vet.",
+];
+
 export const groomingIncludes = [
   "2 washes",
   "Conditioning",
-  "Blow drying",
+  "Drying",
   "Ear cleaning",
   "Teeth cleaning",
-  "Under paw cleaning",
+  "Under paws cleaning",
+  "Hygiene area cleaning",
   "Nail clipping",
   "Basic trimming",
 ];
 
 export const serviceAddons: ServiceAddonSeed[] = [
+  { name: "Only Haircut / Shaving", description: "Extra haircut or shaving support.", price: 850 },
+  { name: "De-matting the Coat", description: "Extra coat de-matting support.", price: 500 },
   { name: "Oil Massage", description: "Relaxing coat and skin massage.", price: 450 },
-  { name: "Dematting", description: "Extra coat de-matting support.", price: 500 },
-  { name: "Teeth Cleaning", description: "Focused teeth cleaning add-on.", price: 100 },
-  { name: "Tick Treatment", description: "Tick check and treatment support.", price: 600 },
 ];
 
 const boardingDescriptions = {
-  short: "Air-conditioned kennels, meals, basic care, and supervision.",
+  short: "Dog boarding with air-conditioned kennels, meals, basic care, and supervision.",
   long: [
-    "Flexible boarding package days can be used anytime as required.",
-    "Full payment must be made in advance for package pricing.",
+    "Boarding packages are flexible and can be used as and when needed.",
+    "All payments must be made in advance, otherwise regular rates will apply.",
     "Bookings are subject to availability.",
-    "Vaccination and tick-free requirements apply.",
+    "Boarding charges include air-conditioned kennels and meals.",
   ].join(" "),
 };
 
@@ -114,7 +131,7 @@ export const boardingServices: ServiceSeed[] = [
     description_short: "Flexible 20 day boarding package.",
     description_long: boardingDescriptions.long,
     price: 24000,
-    discounted_price: 20400,
+    discounted_price: 21600,
     slot_duration_mins: 1440,
     max_slots_per_day: 8,
     free_services_json: ["Flexible day usage", "Air-conditioned kennels", "Meals", "Basic care and supervision"],
@@ -143,10 +160,10 @@ export const individualGroomingServices: ServiceSeed[] = [
   ["Dematting the Coat", 500],
   ["Oil Massage", 450],
 ].map(([name, price]) => ({
-  name: `Grooming - ${name}`,
+  name: `Grooming - ${name === "Haircut / Shaving" ? "Only Haircut / Shaving" : name}`,
   category: "Grooming",
   description_short: "Individual grooming service.",
-  description_long: "Book a focused grooming service for your pet.",
+  description_long: "Book a focused individual grooming service for your pet.",
   price: Number(price),
   slot_duration_mins: Number(price) >= 800 ? 90 : 30,
   max_slots_per_day: 4,
@@ -162,12 +179,93 @@ const packagePrices = [
   { breed: "Extra Large Breed", coat: "Short Coat", single: 1500, sessions: { 6: 7650, 12: 14400, 24: 27000 } },
 ] as const;
 
+export const serviceCatalog = [
+  {
+    section: "Boarding Services",
+    category: "Dog Boarding",
+    description: "Comfortable dog boarding with air-conditioned kennels, meals, and supervised daily care.",
+    subCategories: [
+      {
+        title: "Standard Boarding Charges",
+        items: [
+          { label: "Up to 6 hours", price: 600 },
+          { label: "Between 6 to 12 hours", price: 900 },
+          { label: "24 hours / 1 day charges", price: 1200 },
+        ],
+      },
+      {
+        title: "Boarding Packages",
+        items: [
+          { label: "10 Days Package", price: 10800 },
+          { label: "20 Days Package", price: 21600 },
+          { label: "30 Days Package", price: 28800, originalPrice: 36000, note: "20% off + Complimentary Grooming Session" },
+        ],
+      },
+    ],
+    notes: [
+      "Boarding packages are flexible. Customers can utilize their days as and when needed.",
+      "All payments must be made in advance, otherwise regular rates will apply.",
+      "Bookings are subject to availability.",
+      "Boarding charges include air-conditioned kennels and meals.",
+    ],
+  },
+  {
+    section: "Complete Grooming Services",
+    category: "Complete Grooming Session",
+    description: "Complete grooming includes 2 washes, conditioning, drying, ear cleaning, teeth cleaning, under paws cleaning, hygiene area cleaning, nail clipping, and basic trimming.",
+    subCategories: packagePrices.map((item) => ({
+      title: `${item.breed} Grooming - ${item.coat}`,
+      items: [
+        { label: "Single Session", price: item.single },
+        { label: "6 Sessions @ 15% Discount", price: item.sessions[6] },
+        { label: "12 Sessions @ 20% Discount", price: item.sessions[12] },
+        { label: "24 Sessions @ 25% Discount", price: item.sessions[24] },
+      ],
+    })),
+    notes: [
+      "De-matting charges will be extra.",
+      "Shaving charges will be extra.",
+      "For puppies less than 6 months of age, ₹200 will be reduced per session.",
+    ],
+  },
+  {
+    section: "Individual Grooming Services",
+    category: "Individual Services",
+    description: "Focused grooming add-ons and individual services for specific pet care needs.",
+    subCategories: [
+      {
+        title: "Add-on / Individual Grooming",
+        items: [
+          { label: "Only Haircut / Shaving", price: 850 },
+          { label: "Face Trim", price: 450 },
+          { label: "Nail Clipping", price: 150 },
+          { label: "Under Paw Trimming", price: 150 },
+          { label: "Teeth Cleaning", price: 100 },
+          { label: "De-matting the Coat", price: 500 },
+          { label: "Oil Massage", price: 450 },
+        ],
+      },
+    ],
+  },
+  {
+    section: "Boarding Policies",
+    category: "Boarding Policies",
+    description: "Important boarding policies for a smooth check-in, stay, and checkout experience.",
+    subCategories: [
+      {
+        title: "Policy Points",
+        items: boardingPolicies.map((policy) => ({ label: policy })),
+      },
+    ],
+  },
+] as const;
+
 export const specialGroomingServices: ServiceSeed[] = packagePrices.flatMap((item) => [
   {
     name: `${item.breed} Grooming - ${item.coat} - Single Session`,
     category: "Grooming",
     description_short: `${item.breed}, ${item.coat.toLowerCase()} complete grooming session.`,
-    description_long: "Complete grooming session. De-matting and shaving are extra. Puppies below 6 months get Rs. 200 off per session.",
+      description_long: "Complete grooming session. De-matting and shaving are extra. Puppies below 6 months get ₹200 off per session.",
     price: item.single,
     slot_duration_mins: item.breed === "Extra Large Breed" ? 150 : 120,
     max_slots_per_day: 4,
@@ -181,7 +279,7 @@ export const specialGroomingServices: ServiceSeed[] = packagePrices.flatMap((ite
       name: `${item.breed} Grooming - ${item.coat} - ${sessionCount} Sessions`,
       category: "Grooming",
       description_short: `${discount} package for ${item.breed.toLowerCase()}, ${item.coat.toLowerCase()}.`,
-      description_long: "Complete grooming package. De-matting and shaving are extra. Puppies below 6 months get Rs. 200 off per session.",
+      description_long: "Complete grooming package. De-matting and shaving are extra. Puppies below 6 months get ₹200 off per session.",
       price: item.single * sessionCount,
       discounted_price: item.sessions[sessionCount],
       slot_duration_mins: item.breed === "Extra Large Breed" ? 150 : 120,
@@ -197,50 +295,6 @@ export const petCareServices: ServiceSeed[] = [
   ...boardingServices,
   ...individualGroomingServices,
   ...specialGroomingServices,
-  {
-    name: "Dog Walking",
-    category: "Walking",
-    description_short: "30-minute guided walk.",
-    description_long: "Structured walk for fitness, routine, and outdoor stimulation.",
-    price: 349,
-    discounted_price: 299,
-    slot_duration_mins: 30,
-    max_slots_per_day: 6,
-    images_json: ["/service-walking.png"],
-  },
-  {
-    name: "Swimming Session",
-    category: "Swimming",
-    description_short: "Pet-safe pool exercise session.",
-    description_long: "Pool activity for fun, confidence, and conditioning.",
-    price: 699,
-    discounted_price: 499,
-    slot_duration_mins: 45,
-    max_slots_per_day: 4,
-    images_json: ["/service-swimming.png"],
-  },
-  {
-    name: "Vet Consultation",
-    category: "Veterinary",
-    description_short: "At-home vet consultation.",
-    description_long: "Routine consultation and wellness check.",
-    price: 1999,
-    discounted_price: 1499,
-    slot_duration_mins: 60,
-    max_slots_per_day: 3,
-    images_json: ["/service-veterinary.png"],
-  },
-  {
-    name: "Basic Training",
-    category: "Training",
-    description_short: "Obedience and command training.",
-    description_long: "Positive reinforcement program for calmer everyday behavior.",
-    price: 2499,
-    discounted_price: 1999,
-    slot_duration_mins: 60,
-    max_slots_per_day: 3,
-    images_json: ["/service-training.png"],
-  },
 ];
 
 export const defaultCoupons: CouponRule[] = [
@@ -253,7 +307,7 @@ export const defaultCoupons: CouponRule[] = [
     usage_limit: 100,
     expires_at: "2026-12-31",
     is_active: true,
-    terms: "Valid on active services above Rs. 500.",
+    terms: "Valid on active services above ₹500.",
   },
   {
     code: "GROOM20",

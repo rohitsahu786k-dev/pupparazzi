@@ -16,7 +16,7 @@ export default function AboutPage() {
               Pupparazzi was founded with a simple mission: to give every pet the care they deserve, delivered with professionalism and love. We believe pets are family, and their care should reflect that.
             </p>
             <p>
-              From grooming and boarding to walking, training, swimming, and veterinary visits — we offer a complete suite of pet care services managed through a modern booking system that keeps pet parents informed at every step.
+              From complete grooming sessions to comfortable dog boarding, we offer focused pet care services managed through a modern booking system that keeps pet parents informed at every step.
             </p>
 
             <div className="grid gap-6 sm:grid-cols-3 py-8">
@@ -38,7 +38,7 @@ export default function AboutPage() {
             </div>
 
             <p>
-              Our team includes experienced groomers, certified trainers, and compassionate caregivers who treat every pet like their own. We use a technology-driven approach to manage bookings, track pet health records, and ensure timely communication with pet parents.
+              Our team includes experienced groomers and compassionate boarding caregivers who treat every pet like their own. We use a technology-driven approach to manage bookings, track pet health records, and ensure timely communication with pet parents.
             </p>
 
             <div className="rounded-xl border bg-muted/30 p-6">

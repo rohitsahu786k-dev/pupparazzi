@@ -207,6 +207,7 @@ export async function POST(req: Request) {
     const addonTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
     const basePrice = serviceBookablePrice(service);
     const subtotal = basePrice + addonTotal;
+    const adminTotalOverride = isAdmin(session.user.role) ? nullableNumber(body.final_amount ?? body.admin_total) : null;
     let couponPayload = null;
     if (addons_json?.coupon?.code) {
       const code = String(addons_json.coupon.code).trim().toUpperCase();
@@ -214,7 +215,7 @@ export async function POST(req: Request) {
       if (!coupon || !coupon.is_active) return NextResponse.json({ message: "Coupon is not active" }, { status: 400 });
       if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) return NextResponse.json({ message: "Coupon has expired" }, { status: 400 });
       if (coupon.category && coupon.category !== service.category) return NextResponse.json({ message: `Coupon is valid only for ${coupon.category}` }, { status: 400 });
-      if (subtotal < coupon.minimum_order_amount) return NextResponse.json({ message: `Minimum order amount is Rs. ${coupon.minimum_order_amount}` }, { status: 400 });
+      if (subtotal < coupon.minimum_order_amount) return NextResponse.json({ message: `Minimum order amount is ₹${coupon.minimum_order_amount}` }, { status: 400 });
       couponPayload = { code: coupon.code, discount: calculateCouponDiscount(coupon, subtotal), terms: coupon.terms };
     }
     const finalAddonsJson = {
@@ -224,9 +225,9 @@ export async function POST(req: Request) {
       pricing: {
         servicePrice: basePrice,
         addonTotal,
-        subtotal,
+        subtotal: adminTotalOverride ?? subtotal,
         couponDiscount: couponPayload?.discount || 0,
-        total: Math.max(0, subtotal - (couponPayload?.discount || 0)),
+        total: Math.max(0, (adminTotalOverride ?? subtotal) - (couponPayload?.discount || 0)),
       },
     };
     const requestedDate = new Date(slot_date);

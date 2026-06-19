@@ -13,7 +13,7 @@ export default function PartnerPage() {
 
           <div className="mt-12 space-y-6 text-base leading-7 text-muted-foreground">
             <p>
-              Are you a veterinarian, pet groomer, trainer, or pet care professional? Partner with Pupparazzi to reach more pet parents in Ahmedabad and beyond. We handle the bookings, payments, and customer communication — you focus on what you do best.
+              Are you a pet groomer, boarding facility, or pet care professional? Partner with Pupparazzi to reach more pet parents in Ahmedabad and beyond. We handle the bookings, payments, and customer communication so you can focus on care.
             </p>
 
             <h2 className="text-xl font-bold text-foreground">Why Partner with Us?</h2>
@@ -35,9 +35,7 @@ export default function PartnerPage() {
 
             <h2 className="text-xl font-bold text-foreground">Who Can Partner?</h2>
             <ul className="list-disc pl-6 space-y-2">
-              <li>Veterinary clinics and mobile vets</li>
               <li>Independent pet groomers</li>
-              <li>Dog trainers and behaviorists</li>
               <li>Pet boarding facilities</li>
               <li>Pet supply stores</li>
               <li>Pet photographers</li>

@@ -64,7 +64,9 @@ function LoginContent() {
           setError("Invalid email or password");
         }
       } else {
-        window.location.href = callbackUrl;
+        const sessionRes = await fetch("/api/auth/session");
+        const session = await sessionRes.json().catch(() => ({}));
+        window.location.href = session?.user?.role === "ADMIN" ? "/admin" : callbackUrl;
         return;
       }
     } catch {
@@ -99,7 +101,9 @@ function LoginContent() {
         setVerificationPending(false);
         return;
       }
-      window.location.href = callbackUrl;
+      const sessionRes = await fetch("/api/auth/session");
+      const session = await sessionRes.json().catch(() => ({}));
+      window.location.href = session?.user?.role === "ADMIN" ? "/admin" : callbackUrl;
     } catch {
       setError("An unexpected error occurred");
     } finally {
@@ -138,7 +142,7 @@ function LoginContent() {
           <h1 className="text-4xl font-bold tracking-tight">Welcome back!</h1>
           <p className="text-secondary text-lg">Your pets are waiting. Login to manage bookings, pet profiles, and more.</p>
           <div className="grid grid-cols-3 gap-4 mt-8">
-            {["Grooming", "Boarding", "Vet Care", "Walking", "Swimming", "Training"].map((s) => (
+            {["Complete Grooming", "Dog Boarding", "Boarding Packages"].map((s) => (
               <div key={s} className="bg-muted border border-border rounded-xl p-3 text-center text-sm text-secondary hover:border-primary/40 transition-colors">
                 {s}
               </div>

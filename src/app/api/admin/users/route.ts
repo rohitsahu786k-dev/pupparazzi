@@ -10,9 +10,18 @@ function cleanEmail(value: unknown) {
   return String(value || "").trim().toLowerCase();
 }
 
+function cleanText(value: unknown) {
+  return String(value || "").trim();
+}
+
 function cleanRole(value: unknown) {
   const role = String(value || "CLIENT").toUpperCase();
   return roles.includes(role) ? role : "";
+}
+
+function syntheticClientEmail(seed: string) {
+  const safeSeed = seed.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
+  return `client-${safeSeed || Date.now()}-${Math.random().toString(36).slice(2, 8)}@client.local`;
 }
 
 function publicUserSelect() {
@@ -27,8 +36,9 @@ function publicUserSelect() {
     wallet_balance: true,
     outstanding_balance: true,
     created_at: true,
-    pets: { select: { id: true, name: true, type: true } },
-    clientBookings: { select: { id: true, status: true, payment_status: true } },
+    addresses: { select: { id: true, label: true, line1: true, city: true, state: true, pincode: true, phone: true, is_default: true } },
+    pets: { select: { id: true, name: true, type: true, breed: true, weight: true, medical: { select: { vaccination_status: true } } } },
+    clientBookings: { select: { id: true, booking_id: true, status: true, payment_status: true, slot_date: true } },
     staffProfile: { select: { id: true, role: true, services_json: true, working_hours_json: true } },
   } as const;
 }
@@ -52,24 +62,96 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const role = searchParams.get("role");
   const q = searchParams.get("q")?.trim();
-  const users = await prisma.user.findMany({
-    where: {
-      ...(role && role !== "All" ? { role: role as any } : {}),
-      ...(q
+  const pet = searchParams.get("pet")?.trim();
+  const phone = searchParams.get("phone")?.trim();
+  const email = searchParams.get("email")?.trim();
+  const history = searchParams.get("history") || "All";
+  const balance = searchParams.get("balance") || "All";
+  const and: any[] = [];
+  const qOr: any[] = [];
+
+  if (role && role !== "All") and.push({ role: role as any });
+  if (phone) and.push({ phone: { contains: phone } });
+  if (email) and.push({ email: { contains: email } });
+  if (pet) {
+    and.push({
+      pets: {
+        some: {
+          OR: [
+            { name: { contains: pet, mode: "insensitive" } },
+            { type: { contains: pet, mode: "insensitive" } },
+            { breed: { contains: pet, mode: "insensitive" } },
+          ],
+        },
+      },
+    });
+  }
+  if (balance === "Outstanding") and.push({ outstanding_balance: { gt: 0 } });
+  if (balance === "Wallet") and.push({ wallet_balance: { gt: 0 } });
+
+  let importedClientIds: string[] = [];
+  let allImportedClientIds: string[] = [];
+  if (q || history !== "All") {
+    const histories = await prisma.oldClientHistory.findMany({
+      where: q
         ? {
             OR: [
-              { name: { contains: q } },
-              { email: { contains: q } },
+              { client_name: { contains: q, mode: "insensitive" } },
               { phone: { contains: q } },
+              { email: { contains: q, mode: "insensitive" } },
+              { address: { contains: q, mode: "insensitive" } },
             ],
           }
-        : {}),
-    },
+        : {},
+      select: { client_id: true },
+    });
+    importedClientIds = Array.from(new Set(histories.map((item) => item.client_id).filter(Boolean) as string[]));
+    if (history === "No imported history") {
+      const allHistories = await prisma.oldClientHistory.findMany({ select: { client_id: true } });
+      allImportedClientIds = Array.from(new Set(allHistories.map((item) => item.client_id).filter(Boolean) as string[]));
+    }
+  }
+
+  if (q) {
+    qOr.push(
+      { name: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
+      { phone: { contains: q } },
+      { pets: { some: { OR: [{ name: { contains: q, mode: "insensitive" } }, { breed: { contains: q, mode: "insensitive" } }] } } },
+      { addresses: { some: { OR: [{ line1: { contains: q, mode: "insensitive" } }, { city: { contains: q, mode: "insensitive" } }, { pincode: { contains: q } }] } } },
+    );
+    if (importedClientIds.length) qOr.push({ id: { in: importedClientIds } });
+    and.push({ OR: qOr });
+  }
+  if (history === "Imported") and.push({ id: { in: importedClientIds } });
+  if (history === "No imported history") and.push({ id: { notIn: allImportedClientIds } });
+
+  const users = await prisma.user.findMany({
+    where: and.length ? { AND: and } : {},
     select: publicUserSelect(),
     orderBy: { created_at: "desc" },
   });
 
-  return NextResponse.json(users);
+  const userIds = users.map((user) => user.id);
+  const histories = userIds.length
+    ? await prisma.oldClientHistory.findMany({
+        where: { client_id: { in: userIds } },
+        select: {
+          id: true,
+          client_id: true,
+          client_name: true,
+          phone: true,
+          email: true,
+          address: true,
+          pet_names_json: true,
+          summary_json: true,
+          import_date: true,
+        },
+      })
+    : [];
+  const historyByClient = new Map(histories.map((item) => [item.client_id, item]));
+
+  return NextResponse.json(users.map((user) => ({ ...user, oldHistory: historyByClient.get(user.id) || null })));
 }
 
 export async function POST(req: Request) {
@@ -77,39 +159,52 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
 
   const body = await req.json();
-  const email = cleanEmail(body.email);
+  const realEmail = cleanEmail(body.email);
   const password = String(body.password || "");
   const role = cleanRole(body.role);
-  if (!email || !password || !body.name) {
-    return NextResponse.json({ message: "Name, email, and password are required" }, { status: 400 });
-  }
-  if (!email.includes("@")) {
-    return NextResponse.json({ message: "Valid email is required" }, { status: 400 });
-  }
-  if (password.length < 6) {
-    return NextResponse.json({ message: "Password must be at least 6 characters" }, { status: 400 });
-  }
+  const name = cleanText(body.name);
+  const phone = cleanText(body.phone);
+  const isClient = role === "CLIENT";
   if (!role) {
     return NextResponse.json({ message: "Invalid role" }, { status: 400 });
   }
+  if (!name || (!isClient && (!realEmail || !password))) {
+    return NextResponse.json({ message: isClient ? "Name and phone/email are required" : "Name, email, and password are required" }, { status: 400 });
+  }
+  if (isClient && !phone && !realEmail) {
+    return NextResponse.json({ message: "Phone or email is required for a client" }, { status: 400 });
+  }
+  if (realEmail && !realEmail.includes("@")) {
+    return NextResponse.json({ message: "Valid email is required" }, { status: 400 });
+  }
+  if (!isClient && password.length < 6) {
+    return NextResponse.json({ message: "Password must be at least 6 characters" }, { status: 400 });
+  }
 
+  const email = realEmail || syntheticClientEmail(phone || name);
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return NextResponse.json({ message: "User already exists" }, { status: 409 });
+  if (phone) {
+    const duplicatePhone = await prisma.user.findFirst({ where: { phone, role: "CLIENT" } });
+    if (duplicatePhone) return NextResponse.json({ message: "A client with this phone already exists", user: duplicatePhone }, { status: 409 });
+  }
 
   const user = await prisma.user.create({
     data: {
-      name: body.name,
+      name,
       email,
-      phone: body.phone || undefined,
+      phone: phone || undefined,
       role: role as any,
-      password_hash: await bcrypt.hash(password, 10),
-      emailVerified: new Date(),
+      password_hash: password ? await bcrypt.hash(password, 10) : undefined,
+      emailVerified: realEmail ? new Date() : null,
       is_active: body.is_active ?? true,
     },
   });
   await syncStaffProfile(user.id, role);
 
-  sendWelcomeEmail(email, { userName: user.name || "there", email }).catch(console.error);
+  if (realEmail && password) {
+    sendWelcomeEmail(realEmail, { userName: user.name || "there", email: realEmail }).catch(console.error);
+  }
   const created = await prisma.user.findUnique({ where: { id: user.id }, select: publicUserSelect() });
   return NextResponse.json(created, { status: 201 });
 }
@@ -130,14 +225,18 @@ export async function PATCH(req: Request) {
 
   const nextEmail = body.email !== undefined ? cleanEmail(body.email) : undefined;
   if (nextEmail !== undefined) {
+    if (!nextEmail) {
+      delete body.email;
+    } else {
     if (!nextEmail.includes("@")) return NextResponse.json({ message: "Valid email is required" }, { status: 400 });
     const duplicate = await prisma.user.findUnique({ where: { email: nextEmail } });
     if (duplicate && duplicate.id !== body.id) return NextResponse.json({ message: "Email is already used by another account" }, { status: 409 });
+    }
   }
 
   const data: any = {
     ...(body.name !== undefined ? { name: String(body.name).trim() || null } : {}),
-    ...(nextEmail !== undefined ? { email: nextEmail } : {}),
+    ...(nextEmail ? { email: nextEmail } : {}),
     ...(body.phone !== undefined ? { phone: String(body.phone).trim() || null } : {}),
     ...(nextRole !== undefined ? { role: nextRole } : {}),
     ...(body.is_active !== undefined ? { is_active: body.is_active } : {}),

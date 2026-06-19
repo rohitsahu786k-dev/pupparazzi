@@ -13,15 +13,14 @@ export default function CareersPage() {
 
           <div className="mt-12 space-y-6 text-base leading-7 text-muted-foreground">
             <p>
-              We&apos;re always looking for passionate, pet-loving individuals to join the Pupparazzi family. Whether you&apos;re an experienced groomer, a certified trainer, a vet professional, or someone who loves working with animals — we&apos;d love to hear from you.
+              We&apos;re always looking for passionate, pet-loving individuals to join the Pupparazzi family. Whether you&apos;re an experienced groomer, boarding caregiver, or someone who loves working with animals, we&apos;d love to hear from you.
             </p>
 
             <h2 className="text-xl font-bold text-foreground">Open Positions</h2>
             <div className="space-y-4">
               {[
                 { title: "Pet Groomer", type: "Full-time", desc: "Experience with dog grooming, bathing, and styling. Gentle handling required." },
-                { title: "Dog Walker / Pet Sitter", type: "Part-time / Full-time", desc: "Reliable, physically active, and comfortable with dogs of all sizes." },
-                { title: "Pet Trainer", type: "Full-time", desc: "Positive reinforcement methods. Certification preferred." },
+                { title: "Boarding Care Attendant", type: "Part-time / Full-time", desc: "Reliable, attentive, and comfortable caring for dogs during boarding stays." },
                 { title: "Customer Support", type: "Full-time", desc: "Handle bookings, client queries, and scheduling. Pet knowledge is a plus." },
               ].map((job) => (
                 <div key={job.title} className="rounded-xl border p-5">

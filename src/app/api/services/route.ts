@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { activeServiceCategories } from "@/lib/pet-care-pricing";
 
 function canManage(role?: string | null) {
   return role === "ADMIN" || role === "STAFF";
@@ -26,6 +27,10 @@ function cleanAddons(value: unknown) {
     .filter((addon) => addon.name && addon.price >= 0);
 }
 
+function isAllowedCategory(value: unknown) {
+  return activeServiceCategories.includes(String(value) as typeof activeServiceCategories[number]);
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -38,7 +43,10 @@ export async function GET(req: Request) {
     }
 
     const services = await prisma.service.findMany({
-      where: includeInactive ? {} : { is_active: true },
+      where: {
+        category: { in: [...activeServiceCategories] },
+        ...(includeInactive ? {} : { is_active: true }),
+      },
       include: { addons: includeInactive ? true : { where: { is_active: true } } },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     });
@@ -56,6 +64,9 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+    if (!isAllowedCategory(body.category || "Grooming")) {
+      return NextResponse.json({ message: "Only Boarding and Grooming services are supported." }, { status: 400 });
+    }
     const addons = cleanAddons(body.addons);
     const includes = cleanList(body.free_services_json);
     const images = cleanList(body.images_json);
@@ -93,6 +104,9 @@ export async function PATCH(req: Request) {
 
     const body = await req.json();
     if (!body.id) return NextResponse.json({ message: "Service ID is required" }, { status: 400 });
+    if (body.category !== undefined && !isAllowedCategory(body.category)) {
+      return NextResponse.json({ message: "Only Boarding and Grooming services are supported." }, { status: 400 });
+    }
     const addons = body.addons !== undefined ? cleanAddons(body.addons) : undefined;
     const includes = body.free_services_json !== undefined ? cleanList(body.free_services_json) : undefined;
     const images = body.images_json !== undefined ? cleanList(body.images_json) : undefined;

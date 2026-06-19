@@ -20,12 +20,11 @@ const SECTIONS = [
     title: "2. Our Services",
     color: "bg-indigo-50 text-indigo-600",
     content:
-      "Pupparazzi provides a marketplace platform connecting pet owners with professional pet care service providers including groomers, boarders, walkers, and veterinarians. We act as an intermediary and are not directly responsible for the services provided by our partners.",
+      "Pupparazzi provides a platform connecting pet owners with professional grooming and boarding care providers. We act as an intermediary and are not directly responsible for the services provided by our partners.",
     list: [
-      "Grooming: Professional bath, haircut, and styling services.",
-      "Boarding: Supervised stays in verified partner homes or kennels.",
-      "Walking & Training: Licensed and background-checked professionals.",
-      "Veterinary: Home-visit consultations by licensed veterinarians.",
+      "Grooming: Complete grooming sessions and individual grooming services.",
+      "Boarding: Supervised dog boarding with check-in and checkout details.",
+      "Boarding packages: Flexible prepaid packages subject to availability.",
     ],
   },
   {

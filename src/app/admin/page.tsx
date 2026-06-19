@@ -19,7 +19,7 @@ function endOfDay(date: Date) {
 }
 
 function money(value: number) {
-  return `Rs. ${Number(value || 0).toLocaleString("en-IN")}`;
+  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
 }
 
 export default async function AdminDashboard() {

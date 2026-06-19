@@ -38,7 +38,7 @@ const emptyForm = {
 };
 
 function money(value: number) {
-  return `Rs. ${Number(value || 0).toLocaleString("en-IN")}`;
+  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
 }
 
 export default function AdminServicesPage() {
@@ -153,7 +153,7 @@ export default function AdminServicesPage() {
             <Input placeholder="Service name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <div className="grid grid-cols-2 gap-2">
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm">
-                {["Grooming", "Boarding", "Walking", "Swimming", "Veterinary", "Training"].map((category) => <option key={category}>{category}</option>)}
+                {["Grooming", "Boarding"].map((category) => <option key={category}>{category}</option>)}
               </select>
               <Input placeholder="Duration mins" inputMode="numeric" value={form.slot_duration_mins} onChange={(e) => setForm({ ...form, slot_duration_mins: e.target.value.replace(/\D/g, "") })} />
             </div>

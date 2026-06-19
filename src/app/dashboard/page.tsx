@@ -279,7 +279,7 @@ function DashboardContent() {
               </div>
               <div>
                 <p className="font-bold text-base mb-1">Ready to book?</p>
-                <p className="text-white/75 text-xs leading-relaxed">Premium grooming, boarding, vet visits and more.</p>
+                <p className="text-white/75 text-xs leading-relaxed">Premium grooming and boarding care.</p>
               </div>
               <Button asChild className="w-full bg-white text-primary hover:bg-white/90 font-bold text-sm">
                 <Link href="/book" className="flex items-center justify-center gap-1">
