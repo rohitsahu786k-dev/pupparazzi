@@ -224,7 +224,7 @@ export async function POST(req: Request) {
   await syncStaffProfile(user.id, role);
 
   if (realEmail && password) {
-    sendWelcomeEmail(realEmail, { userName: user.name || "there", email: realEmail }).catch(console.error);
+    sendWelcomeEmail(realEmail, { userName: user.name || "there", email: realEmail, password }).catch(console.error);
   }
   if (realEmail && isClient) {
     sendClientProfileRequestEmail(realEmail, { userName: user.name || "there" }).catch(console.error);

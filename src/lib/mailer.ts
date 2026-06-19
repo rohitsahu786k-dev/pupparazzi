@@ -305,7 +305,7 @@ export function paymentConfirmationHtml(data: {
 // TEMPLATE 3 – WELCOME EMAIL
 // ═══════════════════════════════════════════════════════════════
 
-export function welcomeEmailHtml(data: { userName: string; email: string }) {
+export function welcomeEmailHtml(data: { userName: string; email: string; password?: string }) {
   const services = [
     { icon: "", name: "Premium Grooming", desc: "Certified groomers, spa treatments" },
     { icon: "", name: "Luxury Boarding", desc: "Climate-controlled, 24/7 care" },
@@ -324,6 +324,19 @@ export function welcomeEmailHtml(data: { userName: string; email: string }) {
     <!-- Body -->
     <div style="padding:40px 48px;" class="email-card">
       <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong> ,</p>
+      ${data.password ? `
+      <!-- Credentials Box -->
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        <tr>
+          <td style="background:#F8FAFC;border-left:4px solid #EC4899;border-radius:0 12px 12px 0;padding:16px 20px;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#0F172A;">Your Login Credentials</p>
+            <p style="margin:0 0 4px;font-size:13px;color:#475569;">Email/Username: <strong style="color:#0F172A;">${data.email}</strong></p>
+            <p style="margin:0 0 12px;font-size:13px;color:#475569;">Password: <strong style="color:#0F172A;">${data.password}</strong></p>
+            <p style="margin:0;font-size:12px;color:#64748B;line-height:1.5;">Please use these credentials to log in. We recommend changing your password after logging in for the first time.</p>
+          </td>
+        </tr>
+      </table>
+      ` : ""}
       <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.7;">We&rsquo;re absolutely thrilled to have you join the Pupparazzi family! Your furry friend is about to experience the finest pet care in Ahmedabad. Here&rsquo;s everything we offer:</p>
 
       <!-- Services Grid -->

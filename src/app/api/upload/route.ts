@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { saveGridFsUpload, saveLocalUpload, shouldUseGridFsUploads } from "@/lib/upload-storage";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, UPLOAD_SIZE_ERROR_MESSAGE } from "@/lib/upload-limits";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
 
@@ -68,6 +69,38 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const filename = safeFilename(file.name);
+
+    if (process.env.CLOUDINARY_CLOUD_NAME || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME) {
+      try {
+        const cloudinaryUrl = await uploadToCloudinary(buffer, filename, folder, file.type);
+        const asset = await prisma.asset.create({
+          data: {
+            filename,
+            original_name: file.name,
+            path: cloudinaryUrl,
+            category,
+            document_type: documentType,
+            client_id: clientId,
+            pet_id: petId,
+            booking_id: bookingId,
+            notes,
+            ...(uploadedBy ? { uploaded_by: uploadedBy } : {}),
+          },
+        });
+
+        if (documentType === "Vaccination Certificate" && petId) {
+          await prisma.petMedical.upsert({
+            where: { pet_id: petId },
+            update: { vaccination_certificate_asset_id: asset.id, vaccination_certificate_path: asset.path },
+            create: { pet_id: petId, vaccination_certificate_asset_id: asset.id, vaccination_certificate_path: asset.path },
+          });
+        }
+
+        return NextResponse.json({ ...asset, url: cloudinaryUrl, secure_url: cloudinaryUrl });
+      } catch (cloudinaryError) {
+        console.error("Cloudinary upload failed, falling back to local/GridFS:", cloudinaryError);
+      }
+    }
 
     if (!shouldUseGridFsUploads()) {
       try {

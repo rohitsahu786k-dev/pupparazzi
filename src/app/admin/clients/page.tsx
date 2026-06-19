@@ -168,7 +168,23 @@ export default function AdminClientsPage() {
   const [viewer, setViewer] = useState<{ label: string; path: string } | null>(null);
   const [passwords, setPasswords] = useState<Record<string, string>>({});
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", role: "CLIENT" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", role: "CLIENT", petName: "", petType: "Dog", petBreed: "", petWeight: "" });
+
+  // Document upload states
+  const [uploadDocType, setUploadDocType] = useState("Aadhar Card");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadPetId, setUploadPetId] = useState("");
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  // Add pet states
+  const [newPetName, setNewPetName] = useState("");
+  const [newPetType, setNewPetType] = useState("Dog");
+  const [newPetBreed, setNewPetBreed] = useState("");
+  const [newPetWeight, setNewPetWeight] = useState("");
+  const [addingPet, setAddingPet] = useState(false);
+  const [petError, setPetError] = useState("");
+  const [showAddPet, setShowAddPet] = useState(false);
 
   async function fetchUsers() {
     setLoading(true);
@@ -197,19 +213,66 @@ export default function AdminClientsPage() {
     setError("");
     setMessage("");
     setCreating(true);
+
+    if (form.role === "CLIENT") {
+      if (!form.petName.trim()) {
+        setError("Pet Name is required for creating a client profile.");
+        setCreating(false);
+        return;
+      }
+      if (!form.petType.trim()) {
+        setError("Pet Type is required.");
+        setCreating(false);
+        return;
+      }
+    }
+
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+        role: form.role,
+      }),
     });
+
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError(data.message || "Unable to create user");
       setCreating(false);
       return;
     }
-    setForm({ name: "", email: "", phone: "", password: "", role: "CLIENT" });
-    setMessage("User created successfully.");
+
+    const userData = await res.json();
+
+    if (form.role === "CLIENT") {
+      const petRes = await fetch("/api/pets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner_id: userData.id,
+          name: form.petName,
+          type: form.petType,
+          breed: form.petBreed || "",
+          weight: form.petWeight ? Number(form.petWeight) : null,
+          tc_accepted: true,
+        }),
+      });
+
+      if (!petRes.ok) {
+        const petError = await petRes.json().catch(() => ({}));
+        setError(`Client created successfully, but pet registration failed: ${petError.message || "Unknown error"}`);
+        await fetchUsers();
+        setCreating(false);
+        return;
+      }
+    }
+
+    setForm({ name: "", email: "", phone: "", password: "", role: "CLIENT", petName: "", petType: "Dog", petBreed: "", petWeight: "" });
+    setMessage(form.role === "CLIENT" ? "Client and pet created successfully." : "User created successfully.");
     await fetchUsers();
     setCreating(false);
   }
@@ -263,6 +326,19 @@ export default function AdminClientsPage() {
     setTimelineFilter("All history");
     setTimelinePetFilter("All pets");
     setProfileLoading(true);
+    setUploadError("");
+    setUploadFile(null);
+    setUploadDocType("Aadhar Card");
+    setUploadPetId("");
+    
+    // Reset Add Pet state
+    setNewPetName("");
+    setNewPetType("Dog");
+    setNewPetBreed("");
+    setNewPetWeight("");
+    setPetError("");
+    setShowAddPet(false);
+
     const [bookingRes, assetRes, petRes, historyRes] = await Promise.all([
       fetch(`/api/bookings?userId=${user.id}`),
       fetch(`/api/assets?clientId=${user.id}`),
@@ -273,10 +349,123 @@ export default function AdminClientsPage() {
     if (assetRes.ok) setProfileAssets(await assetRes.json());
     if (petRes.ok) {
       const allPets = await petRes.json();
-      setProfilePets(Array.isArray(allPets) ? allPets.filter((pet: PetProfile) => pet.owner_id === user.id) : []);
+      const filteredPets = Array.isArray(allPets) ? allPets.filter((pet: PetProfile) => pet.owner_id === user.id) : [];
+      setProfilePets(filteredPets);
+      if (filteredPets.length > 0) {
+        setUploadPetId(filteredPets[0].id);
+      }
     }
     if (historyRes && historyRes.ok) setProfileOldHistory(await historyRes.json());
     setProfileLoading(false);
+  }
+
+  async function handleUploadDocument(e: React.FormEvent) {
+    e.preventDefault();
+    if (!uploadFile) {
+      setUploadError("Please select a file first.");
+      return;
+    }
+    setUploadingDoc(true);
+    setUploadError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      formData.append("clientId", profileUser!.id);
+      formData.append("documentType", uploadDocType);
+      
+      const isVaccine = uploadDocType === "Vaccination Certificate";
+      formData.append("folder", isVaccine ? "pets" : "clients");
+      formData.append("category", isVaccine ? "Vaccination" : "KYC");
+      if (isVaccine && uploadPetId) {
+        formData.append("petId", uploadPetId);
+      }
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to upload document");
+      }
+
+      // Refresh documents list
+      const assetRes = await fetch(`/api/assets?clientId=${profileUser!.id}`);
+      if (assetRes.ok) {
+        setProfileAssets(await assetRes.json());
+      }
+      
+      // If vaccination, refresh pet list too to show vaccination path
+      if (isVaccine) {
+        const petRes = await fetch("/api/pets");
+        if (petRes.ok) {
+          const allPets = await petRes.json();
+          setProfilePets(Array.isArray(allPets) ? allPets.filter((pet: PetProfile) => pet.owner_id === profileUser!.id) : []);
+        }
+      }
+
+      setUploadFile(null);
+      setUploadError("");
+      // Reset input element value
+      const fileInput = document.getElementById("doc-file-input") as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
+    } catch (err: any) {
+      console.error(err);
+      setUploadError(err.message || "An error occurred during upload.");
+    } finally {
+      setUploadingDoc(false);
+    }
+  }
+
+  async function handleAddPet(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newPetName.trim()) {
+      setPetError("Pet Name is required.");
+      return;
+    }
+    setAddingPet(true);
+    setPetError("");
+    try {
+      const res = await fetch("/api/pets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner_id: profileUser!.id,
+          name: newPetName,
+          type: newPetType,
+          breed: newPetBreed || "",
+          weight: newPetWeight ? Number(newPetWeight) : null,
+          tc_accepted: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to add pet");
+      }
+
+      // Refresh pets list
+      const petRes = await fetch("/api/pets");
+      if (petRes.ok) {
+        const allPets = await petRes.json();
+        const filteredPets = Array.isArray(allPets) ? allPets.filter((pet: PetProfile) => pet.owner_id === profileUser!.id) : [];
+        setProfilePets(filteredPets);
+        if (filteredPets.length > 0 && !uploadPetId) {
+          setUploadPetId(filteredPets[0].id);
+        }
+      }
+
+      setNewPetName("");
+      setNewPetBreed("");
+      setNewPetWeight("");
+      setShowAddPet(false);
+    } catch (err: any) {
+      console.error(err);
+      setPetError(err.message || "An error occurred.");
+    } finally {
+      setAddingPet(false);
+    }
   }
 
   async function shareDocument(path: string) {
@@ -355,6 +544,41 @@ export default function AdminClientsPage() {
             Add
           </Button>
         </div>
+        {form.role === "CLIENT" && (
+          <div className="mt-4 pt-4 border-t space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              🐾 Pet Details (Required for Bookings)
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Input
+                placeholder="Pet Name"
+                value={form.petName}
+                onChange={(e) => setForm({ ...form, petName: e.target.value })}
+              />
+              <select
+                value={form.petType}
+                onChange={(e) => setForm({ ...form, petType: e.target.value })}
+                className="h-11 rounded-lg border bg-white px-3 text-sm"
+              >
+                <option value="Dog">Dog</option>
+                <option value="Cat">Cat</option>
+                <option value="Other">Other</option>
+              </select>
+              <Input
+                placeholder="Breed (e.g. Beagle)"
+                value={form.petBreed}
+                onChange={(e) => setForm({ ...form, petBreed: e.target.value })}
+              />
+              <Input
+                placeholder="Weight (kg)"
+                type="number"
+                step="0.1"
+                value={form.petWeight}
+                onChange={(e) => setForm({ ...form, petWeight: e.target.value })}
+              />
+            </div>
+          </div>
+        )}
         {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
         {message && <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-green-700"><CheckCircle2 className="h-4 w-4" /> {message}</p>}
       </div>
@@ -712,34 +936,144 @@ export default function AdminClientsPage() {
                   </section>
 
                   <section className="rounded-lg border p-4">
-                  <h3 className="font-bold">Pets and Dogs</h3>
-                  <div className="mt-3 space-y-2">
-                    {profilePets.length === 0 ? <p className="text-sm text-muted-foreground">No pets.</p> : profilePets.map((pet) => (
-                      <div key={pet.id} className="rounded-lg border bg-muted/25 p-3">
-                        <p className="font-bold">{pet.name}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{[pet.type, pet.breed, pet.weight ? `${pet.weight} kg` : ""].filter(Boolean).join(" - ")}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Vaccination: {pet.medical?.vaccination_status || "Not recorded"}</p>
-                      </div>
-                    ))}
-                  </div>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold">Pets and Dogs</h3>
+                      <Button size="sm" variant="outline" onClick={() => setShowAddPet(!showAddPet)}>
+                        {showAddPet ? "Cancel" : "+ Add Pet"}
+                      </Button>
+                    </div>
+                    
+                    {showAddPet && (
+                      <form onSubmit={handleAddPet} className="mt-3 space-y-2 rounded-lg border bg-muted/10 p-3">
+                        <p className="text-xs font-bold text-muted-foreground uppercase">Register New Pet</p>
+                        <Input
+                          placeholder="Pet Name"
+                          value={newPetName}
+                          onChange={(e) => setNewPetName(e.target.value)}
+                          required
+                          className="h-9 text-xs"
+                        />
+                        <select
+                          value={newPetType}
+                          onChange={(e) => setNewPetType(e.target.value)}
+                          className="w-full h-9 rounded-md border bg-white px-2.5 text-xs"
+                        >
+                          <option value="Dog">Dog</option>
+                          <option value="Cat">Cat</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <Input
+                          placeholder="Breed (e.g. Pug)"
+                          value={newPetBreed}
+                          onChange={(e) => setNewPetBreed(e.target.value)}
+                          className="h-9 text-xs"
+                        />
+                        <Input
+                          placeholder="Weight (kg)"
+                          type="number"
+                          step="0.1"
+                          value={newPetWeight}
+                          onChange={(e) => setNewPetWeight(e.target.value)}
+                          className="h-9 text-xs"
+                        />
+                        {petError && <p className="text-xs text-red-600 font-medium">{petError}</p>}
+                        <Button type="submit" size="sm" className="w-full" disabled={addingPet}>
+                          {addingPet ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                          Save Pet
+                        </Button>
+                      </form>
+                    )}
+
+                    <div className="mt-3 space-y-2">
+                      {profilePets.length === 0 ? <p className="text-sm text-muted-foreground">No pets.</p> : profilePets.map((pet) => (
+                        <div key={pet.id} className="rounded-lg border bg-muted/25 p-3">
+                          <p className="font-bold">{pet.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{[pet.type, pet.breed, pet.weight ? `${pet.weight} kg` : ""].filter(Boolean).join(" - ")}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Vaccination: {pet.medical?.vaccination_status || "Not recorded"}</p>
+                        </div>
+                      ))}
+                    </div>
                   </section>
 
                   <section className="rounded-lg border p-4">
-                  <h3 className="flex items-center gap-2 font-bold"><FileText className="h-4 w-4 text-primary" /> Documents</h3>
-                  <div className="mt-3 space-y-2">
-                    {profileAssets.length === 0 ? <p className="text-sm text-muted-foreground">No linked documents.</p> : profileAssets.map((asset) => (
-                      <div key={asset.id} className="rounded-lg border bg-muted/25 p-3">
-                        <p className="truncate font-bold">{asset.document_type || asset.original_name}</p>
-                        <p className="mt-1 truncate text-xs text-muted-foreground">{asset.category} - {asset.original_name}</p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setViewer({ label: asset.document_type || asset.original_name, path: asset.path })}><Eye className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="outline" asChild><a href={asset.path} download><Download className="h-3.5 w-3.5" /></a></Button>
-                          <Button size="sm" variant="outline" onClick={() => shareDocument(asset.path)}><Share2 className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="outline" onClick={() => printDocument(asset.path)}><Printer className="h-3.5 w-3.5" /></Button>
+                    <h3 className="flex items-center gap-2 font-bold"><FileText className="h-4 w-4 text-primary" /> Documents</h3>
+                    
+                    {/* Document Upload Form */}
+                    <form onSubmit={handleUploadDocument} className="my-3 space-y-2 rounded-lg border bg-muted/10 p-3">
+                      <p className="text-xs font-bold text-muted-foreground uppercase">Upload New Document</p>
+                      
+                      <select
+                        value={uploadDocType}
+                        onChange={(e) => setUploadDocType(e.target.value)}
+                        className="w-full h-9 rounded-md border bg-white px-2.5 text-xs font-semibold"
+                      >
+                        <option value="Aadhar Card">Aadhar Card</option>
+                        <option value="PAN Card">PAN Card</option>
+                        <option value="Vaccination Certificate">Vaccination Certificate</option>
+                        <option value="Other Document">Other Document</option>
+                      </select>
+
+                      {uploadDocType === "Vaccination Certificate" && (
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase block">Select Pet</label>
+                          {profilePets.length === 0 ? (
+                            <p className="text-xs text-amber-600 font-semibold">Please register a pet first to upload vaccination certificate.</p>
+                          ) : (
+                            <select
+                              value={uploadPetId}
+                              onChange={(e) => setUploadPetId(e.target.value)}
+                              className="w-full h-9 rounded-md border bg-white px-2.5 text-xs"
+                            >
+                              {profilePets.map((p) => (
+                                <option key={p.id} value={p.id}>{p.name} ({p.type})</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <Input
+                          id="doc-file-input"
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              setUploadFile(e.target.files[0]);
+                            }
+                          }}
+                          className="h-9 text-xs file:h-full file:text-xs"
+                        />
+                        <p className="text-[9px] text-muted-foreground">Supported: JPEG, PNG, WEBP, PDF (Max 10MB)</p>
                       </div>
-                    ))}
-                  </div>
+
+                      {uploadError && <p className="text-xs text-red-600 font-medium">{uploadError}</p>}
+
+                      <Button
+                        type="submit"
+                        size="sm"
+                        className="w-full"
+                        disabled={uploadingDoc || (uploadDocType === "Vaccination Certificate" && !uploadPetId)}
+                      >
+                        {uploadingDoc ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                        Upload & Compress
+                      </Button>
+                    </form>
+
+                    <div className="mt-3 space-y-2">
+                      {profileAssets.length === 0 ? <p className="text-sm text-muted-foreground">No linked documents.</p> : profileAssets.map((asset) => (
+                        <div key={asset.id} className="rounded-lg border bg-muted/25 p-3">
+                          <p className="truncate font-bold">{asset.document_type || asset.original_name}</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">{asset.category} - {asset.original_name}</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setViewer({ label: asset.document_type || asset.original_name, path: asset.path })}><Eye className="h-3.5 w-3.5" /></Button>
+                            <Button size="sm" variant="outline" asChild><a href={asset.path} download><Download className="h-3.5 w-3.5" /></a></Button>
+                            <Button size="sm" variant="outline" onClick={() => shareDocument(asset.path)}><Share2 className="h-3.5 w-3.5" /></Button>
+                            <Button size="sm" variant="outline" onClick={() => printDocument(asset.path)}><Printer className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </section>
                 </div>
 
