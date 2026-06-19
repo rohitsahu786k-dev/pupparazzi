@@ -826,7 +826,7 @@ function BookPageContent() {
                     }}
                     className={`overflow-hidden rounded-lg border text-left transition ${selectedServiceId === service.id ? "border-primary bg-primary/6 shadow-sm" : "bg-white hover:border-primary/35"}`}
                   >
-                    <div className="relative h-30 bg-muted">
+                    <div className="relative h-40 bg-muted">
                       <Image src={serviceImage(service)} alt={service.name} fill className="object-cover" sizes="(min-width:1280px) 25vw, (min-width:640px) 50vw, 100vw" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
                       {selectedServiceId === service.id && <Check className="absolute right-3 top-3 h-5 w-5 rounded-full bg-white p-0.5 text-primary" />}
