@@ -68,3 +68,27 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ message: "Failed to delete asset" }, { status: 500 });
   }
 }
+
+export async function PATCH(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id || (session.user.role !== "ADMIN" && session.user.role !== "STAFF")) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const { id, is_verified } = await req.json();
+    if (!id) {
+      return NextResponse.json({ message: "Asset ID is required" }, { status: 400 });
+    }
+
+    const asset = await prisma.asset.update({
+      where: { id },
+      data: { is_verified: !!is_verified },
+    });
+
+    return NextResponse.json(asset);
+  } catch (error) {
+    console.error("PATCH asset error:", error);
+    return NextResponse.json({ message: "Failed to update asset" }, { status: 500 });
+  }
+}

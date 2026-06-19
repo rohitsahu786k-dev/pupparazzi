@@ -63,6 +63,7 @@ type Asset = {
   document_type?: string | null;
   pet_id?: string | null;
   booking_id?: string | null;
+  is_verified: boolean;
 };
 
 type OldHistoryDetail = NonNullable<AdminUser["oldHistory"]> & {
@@ -442,6 +443,33 @@ export default function AdminClientsPage() {
       }
     } catch (err: any) {
       alert(err.message || "Failed to delete document");
+    }
+  }
+
+  async function handleToggleVerifyAsset(assetId: string, currentStatus: boolean) {
+    try {
+      const res = await fetch("/api/assets", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: assetId,
+          is_verified: !currentStatus,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.message || "Failed to verify document");
+        return;
+      }
+      // Refresh documents list
+      const assetRes = await fetch(`/api/assets?clientId=${profileUser!.id}`);
+      if (assetRes.ok) {
+        setProfileAssets(await assetRes.json());
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to verify document");
     }
   }
 
@@ -1090,11 +1118,32 @@ export default function AdminClientsPage() {
                     <div className="mt-3 space-y-2">
                       {profileAssets.length === 0 ? <p className="text-sm text-muted-foreground">No linked documents.</p> : profileAssets.map((asset) => (
                         <div key={asset.id} className="rounded-lg border bg-muted/25 p-3">
-                          <p className="truncate font-bold">{asset.document_type || asset.original_name}</p>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">{asset.category} - {asset.original_name}</p>
+                          <div className="flex items-start justify-between gap-2 min-w-0">
+                            <div className="min-w-0">
+                              <p className="truncate font-bold">{asset.document_type || asset.original_name}</p>
+                              <p className="mt-1 truncate text-xs text-muted-foreground">{asset.category} - {asset.original_name}</p>
+                            </div>
+                            {asset.is_verified ? (
+                              <span className="shrink-0 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" /> Verified
+                              </span>
+                            ) : (
+                              <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                                Pending
+                              </span>
+                            )}
+                          </div>
                           <div className="mt-3 flex flex-wrap gap-2">
                             <Button size="sm" variant="outline" onClick={() => setViewer({ label: asset.document_type || asset.original_name, path: asset.path })}><Eye className="h-3.5 w-3.5" /></Button>
                             <Button size="sm" variant="outline" asChild><a href={asset.path} download><Download className="h-3.5 w-3.5" /></a></Button>
+                            <Button
+                              size="sm"
+                              variant={asset.is_verified ? "outline" : "default"}
+                              onClick={() => handleToggleVerifyAsset(asset.id, asset.is_verified)}
+                              className={asset.is_verified ? "text-amber-700 border-amber-200 hover:bg-amber-50 h-7 text-[11px]" : "bg-green-600 hover:bg-green-700 text-white h-7 text-[11px]"}
+                            >
+                              {asset.is_verified ? "Unverify" : "Verify"}
+                            </Button>
                             <Button size="sm" variant="outline" onClick={() => shareDocument(asset.path)}><Share2 className="h-3.5 w-3.5" /></Button>
                             <Button size="sm" variant="outline" onClick={() => printDocument(asset.path)}><Printer className="h-3.5 w-3.5" /></Button>
                             <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleDeleteAsset(asset.id)}><Trash2 className="h-3.5 w-3.5" /></Button>

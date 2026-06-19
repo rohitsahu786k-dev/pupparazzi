@@ -335,6 +335,7 @@ model Asset {
   booking_id    String?  @db.ObjectId
   notes         String?
   uploaded_by   String?  @db.ObjectId
+  is_verified   Boolean  @default(false)
   created_at    DateTime @default(now())
 }
 

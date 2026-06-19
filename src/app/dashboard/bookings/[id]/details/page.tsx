@@ -13,6 +13,7 @@ type Asset = {
   original_name: string;
   path: string;
   document_type?: string | null;
+  is_verified?: boolean | null;
 };
 
 type Booking = {
@@ -106,6 +107,16 @@ export default function BookingDetailsPage() {
   const category = booking?.service?.category || "";
   const isBoarding = category === "Boarding";
   const isGrooming = category !== "Boarding";
+
+  const allVerified = useMemo(() => {
+    if (!booking?.documents || booking.documents.length === 0) return false;
+    return REQUIRED_DOCS.every((doc) => {
+      const saved = form.documents_json[doc.key];
+      if (!saved?.assetId) return false;
+      const asset = booking.documents?.find((a) => a.id === saved.assetId);
+      return asset?.is_verified === true;
+    });
+  }, [booking, form.documents_json]);
 
   async function fetchBooking() {
     setLoading(true);
@@ -377,7 +388,18 @@ export default function BookingDetailsPage() {
 
         <aside className="space-y-5">
           <div className="rounded-lg border bg-white p-5">
-            <h2 className="font-bold">KYC and Documents</h2>
+            <div className="flex items-center justify-between border-b pb-3 mb-3">
+              <h2 className="font-bold">KYC and Documents</h2>
+              {allVerified ? (
+                <span className="rounded bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Documents Verified
+                </span>
+              ) : (
+                <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+                  Verification Pending
+                </span>
+              )}
+            </div>
             <p className="mt-2 text-xs text-muted-foreground">
               Maximum file size per document: {MAX_UPLOAD_FILE_SIZE_MB} MB. Need to reduce your document size? Compress your file here:{" "}
               <a href={FILE_COMPRESSOR_URL} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline">
@@ -387,6 +409,7 @@ export default function BookingDetailsPage() {
             <div className="mt-4 space-y-3">
               {REQUIRED_DOCS.map((doc) => {
                 const saved = form.documents_json[doc.key];
+                const verified = saved?.assetId ? booking?.documents?.find((a) => a.id === saved.assetId)?.is_verified : false;
                 return (
                   <div key={doc.key} className="rounded-lg border p-3">
                     <div className="flex items-start justify-between gap-3">
@@ -394,7 +417,20 @@ export default function BookingDetailsPage() {
                         <p className="font-semibold">{doc.label} *</p>
                         <p className="mt-1 truncate text-xs text-muted-foreground">{saved?.name || "No file uploaded"}</p>
                       </div>
-                      {saved?.path && <span className="rounded-lg bg-green-50 px-2 py-1 text-xs font-bold text-green-700">Saved</span>}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {saved?.path && (
+                          <span className="rounded-lg bg-green-50 px-2 py-1 text-xs font-bold text-green-700">Saved</span>
+                        )}
+                        {verified ? (
+                          <span className="rounded bg-emerald-600 px-2 py-1 text-xs font-bold text-white flex items-center gap-1">
+                            <Check className="h-3 w-3" /> Verified
+                          </span>
+                        ) : saved?.path ? (
+                          <span className="rounded bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
+                            Pending
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <label className="inline-flex h-9 cursor-pointer items-center rounded-lg border px-3 text-xs font-bold hover:bg-muted">
