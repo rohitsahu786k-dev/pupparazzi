@@ -98,9 +98,9 @@ function publicEmail(value?: string | null) {
 
 function Stat({ label, value }: { label: string; value: unknown }) {
   return (
-    <div className="rounded-lg border bg-white px-3 py-2">
-      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-      <p className="mt-1 text-base font-extrabold">{String(value)}</p>
+    <div className="rounded-lg border bg-white px-3 py-2 text-black">
+      <p className="text-xs font-semibold text-slate-500">{label}</p>
+      <p className="mt-1 text-base font-extrabold text-slate-900">{String(value)}</p>
     </div>
   );
 }
@@ -109,11 +109,11 @@ function KeyValueGrid({ data }: { data?: Record<string, any> | null }) {
   const entries = Object.entries(data || {}).filter(([key]) => key !== "raw");
   if (!entries.length) return <p className="rounded-lg border bg-muted/25 p-3 text-sm text-muted-foreground">No data.</p>;
   return (
-    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 text-black">
       {entries.map(([key, value]) => (
-        <div key={key} className="rounded-lg border bg-muted/25 p-2">
-          <p className="text-[11px] font-bold uppercase text-muted-foreground">{key.replace(/_/g, " ")}</p>
-          <p className="mt-1 break-words text-sm">{display(value)}</p>
+        <div key={key} className="rounded-lg border bg-muted/25 p-2 border-slate-200">
+          <p className="text-[11px] font-bold uppercase text-slate-500">{key.replace(/_/g, " ")}</p>
+          <p className="mt-1 break-words text-sm text-slate-900">{display(value)}</p>
         </div>
       ))}
     </div>
@@ -124,16 +124,16 @@ function Rows({ rows, empty = "No records found." }: { rows?: Record<string, any
   if (!rows?.length) return <p className="rounded-lg border bg-muted/25 p-3 text-sm text-muted-foreground">{empty}</p>;
   const keys = Object.keys(rows[0]).filter((key) => key !== "raw");
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto text-black bg-white rounded-lg border border-slate-200">
       <table className="w-full min-w-[760px] text-left text-xs">
-        <thead className="bg-muted/50 text-muted-foreground">
-          <tr>{keys.map((key) => <th key={key} className="px-3 py-2">{key.replace(/_/g, " ")}</th>)}</tr>
+        <thead className="bg-slate-100 text-slate-600 border-b border-slate-200">
+          <tr>{keys.map((key) => <th key={key} className="px-3 py-2.5 font-bold uppercase tracking-wider">{key.replace(/_/g, " ")}</th>)}</tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody className="divide-y divide-slate-100">
           {rows.map((row, index) => (
-            <tr key={index}>
+            <tr key={index} className="hover:bg-slate-50/50">
               {keys.map((key) => (
-                <td key={key} className="max-w-64 break-words px-3 py-2 align-top">{display(row[key])}</td>
+                <td key={key} className="px-3 py-2 max-w-[200px] truncate text-slate-800 font-medium">{display(row[key])}</td>
               ))}
             </tr>
           ))}
