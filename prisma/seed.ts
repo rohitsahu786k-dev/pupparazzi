@@ -3,25 +3,53 @@ import bcrypt from "bcryptjs";
 import { defaultCoupons, petCareServices } from "../src/lib/pet-care-pricing";
 const prisma = new PrismaClient();
 
+const legacyDemoServices = [
+  "Basic Bath & Brush",
+  "Premium Grooming",
+  "Flea & Tick Treatment",
+  "Boarding (Per Day)",
+  "Dog Walking",
+  "Basic Training",
+  "Vet Consultation",
+  "Swimming Session",
+];
+
 async function main() {
-  await prisma.addon.deleteMany({});
-  await prisma.service.deleteMany({});
+  // Keep historical booking relations intact while removing old demo entries from public booking.
+  await prisma.service.updateMany({
+    where: { name: { in: legacyDemoServices } },
+    data: { is_active: false },
+  });
 
   for (const service of petCareServices) {
     const { addons, ...data } = service;
-    await prisma.service.create({
-      data: {
+    const existing = await prisma.service.findFirst({
+      where: { name: data.name, category: data.category },
+      select: { id: true },
+    });
+    const serviceData = {
         ...data,
         is_active: true,
         is_coming_soon: false,
         is_bestseller: Boolean(data.is_bestseller),
         free_services_json: data.free_services_json as Prisma.InputJsonValue | undefined,
         images_json: data.images_json as Prisma.InputJsonValue | undefined,
-        ...(addons?.length ? { addons: { create: addons } } : {}),
-      },
-    });
+    };
+    if (existing) {
+      await prisma.service.update({
+        where: { id: existing.id },
+        data: {
+          ...serviceData,
+          addons: { deleteMany: {}, ...(addons?.length ? { create: addons } : {}) },
+        },
+      });
+    } else {
+      await prisma.service.create({
+        data: { ...serviceData, ...(addons?.length ? { addons: { create: addons } } : {}) },
+      });
+    }
   }
-  console.log("Seeded", petCareServices.length, "services");
+  console.log("Synced", petCareServices.length, "services without deleting bookings or admin data");
 
   // Create/update admin user
   const adminEmail = "admin@pupparazzi.local";

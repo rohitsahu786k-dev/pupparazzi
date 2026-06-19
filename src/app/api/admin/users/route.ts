@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
-import { sendWelcomeEmail } from "@/lib/mailer";
+import { sendClientProfileRequestEmail, sendWelcomeEmail } from "@/lib/mailer";
 
 const roles = ["CLIENT", "STAFF", "ADMIN"];
 
@@ -22,6 +22,10 @@ function cleanRole(value: unknown) {
 function syntheticClientEmail(seed: string) {
   const safeSeed = seed.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
   return `client-${safeSeed || Date.now()}-${Math.random().toString(36).slice(2, 8)}@client.local`;
+}
+
+function phoneKey(value?: string | null) {
+  return String(value || "").replace(/\D/g, "");
 }
 
 function publicUserSelect() {
@@ -133,9 +137,17 @@ export async function GET(req: Request) {
   });
 
   const userIds = users.map((user) => user.id);
+  const userPhones = Array.from(new Set(users.map((user) => user.phone).filter(Boolean) as string[]));
+  const userEmails = Array.from(new Set(users.map((user) => user.email).filter(Boolean) as string[]));
   const histories = userIds.length
     ? await prisma.oldClientHistory.findMany({
-        where: { client_id: { in: userIds } },
+        where: {
+          OR: [
+            { client_id: { in: userIds } },
+            ...(userPhones.length ? [{ phone: { in: userPhones } }] : []),
+            ...(userEmails.length ? [{ email: { in: userEmails } }] : []),
+          ],
+        },
         select: {
           id: true,
           client_id: true,
@@ -149,9 +161,18 @@ export async function GET(req: Request) {
         },
       })
     : [];
-  const historyByClient = new Map(histories.map((item) => [item.client_id, item]));
+  const historyByClient = new Map(histories.filter((item) => item.client_id).map((item) => [item.client_id, item]));
+  const historyByPhone = new Map(histories.filter((item) => phoneKey(item.phone)).map((item) => [phoneKey(item.phone), item]));
+  const historyByEmail = new Map(histories.filter((item) => item.email).map((item) => [String(item.email).toLowerCase(), item]));
 
-  return NextResponse.json(users.map((user) => ({ ...user, oldHistory: historyByClient.get(user.id) || null })));
+  return NextResponse.json(users.map((user) => ({
+    ...user,
+    oldHistory:
+      historyByClient.get(user.id)
+      || historyByPhone.get(phoneKey(user.phone))
+      || (user.email ? historyByEmail.get(user.email.toLowerCase()) : null)
+      || null,
+  })));
 }
 
 export async function POST(req: Request) {
@@ -204,6 +225,9 @@ export async function POST(req: Request) {
 
   if (realEmail && password) {
     sendWelcomeEmail(realEmail, { userName: user.name || "there", email: realEmail }).catch(console.error);
+  }
+  if (realEmail && isClient) {
+    sendClientProfileRequestEmail(realEmail, { userName: user.name || "there" }).catch(console.error);
   }
   const created = await prisma.user.findUnique({ where: { id: user.id }, select: publicUserSelect() });
   return NextResponse.json(created, { status: 201 });

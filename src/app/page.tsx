@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
-import { groomingIncludes, serviceCatalog } from "@/lib/pet-care-pricing";
 import {
   ArrowRight,
   Award,
@@ -20,25 +19,21 @@ import {
   Quote,
 } from "lucide-react";
 
-const proof = [
-  { value: "4.9/5", label: "parent rating" },
-  { value: "12k+", label: "bookings handled" },
-  { value: "24/7", label: "boarding care" },
-  { value: "500+", label: "pets profiled" },
-];
-
 const promises = [
   { icon: ShieldCheck, title: "Verified Professionals", copy: "Every groomer and boarding care partner is screened before assignment." },
   { icon: HeartPulse, title: "Pet-First Handling", copy: "Temperament, allergies, vaccination status, and care notes travel with every booking." },
   { icon: CalendarCheck, title: "Managed From Admin", copy: "Bookings, payments, service areas, client notes, and updates stay organized in one backend." },
 ];
 
-async function getTestimonials() {
-  return prisma.testimonial.findMany({
-    where: { is_active: true },
-    orderBy: [{ order: "asc" }, { created_at: "desc" }],
-    take: 6,
-  });
+async function getHomepageData() {
+  const [testimonials, services, bookingCount, clientCount, petCount] = await Promise.all([
+    prisma.testimonial.findMany({ where: { is_active: true }, orderBy: [{ order: "asc" }, { created_at: "desc" }], take: 6 }),
+    prisma.service.findMany({ where: { is_active: true, is_coming_soon: false }, orderBy: [{ category: "asc" }, { display_order: "asc" }, { name: "asc" }] }),
+    prisma.booking.count(),
+    prisma.user.count({ where: { role: "CLIENT", is_active: true } }),
+    prisma.pet.count(),
+  ]);
+  return { testimonials, services, bookingCount, clientCount, petCount };
 }
 
 function money(value?: number) {
@@ -46,8 +41,19 @@ function money(value?: number) {
   return `₹${value.toLocaleString("en-IN")}`;
 }
 
+function serviceImage(service: { images_json?: unknown; category: string }) {
+  const images = Array.isArray(service.images_json) ? service.images_json.map(String).filter(Boolean) : [];
+  return images[0] || (service.category === "Boarding" ? "/service-boarding-premium.png" : "/service-grooming-premium.png");
+}
+
 export default async function LandingPage() {
-  const testimonials = await getTestimonials();
+  const { testimonials, services, bookingCount, clientCount, petCount } = await getHomepageData();
+  const proof = [
+    { value: bookingCount.toLocaleString("en-IN"), label: "bookings recorded" },
+    { value: clientCount.toLocaleString("en-IN"), label: "active clients" },
+    { value: petCount.toLocaleString("en-IN"), label: "pet profiles" },
+    { value: services.length.toLocaleString("en-IN"), label: "active services" },
+  ];
 
   return (
     <main className="bg-white text-foreground">
@@ -104,70 +110,37 @@ export default async function LandingPage() {
             </Button>
           </div>
 
-          <div className="mt-12 space-y-6">
-            {serviceCatalog.map((service) => {
-              const Icon = service.section.includes("Boarding") ? Home : Scissors;
+          <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {services.map((service) => {
+              const Icon = service.category === "Boarding" ? Home : Scissors;
+              const included = Array.isArray(service.free_services_json) ? service.free_services_json.map(String) : [];
               return (
-                <article key={service.section} className="rounded-2xl border border-border/60 bg-white p-5 shadow-sm sm:p-6">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <article key={service.id} className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-white shadow-sm">
+                  <div className="relative h-44 bg-muted">
+                    <Image src={serviceImage(service)} alt={service.name} fill className="object-cover" sizes="(min-width:1280px) 33vw, (min-width:768px) 50vw, 100vw" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+                    <span className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-xs font-black text-foreground shadow-sm">
+                      <Icon className="h-3.5 w-3.5 text-primary" />
+                      {service.service_group || service.category}
+                    </span>
+                  </div>
+                  <div className="flex flex-1 flex-col p-5">
                     <div className="flex gap-4">
                       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-foreground text-white">
                         <Icon className="h-5 w-5" />
                       </span>
                       <div>
                         <p className="text-sm font-bold uppercase tracking-[0.16em] text-primary">{service.category}</p>
-                        <h3 className="mt-1 text-2xl font-extrabold tracking-tight">{service.section}</h3>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{service.description}</p>
+                        <h3 className="mt-1 text-lg font-extrabold tracking-tight">{service.name}</h3>
+                        {service.description_short && <p className="mt-2 text-sm leading-6 text-muted-foreground">{service.description_short}</p>}
                       </div>
                     </div>
-                    {service.section !== "Boarding Policies" && (
-                      <Button asChild>
-                        <Link href={`/book?service=${service.section.includes("Boarding") ? "boarding" : "grooming"}`}>Book Now</Link>
-                      </Button>
-                    )}
+                    {included.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{included.slice(0, 5).map((item) => <span key={item} className="rounded-lg bg-muted px-2.5 py-1 text-xs text-muted-foreground">{item}</span>)}</div>}
+                    <div className="mt-auto flex items-end justify-between gap-4 pt-5">
+                      <p className="text-xl font-black">{service.discounted_price ? <><span className="mr-2 text-sm text-muted-foreground line-through">{money(service.price)}</span>{money(service.discounted_price)}</> : money(service.price)}</p>
+                      <Button asChild><Link href={`/book?service=${service.category.toLowerCase()}`}>Book Now</Link></Button>
+                    </div>
                   </div>
-
-                  {service.section === "Complete Grooming Services" && (
-                    <div className="mt-5 rounded-lg border bg-muted/35 p-4">
-                      <p className="text-sm font-bold">Complete grooming includes</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {groomingIncludes.map((item) => (
-                          <span key={item} className="rounded-lg border bg-white px-3 py-1.5 text-xs font-semibold text-muted-foreground">{item}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                    {service.subCategories.map((subCategory) => (
-                      <div key={subCategory.title} className="rounded-lg border bg-white p-4">
-                        <h4 className="font-bold">{subCategory.title}</h4>
-                        <div className="mt-3 divide-y">
-                          {subCategory.items.map((item) => (
-                            <div key={item.label} className="flex items-start justify-between gap-4 py-3 text-sm">
-                              <span className="leading-6 text-muted-foreground">{item.label}</span>
-                              {"price" in item && item.price !== undefined ? (
-                                <span className="text-right font-extrabold text-foreground">
-                                  {"originalPrice" in item && item.originalPrice ? <span className="mr-2 text-xs font-bold text-muted-foreground line-through">{money(item.originalPrice)}</span> : null}
-                                  {money(item.price)}
-                                  {"note" in item && item.note ? <span className="mt-1 block text-xs font-bold text-primary">{item.note}</span> : null}
-                                </span>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {"notes" in service && service.notes?.length ? (
-                    <div className="mt-5 rounded-lg border bg-muted/35 p-4">
-                      <p className="text-sm font-bold">Notes</p>
-                      <ul className="mt-3 grid gap-2 text-sm leading-6 text-muted-foreground md:grid-cols-2">
-                        {service.notes.map((note) => <li key={note} className="flex gap-2"><CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" /> {note}</li>)}
-                      </ul>
-                    </div>
-                  ) : null}
                 </article>
               );
             })}

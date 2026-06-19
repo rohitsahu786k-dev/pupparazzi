@@ -19,8 +19,7 @@ function normalizedServiceText(service?: ServiceSummary | null) {
 export function detailFormService(service?: ServiceSummary | null): DetailFormService | null {
   const serviceText = normalizedServiceText(service);
   if (serviceText.includes("boarding")) return "Boarding";
-  if (serviceText.includes("grooming")) return "Grooming";
-  return null;
+  return "Grooming";
 }
 
 export function bookingDetailFormUrl(

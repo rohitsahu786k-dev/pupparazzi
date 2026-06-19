@@ -105,7 +105,7 @@ export default function BookingDetailsPage() {
 
   const category = booking?.service?.category || "";
   const isBoarding = category === "Boarding";
-  const isGrooming = category === "Grooming";
+  const isGrooming = category !== "Boarding";
 
   async function fetchBooking() {
     setLoading(true);

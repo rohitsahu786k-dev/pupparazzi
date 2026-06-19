@@ -17,14 +17,14 @@ type Asset = {
   created_at: string;
 };
 
-const CATEGORIES = ["All", "Hero", "Services", "Pets", "Bookings", "KYC", "Documents", "Vaccination", "General"];
+const CATEGORIES = ["All", "Documents", "KYC", "Pets", "Bookings", "Services", "Hero", "General"];
 
 export default function AdminAssetsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [category, setCategory] = useState("General");
+  const [category, setCategory] = useState("Documents");
   const [filter, setFilter] = useState("All");
-  const [folder, setFolder] = useState("general");
+  const [folder, setFolder] = useState("client-documents");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [viewer, setViewer] = useState<{ label: string; path: string } | null>(null);
@@ -90,8 +90,8 @@ export default function AdminAssetsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Assets</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Upload and manage files on your own server storage. Files are served from /uploads.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Client Documents</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Manage client, pet, booking, KYC, and service documents from one place.</p>
       </div>
 
       <div className="rounded-lg border bg-white p-5">
@@ -132,7 +132,7 @@ export default function AdminAssetsPage() {
       ) : assets.length === 0 ? (
         <div className="rounded-lg border bg-white p-10 text-center">
           <ImagePlus className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No assets uploaded yet.</p>
+          <p className="text-sm text-muted-foreground">No client documents uploaded yet.</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

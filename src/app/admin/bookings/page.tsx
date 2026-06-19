@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, CreditCard, Download, Eye, Grid2X2, List, Loader2, Mail, MapPin, MessageCircle, Phone, Printer, Search, Share2, Trash2, UserCheck } from "lucide-react";
+import { Calendar, ChevronDown, ChevronUp, CreditCard, Download, Eye, Grid2X2, List, Loader2, Mail, MapPin, MessageCircle, Phone, Printer, Search, Share2, Trash2, UserCheck, UserPlus } from "lucide-react";
 
 type Booking = {
   id: string;
+  client_id: string;
   booking_id: string;
   status: string;
   payment_status: string;
@@ -28,6 +29,8 @@ type Booking = {
   invoices?: { id: string; invoice_id: string; total: number; status: string; created_at: string }[];
   final_amount?: number | null;
 };
+
+type ClientOption = { id: string; name?: string | null; phone?: string | null; email?: string | null };
 
 const STATUSES = ["All", "Pending", "Confirmed", "In Progress", "Completed", "Cancelled", "Expired"];
 const PAYMENT_STATUSES = ["All", "Pending", "Advance Paid", "Partially Paid", "Paid", "Failed", "Cancelled", "Refunded"];
@@ -110,6 +113,9 @@ function dateKey(value: string | Date) {
 
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [clientId, setClientId] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState("");
   const [query, setQuery] = useState("");
@@ -134,6 +140,7 @@ export default function AdminBookingsPage() {
     if (period !== "all") params.set("period", period);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
+    if (clientId) params.set("userId", clientId);
     const res = await fetch(`/api/bookings?${params.toString()}`);
     if (res.ok) {
       setBookings(await res.json());
@@ -145,7 +152,14 @@ export default function AdminBookingsPage() {
 
   useEffect(() => {
     fetchBookings();
-  }, [status, paymentStatus, serviceCategory, period, dateFrom, dateTo]);
+  }, [status, paymentStatus, serviceCategory, period, dateFrom, dateTo, clientId]);
+
+  useEffect(() => {
+    fetch("/api/admin/users?role=CLIENT")
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setClients(Array.isArray(data) ? data : []))
+      .catch(() => setClients([]));
+  }, []);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -250,9 +264,10 @@ export default function AdminBookingsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Bookings</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage schedules, status, payments, cancellations, and customer communication.</p>
         </div>
-        <Button asChild>
-          <a href="/admin/bookings/new">New Booking</a>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild><a href="/admin/bookings/new?mode=existing"><UserCheck className="mr-2 h-4 w-4" />Book existing client</a></Button>
+          <Button variant="outline" asChild><a href="/admin/bookings/new?mode=new"><UserPlus className="mr-2 h-4 w-4" />Add new client & book</a></Button>
+        </div>
         <div className="grid grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
           <div className="rounded-lg border bg-white px-4 py-3">
             <p className="text-muted-foreground">Today</p>
@@ -270,11 +285,15 @@ export default function AdminBookingsPage() {
       </div>
 
       <div className="rounded-lg border bg-white p-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.3fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search booking, client, pet, email..." className="pl-9" />
           </div>
+          <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm" aria-label="Filter booking history by client">
+            <option value="">All clients</option>
+            {clients.map((client) => <option key={client.id} value={client.id}>{client.name || client.phone || client.email || "Client"}</option>)}
+          </select>
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
             {STATUSES.map((item) => <option key={item}>{item}</option>)}
           </select>
@@ -354,7 +373,7 @@ export default function AdminBookingsPage() {
         </div>
       )}
 
-      {viewMode === "list" && <div className="rounded-lg border bg-white">
+            {viewMode === "list" && <div className="rounded-lg border bg-white">
         {loading ? (
           <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : filtered.length === 0 ? (
@@ -362,142 +381,98 @@ export default function AdminBookingsPage() {
         ) : (
           <>
           <div className="space-y-3 p-3 lg:hidden">
-            {filtered.map((booking) => (
-              <div key={booking.id} className="rounded-lg border bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-bold text-foreground">{booking.booking_id}</p>
-                    <p className="mt-1 truncate text-sm font-semibold">{booking.client?.name || "Customer"}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{booking.service?.name || "Service"} - {booking.pet?.name || "Pet"}</p>
-                  </div>
-                  <span className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.status)}`}>{booking.status}</span>
-                </div>
-                <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
-                  <p className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(booking.slot_date)} at {booking.slot_time}</p>
-                  <p className="flex items-start gap-1"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" /> {booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.pincode || ""}` : "-"}</p>
-                  <p>{paymentSummary(booking)}</p>
-                  <p className="font-bold text-foreground">{money(bookingAmount(booking))} - {booking.payment_status}</p>
-                  {paymentHistory(booking)}
-                  {booking.documents?.length ? <p>{booking.documents.length} document(s) linked</p> : null}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { status: "Confirmed" })}>Confirm</Button>
-                  <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { payment_status: "Paid", payment_method: "Admin" })}>Paid</Button>
-                  {(booking.payment_status === "Advance Paid" || booking.payment_status === "Partially Paid") && (
-                    <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => collectCodPayment(booking.id)}>COD</Button>
-                  )}
-                  <Button size="sm" variant="outline" asChild>
-                    <a href={whatsappLink(booking, booking.payment_status === "Paid" ? "paid" : booking.payment_status === "Partially Paid" ? "cod" : "confirmation")} target="_blank" rel="noreferrer">
-                      <MessageCircle className="h-3.5 w-3.5" />
-                    </a>
-                  </Button>
-                  {detailsLink(booking) && (
-                    <Button size="sm" variant="outline" asChild>
-                      <a href={detailsLink(booking)} target="_blank" rel="noreferrer">Details/KYC</a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="hidden overflow-x-auto lg:block">
-            <table className="w-full min-w-[1120px] table-fixed text-left text-sm">
-              <thead className="border-b bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="w-[150px] px-4 py-3">Booking</th>
-                  <th className="w-[190px] px-4 py-3">Client</th>
-                  <th className="w-[210px] px-4 py-3">Pet & Service</th>
-                  <th className="w-[220px] px-4 py-3">Schedule</th>
-                  <th className="w-[150px] px-4 py-3">Status</th>
-                  <th className="w-[170px] px-4 py-3">Payment</th>
-                  <th className="w-[170px] px-4 py-3">Internal Notes</th>
-                  <th className="w-[220px] px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filtered.map((booking) => (
-                  <tr key={booking.id} className="align-top hover:bg-muted/30">
-                    <td className="px-4 py-4">
+            {filtered.map((booking) => {
+              const isExpanded = expandedBookingId === booking.id;
+              return (
+                <div key={booking.id} className="rounded-lg border bg-white shadow-sm overflow-hidden">
+                  <div
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/10 select-none"
+                    onClick={() => setExpandedBookingId(isExpanded ? null : booking.id)}
+                  >
+                    <div className="min-w-0">
                       <p className="font-bold text-foreground">{booking.booking_id}</p>
-                      <p className="mt-1 whitespace-pre-line break-words text-xs text-muted-foreground">{booking.notes || "No customer notes"}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="truncate font-semibold">{booking.client?.name || "Customer"}</p>
-                      <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3 shrink-0" /> <span className="truncate">{booking.client?.email || "-"}</span></p>
-                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Phone className="h-3 w-3 shrink-0" /> {booking.client?.phone || "-"}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="font-semibold">{booking.pet?.name || "Pet"} <span className="text-xs font-normal text-muted-foreground">{booking.pet?.breed || booking.pet?.type}</span></p>
-                      <p className="mt-1 break-words text-xs text-muted-foreground">{booking.service?.name} - {money(bookingAmount(booking))}</p>
-                      <span className={`mt-2 inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-bold ${serviceColor(booking.service?.category)}`}>{booking.service?.category || "Service"}</span>
-                      {booking.addons_json?.coupon?.code && <p className="mt-1 text-xs font-semibold text-green-700">{booking.addons_json.coupon.code} applied</p>}
+                      <p className="mt-1 truncate text-sm font-semibold">{booking.client?.name || "Customer"}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{booking.service?.category} - {booking.pet?.name || "Pet"}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.status)}`}>{booking.status}</span>
+                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="border-t bg-muted/5 p-4 space-y-3 text-xs text-muted-foreground">
+                      <div className="space-y-1 text-foreground">
+                        <p><span className="font-semibold text-muted-foreground">Email:</span> {booking.client?.email || "-"}</p>
+                        <p><span className="font-semibold text-muted-foreground">Phone:</span> {booking.client?.phone || "-"}</p>
+                        <p><span className="font-semibold text-muted-foreground">Pet details:</span> {booking.pet?.name} ({booking.pet?.breed || booking.pet?.type})</p>
+                        <p><span className="font-semibold text-muted-foreground">Service:</span> {booking.service?.name}</p>
+                        {booking.addons_json?.coupon?.code && <p className="text-green-700 font-semibold">{booking.addons_json.coupon.code} Applied</p>}
+                      </div>
+                      <hr />
+                      <p className="flex items-center gap-1 text-foreground"><Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(booking.slot_date)} at {booking.slot_time}</p>
+                      <p className="flex items-start gap-1"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" /> {booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.pincode || ""}` : "-"}</p>
+                      {booking.notes && <p className="bg-amber-50 text-amber-800 p-2 rounded border border-amber-200"><strong>Notes:</strong> {booking.notes}</p>}
+                      <hr />
+                      <p>{paymentSummary(booking)}</p>
+                      <p className="font-bold text-foreground">{money(bookingAmount(booking))} - {booking.payment_status}</p>
+                      {paymentHistory(booking)}
                       {booking.documents?.length ? (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {booking.documents.map((doc) => (
-                            <span key={doc.id} className="inline-flex items-center gap-1 rounded-lg border bg-muted/30 px-2 py-1 text-[11px] font-semibold">
-                              {doc.document_type || doc.original_name}
-                              <button type="button" onClick={() => setViewer({ label: doc.document_type || doc.original_name, path: doc.path })}><Eye className="h-3 w-3" /></button>
-                              <a href={doc.path} download><Download className="h-3 w-3" /></a>
-                              <button type="button" onClick={() => shareDocument(doc.path)}><Share2 className="h-3 w-3" /></button>
-                              <button type="button" onClick={() => printDocument(doc.path)}><Printer className="h-3 w-3" /></button>
-                            </span>
-                          ))}
+                        <div className="mt-2 space-y-1">
+                          <p className="font-semibold text-foreground">Linked Documents:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {booking.documents.map((doc) => (
+                              <span key={doc.id} className="inline-flex items-center gap-1 rounded-lg border bg-white px-2 py-1 text-[11px] font-semibold text-foreground">
+                                {doc.document_type || doc.original_name}
+                                <button type="button" onClick={() => setViewer({ label: doc.document_type || doc.original_name, path: doc.path })}><Eye className="h-3.5 w-3.5" /></button>
+                                <a href={doc.path} download><Download className="h-3.5 w-3.5" /></a>
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       ) : null}
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="flex items-center gap-1 font-semibold"><Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(booking.slot_date)}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{booking.slot_time}</p>
-                      <p className="mt-2 flex items-start gap-1 text-xs text-muted-foreground"><MapPin className="mt-0.5 h-3 w-3 shrink-0" /> <span className="break-words">{booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.pincode || ""}` : "-"}</span></p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.status)}`}>{booking.status}</span>
-                      <select
-                        value={booking.status}
-                        disabled={savingId === booking.id}
-                        onChange={(e) => updateBooking(booking.id, { status: e.target.value })}
-                        className="mt-2 block h-9 w-36 rounded-lg border bg-white px-2 text-xs"
-                      >
-                        {STATUSES.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.payment_status)}`}>{booking.payment_status}</span>
-                      <p className="mt-2 text-xs text-muted-foreground">{paymentSummary(booking)}</p>
-                      {paymentHistory(booking)}
-                      <select
-                        value={booking.payment_status}
-                        disabled={savingId === booking.id}
-                        onChange={(e) => updateBooking(booking.id, { payment_status: e.target.value, payment_method: "Admin" })}
-                        className="mt-2 block h-9 w-full rounded-lg border bg-white px-2 text-xs"
-                      >
-                        {PAYMENT_STATUSES.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-4">
-                      <textarea
-                        defaultValue={booking.internal_notes || ""}
-                        onBlur={(e) => updateBooking(booking.id, { internal_notes: e.target.value })}
-                        placeholder="Add private note"
-                        className="h-20 w-full resize-none rounded-lg border bg-white p-2 text-xs outline-none focus:border-primary"
-                      />
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { status: "Confirmed" })}>
-                          <UserCheck className="mr-1 h-3.5 w-3.5" /> Confirm
-                        </Button>
-                        <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { payment_status: "Paid", payment_method: "Admin" })}>
-                          <CreditCard className="mr-1 h-3.5 w-3.5" /> Paid
-                        </Button>
+                      <hr />
+                      <div className="space-y-2 pt-1">
+                        <div>
+                          <label className="font-semibold text-foreground text-[10px] block mb-1">Update Status</label>
+                          <select
+                            value={booking.status}
+                            disabled={savingId === booking.id}
+                            onChange={(e) => updateBooking(booking.id, { status: e.target.value })}
+                            className="block h-9 w-full rounded-lg border bg-white px-2 text-xs text-foreground"
+                          >
+                            {STATUSES.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="font-semibold text-foreground text-[10px] block mb-1">Update Payment</label>
+                          <select
+                            value={booking.payment_status}
+                            disabled={savingId === booking.id}
+                            onChange={(e) => updateBooking(booking.id, { payment_status: e.target.value, payment_method: "Admin" })}
+                            className="block h-9 w-full rounded-lg border bg-white px-2 text-xs text-foreground"
+                          >
+                            {PAYMENT_STATUSES.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="font-semibold text-foreground text-[10px] block mb-1">Internal Note</label>
+                          <textarea
+                            defaultValue={booking.internal_notes || ""}
+                            onBlur={(e) => updateBooking(booking.id, { internal_notes: e.target.value })}
+                            placeholder="Add private note"
+                            className="h-14 w-full resize-none rounded-lg border bg-white p-2 text-xs text-foreground outline-none focus:border-primary"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { status: "Confirmed" })}>Confirm</Button>
+                        <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { payment_status: "Paid", payment_method: "Admin" })}>Paid</Button>
                         {(booking.payment_status === "Advance Paid" || booking.payment_status === "Partially Paid") && (
-                          <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => collectCodPayment(booking.id)}>
-                            COD
-                          </Button>
+                          <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => collectCodPayment(booking.id)}>COD</Button>
                         )}
                         <Button size="sm" variant="outline" asChild>
                           <a href={whatsappLink(booking, booking.payment_status === "Paid" ? "paid" : booking.payment_status === "Partially Paid" ? "cod" : "confirmation")} target="_blank" rel="noreferrer">
-                            <MessageCircle className="h-3.5 w-3.5" />
+                            <MessageCircle className="h-3.5 w-3.5 mr-1" /> WhatsApp
                           </a>
                         </Button>
                         {detailsLink(booking) && (
@@ -506,18 +481,205 @@ export default function AdminBookingsPage() {
                           </Button>
                         )}
                         <Button size="sm" variant="destructive" disabled={savingId === booking.id} onClick={() => deleteBooking(booking.id)}>
-                          {savingId === booking.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                          Delete
                         </Button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="w-full min-w-[1000px] table-fixed text-left text-sm">
+              <thead className="border-b bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="w-[50px] px-4 py-3 text-center"></th>
+                  <th className="w-[170px] px-4 py-3">Booking ID</th>
+                  <th className="w-[120px] px-4 py-3">Category</th>
+                  <th className="w-[200px] px-4 py-3">Client & Pet</th>
+                  <th className="w-[220px] px-4 py-3">Schedule</th>
+                  <th className="w-[130px] px-4 py-3">Status</th>
+                  <th className="w-[130px] px-4 py-3">Payment</th>
+                  <th className="w-[120px] px-4 py-3">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filtered.map((booking) => {
+                  const isExpanded = expandedBookingId === booking.id;
+                  return (
+                    <>
+                      <tr
+                        key={booking.id}
+                        className={`align-middle hover:bg-muted/30 cursor-pointer transition-colors ${isExpanded ? "bg-muted/20" : ""}`}
+                        onClick={() => setExpandedBookingId(isExpanded ? null : booking.id)}
+                      >
+                        <td className="px-4 py-4 text-center">
+                          {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        </td>
+                        <td className="px-4 py-4 font-bold text-foreground">
+                          {booking.booking_id}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-bold ${serviceColor(booking.service?.category)}`}>
+                            {booking.service?.category || "Service"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <p className="font-semibold text-foreground">{booking.client?.name || "Customer"}</p>
+                          <p className="text-xs text-muted-foreground">Pet: {booking.pet?.name || "-"}</p>
+                        </td>
+                        <td className="px-4 py-4">
+                          <p className="flex items-center gap-1 text-xs font-semibold text-foreground"><Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(booking.slot_date)}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{booking.slot_time}</p>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.status)}`}>{booking.status}</span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.payment_status)}`}>{booking.payment_status}</span>
+                        </td>
+                        <td className="px-4 py-4 font-bold text-foreground">
+                          {money(bookingAmount(booking))}
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-muted/5">
+                          <td colSpan={8} className="px-6 py-4 border-t border-b">
+                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                              {/* Column 1: Client & Service Details */}
+                              <div className="space-y-3">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client & Service Info</h3>
+                                <div className="rounded-lg border bg-white p-3 space-y-2 text-xs">
+                                  <p><span className="font-semibold text-muted-foreground">Client:</span> {booking.client?.name || "Customer"}</p>
+                                  <p className="flex items-center gap-1"><Mail className="h-3 w-3 text-muted-foreground" /> {booking.client?.email || "-"}</p>
+                                  <p className="flex items-center gap-1"><Phone className="h-3 w-3 text-muted-foreground" /> {booking.client?.phone || "-"}</p>
+                                  <hr className="my-1" />
+                                  <p><span className="font-semibold text-muted-foreground">Pet:</span> {booking.pet?.name || "-"} ({booking.pet?.breed || booking.pet?.type || "-"})</p>
+                                  <p><span className="font-semibold text-muted-foreground">Service:</span> {booking.service?.name}</p>
+                                  {booking.addons_json?.coupon?.code && (
+                                    <p className="text-green-700 font-semibold">{booking.addons_json.coupon.code} Coupon Applied</p>
+                                  )}
+                                  {booking.notes && (
+                                    <p className="bg-amber-50 text-amber-800 p-2 rounded border border-amber-200 mt-2">
+                                      <span className="font-bold block">Customer Notes:</span> {booking.notes}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Column 2: Schedule & Address */}
+                              <div className="space-y-3">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Schedule & Address</h3>
+                                <div className="rounded-lg border bg-white p-3 space-y-2 text-xs">
+                                  <p><span className="font-semibold text-muted-foreground">Date:</span> {formatDate(booking.slot_date)}</p>
+                                  <p><span className="font-semibold text-muted-foreground">Time Slot:</span> {booking.slot_time}</p>
+                                  <p className="flex items-start gap-1">
+                                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                                    <span>{booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.pincode || ""}` : "No address specified"}</span>
+                                  </p>
+                                  {booking.documents?.length ? (
+                                    <div className="mt-2">
+                                      <span className="font-semibold text-muted-foreground block mb-1">Documents:</span>
+                                      <div className="flex flex-wrap gap-1">
+                                        {booking.documents.map((doc) => (
+                                          <span key={doc.id} className="inline-flex items-center gap-1 rounded-lg border bg-muted/30 px-2 py-1 text-[11px] font-semibold text-foreground">
+                                            {doc.document_type || doc.original_name}
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); setViewer({ label: doc.document_type || doc.original_name, path: doc.path }); }}><Eye className="h-3 w-3" /></button>
+                                            <a href={doc.path} download onClick={(e) => e.stopPropagation()}><Download className="h-3 w-3" /></a>
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); shareDocument(doc.path); }}><Share2 className="h-3 w-3" /></button>
+                                            <button type="button" onClick={(e) => { e.stopPropagation(); printDocument(doc.path); }}><Printer className="h-3 w-3" /></button>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              {/* Column 3: Edit Status & Notes */}
+                              <div className="space-y-3">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Management & Actions</h3>
+                                <div className="rounded-lg border bg-white p-3 space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                                  <div>
+                                    <label className="font-semibold text-muted-foreground text-[10px] block">Booking Status</label>
+                                    <select
+                                      value={booking.status}
+                                      disabled={savingId === booking.id}
+                                      onChange={(e) => updateBooking(booking.id, { status: e.target.value })}
+                                      className="mt-1 block h-9 w-full rounded-lg border bg-white px-2 text-xs"
+                                    >
+                                      {STATUSES.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="font-semibold text-muted-foreground text-[10px] block">Payment Status</label>
+                                    <p className="mt-1 text-[10px] text-muted-foreground">{paymentSummary(booking)}</p>
+                                    {paymentHistory(booking)}
+                                    <select
+                                      value={booking.payment_status}
+                                      disabled={savingId === booking.id}
+                                      onChange={(e) => updateBooking(booking.id, { payment_status: e.target.value, payment_method: "Admin" })}
+                                      className="mt-1 block h-9 w-full rounded-lg border bg-white px-2 text-xs"
+                                    >
+                                      {PAYMENT_STATUSES.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="font-semibold text-muted-foreground text-[10px] block">Private Internal Notes</label>
+                                    <textarea
+                                      defaultValue={booking.internal_notes || ""}
+                                      onBlur={(e) => updateBooking(booking.id, { internal_notes: e.target.value })}
+                                      placeholder="Add private note"
+                                      className="mt-1 h-14 w-full resize-none rounded-lg border bg-white p-2 text-xs outline-none focus:border-primary"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Full-width Actions Row */}
+                            <div className="mt-4 flex flex-wrap items-center justify-between border-t pt-3 gap-2" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex flex-wrap gap-2">
+                                <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { status: "Confirmed" })}>
+                                  <UserCheck className="mr-1 h-3.5 w-3.5" /> Confirm
+                                </Button>
+                                <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { payment_status: "Paid", payment_method: "Admin" })}>
+                                  <CreditCard className="mr-1 h-3.5 w-3.5" /> Paid
+                                </Button>
+                                {(booking.payment_status === "Advance Paid" || booking.payment_status === "Partially Paid") && (
+                                  <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => collectCodPayment(booking.id)}>
+                                    Collect COD
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="outline" asChild>
+                                  <a href={whatsappLink(booking, booking.payment_status === "Paid" ? "paid" : booking.payment_status === "Partially Paid" ? "cod" : "confirmation")} target="_blank" rel="noreferrer">
+                                    <MessageCircle className="mr-1 h-3.5 w-3.5 text-green-600" /> WhatsApp
+                                  </a>
+                                </Button>
+                                {detailsLink(booking) && (
+                                  <Button size="sm" variant="outline" asChild>
+                                    <a href={detailsLink(booking)} target="_blank" rel="noreferrer">Details/KYC</a>
+                                  </Button>
+                                )}
+                              </div>
+                              <Button size="sm" variant="destructive" disabled={savingId === booking.id} onClick={() => deleteBooking(booking.id)}>
+                                {savingId === booking.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
           </div>
           </>
         )}
       </div>}
+
       {viewer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setViewer(null)}>
           <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg bg-white" onClick={(e) => e.stopPropagation()}>

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, CheckCircle2, Download, Eye, FileText, KeyRound, Loader2, Printer, Search, Share2, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { Calendar, CheckCircle2, Download, Eye, FileText, KeyRound, Loader2, Printer, Search, Share2, ShieldCheck, Trash2, UserPlus, ChevronDown, ChevronUp } from "lucide-react";
 
 type AdminUser = {
   id: string;
@@ -167,6 +167,7 @@ export default function AdminClientsPage() {
   const [timelinePetFilter, setTimelinePetFilter] = useState("All pets");
   const [viewer, setViewer] = useState<{ label: string; path: string } | null>(null);
   const [passwords, setPasswords] = useState<Record<string, string>>({});
+  const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", role: "CLIENT" });
 
   async function fetchUsers() {
@@ -388,128 +389,260 @@ export default function AdminClientsPage() {
         ) : (
           <>
           <div className="grid gap-3 p-3 lg:hidden">
-            {filtered.map((user) => (
-              <div key={user.id} className="rounded-lg border bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-bold">{user.name || "Unnamed user"}</p>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">{publicEmail(user.email)}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{user.phone || "-"}</p>
-                    <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{user.pets.map((pet) => [pet.name, pet.breed].filter(Boolean).join(" / ")).join(", ") || "No pets"}</p>
+            {filtered.map((user) => {
+              const isExpanded = expandedClientId === user.id;
+              return (
+                <div key={user.id} className="rounded-lg border bg-white shadow-sm overflow-hidden">
+                  <div
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/10 select-none"
+                    onClick={() => setExpandedClientId(isExpanded ? null : user.id)}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold text-foreground">{user.name || "Unnamed user"}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{user.phone || "-"}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-lg px-2 py-0.5 text-xs font-bold ${user.is_active ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                        {user.is_active ? "Active" : "Inactive"}
+                      </span>
+                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </div>
                   </div>
-                  <span className={`shrink-0 rounded-lg px-2 py-1 text-xs font-bold ${user.is_active ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-                    {user.oldHistory ? "Imported" : user.is_active ? "Active" : "Inactive"}
-                  </span>
+                  {isExpanded && (
+                    <div className="border-t bg-muted/5 p-4 space-y-4 text-xs text-muted-foreground">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Full Name</label>
+                          <Input defaultValue={user.name || ""} onBlur={(e) => updateUser(user.id, { name: e.target.value })} className="h-9" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Email Address</label>
+                          <Input defaultValue={publicEmail(user.email) === "-" ? "" : publicEmail(user.email)} onBlur={(e) => updateUser(user.id, { email: e.target.value })} className="h-9" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Phone Number</label>
+                          <Input defaultValue={user.phone || ""} onBlur={(e) => updateUser(user.id, { phone: e.target.value })} className="h-9" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Account Role</label>
+                          <select value={user.role} onChange={(e) => updateUser(user.id, { role: e.target.value })} className="h-9 w-full rounded-lg border bg-white px-2.5 text-xs">
+                            {roles.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Wallet Balance (₹)</label>
+                            <Input type="number" defaultValue={user.wallet_balance} onBlur={(e) => updateUser(user.id, { wallet_balance: e.target.value })} className="h-9" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Outstanding (₹)</label>
+                            <Input type="number" defaultValue={user.outstanding_balance} onBlur={(e) => updateUser(user.id, { outstanding_balance: e.target.value })} className="h-9" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Reset Password</label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="password"
+                              value={passwords[user.id] || ""}
+                              onChange={(e) => setPasswords((prev) => ({ ...prev, [user.id]: e.target.value }))}
+                              placeholder="New password"
+                              className="h-9"
+                            />
+                            <Button size="sm" variant="outline" disabled={savingId === user.id || !passwords[user.id]} onClick={(e) => { e.stopPropagation(); resetPassword(user.id); }}>
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      <hr />
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={(e) => { e.stopPropagation(); updateUser(user.id, { is_active: !user.is_active }); }} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${user.is_active ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                          {user.is_active ? "Active" : "Inactive"}
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); updateUser(user.id, { emailVerified: !user.emailVerified }); }} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${user.emailVerified ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-slate-100 text-slate-700 border"}`}>
+                          {user.emailVerified ? "Email verified" : "Mark verified"}
+                        </button>
+                      </div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <p><span className="font-semibold text-foreground">Joined:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString("en-IN") : "-"}</p>
+                        <p><span className="font-semibold text-foreground">Address:</span> {user.addresses[0] ? `${user.addresses[0].line1}, ${user.addresses[0].city}` : user.oldHistory?.address || "-"}</p>
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <Button size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); openProfile(user); }}>
+                          <Eye className="h-4 w-4 mr-1.5" /> Full Profile
+                        </Button>
+                        <Button size="sm" variant="destructive" disabled={savingId === user.id} onClick={(e) => { e.stopPropagation(); deleteUser(user.id); }}>
+                          {savingId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-lg bg-muted/45 p-2">
-                    <p className="text-muted-foreground">Role</p>
-                    <p className="mt-1 font-bold">{user.role}</p>
-                  </div>
-                  <div className="rounded-lg bg-muted/45 p-2">
-                    <p className="text-muted-foreground">Pets / Bookings</p>
-                    <p className="mt-1 font-bold">{user.pets.length} / {user.clientBookings.length}</p>
-                  </div>
-                  <div className="rounded-lg bg-muted/45 p-2">
-                    <p className="text-muted-foreground">Wallet</p>
-                    <p className="mt-1 font-bold">{money(user.wallet_balance)}</p>
-                  </div>
-                  <div className="rounded-lg bg-muted/45 p-2">
-                    <p className="text-muted-foreground">Outstanding</p>
-                    <p className="mt-1 font-bold">{money(user.outstanding_balance)}</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => openProfile(user)}><Eye className="h-3.5 w-3.5" /></Button>
-                  <Button size="sm" variant="outline" onClick={() => updateUser(user.id, { is_active: !user.is_active })}>{user.is_active ? "Disable" : "Activate"}</Button>
-                  <Button size="sm" variant="outline" onClick={() => updateUser(user.id, { emailVerified: !user.emailVerified })}>{user.emailVerified ? "Verified" : "Verify"}</Button>
-                  <Button size="sm" variant="destructive" disabled={savingId === user.id} onClick={() => deleteUser(user.id)}>
-                    {savingId === user.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="hidden overflow-x-auto lg:block">
-            <table className="w-full min-w-250 text-left text-sm">
-              <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
+            <table className="w-full min-w-[1000px] table-fixed text-left text-sm">
+              <thead className="border-b bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Wallet</th>
-                  <th className="px-4 py-3">Pets / History</th>
-                  <th className="px-4 py-3">Password</th>
-                  <th className="px-4 py-3">Actions</th>
+                  <th className="w-[50px] px-4 py-3 text-center"></th>
+                  <th className="w-[180px] px-4 py-3">Client Name</th>
+                  <th className="w-[200px] px-4 py-3">Email</th>
+                  <th className="w-[150px] px-4 py-3">Phone</th>
+                  <th className="w-[100px] px-4 py-3">Role</th>
+                  <th className="w-[120px] px-4 py-3">Status</th>
+                  <th className="w-[120px] px-4 py-3">Wallet</th>
+                  <th className="w-[100px] px-4 py-3">Profile</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filtered.map((user) => (
-                  <tr key={user.id} className="align-top">
-                    <td className="px-4 py-4">
-                      <Input defaultValue={user.name || ""} onBlur={(e) => updateUser(user.id, { name: e.target.value })} className="mb-2 h-9" />
-                      <Input defaultValue={publicEmail(user.email) === "-" ? "" : publicEmail(user.email)} onBlur={(e) => updateUser(user.id, { email: e.target.value })} className="mb-2 h-9" />
-                      <Input defaultValue={user.phone || ""} onBlur={(e) => updateUser(user.id, { phone: e.target.value })} className="mt-2 h-9" />
-                      <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{user.addresses[0] ? `${user.addresses[0].line1}, ${user.addresses[0].city} ${user.addresses[0].pincode}` : user.oldHistory?.address || "No address"}</p>
-                      <p className="mt-2 text-xs text-muted-foreground">Joined {user.created_at ? new Date(user.created_at).toLocaleDateString("en-IN") : "-"}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <select value={user.role} onChange={(e) => updateUser(user.id, { role: e.target.value })} className="h-9 rounded-lg border bg-white px-2 text-xs">
-                        {roles.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
-                      </select>
-                      {user.role === "STAFF" && (
-                        <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                          <ShieldCheck className="h-3.5 w-3.5" />
-                          Staff profile {user.staffProfile ? "linked" : "pending"}
-                        </p>
+                {filtered.map((user) => {
+                  const isExpanded = expandedClientId === user.id;
+                  return (
+                    <React.Fragment key={user.id}>
+                      <tr
+                        className={`align-middle hover:bg-muted/30 cursor-pointer transition-colors ${isExpanded ? "bg-muted/20" : ""}`}
+                        onClick={() => setExpandedClientId(isExpanded ? null : user.id)}
+                      >
+                        <td className="px-4 py-4 text-center">
+                          {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        </td>
+                        <td className="px-4 py-4 font-bold text-foreground">
+                          {user.name || "Unnamed user"}
+                        </td>
+                        <td className="px-4 py-4 truncate text-muted-foreground">
+                          {publicEmail(user.email)}
+                        </td>
+                        <td className="px-4 py-4 text-muted-foreground">
+                          {user.phone || "-"}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-xs font-semibold">{user.role}</span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-bold ${user.is_active ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                            {user.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 font-bold text-foreground">
+                          {money(user.wallet_balance)}
+                        </td>
+                        <td className="px-4 py-4">
+                          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openProfile(user); }}>
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-muted/5">
+                          <td colSpan={8} className="px-6 py-4 border-t border-b">
+                            <div className="grid gap-6 md:grid-cols-3">
+                              {/* Column 1: Core Client Information */}
+                              <div className="space-y-3">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Core Info</h3>
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Full Name</label>
+                                    <Input defaultValue={user.name || ""} onBlur={(e) => updateUser(user.id, { name: e.target.value })} className="h-9" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Email Address</label>
+                                    <Input defaultValue={publicEmail(user.email) === "-" ? "" : publicEmail(user.email)} onBlur={(e) => updateUser(user.id, { email: e.target.value })} className="h-9" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Phone Number</label>
+                                    <Input defaultValue={user.phone || ""} onBlur={(e) => updateUser(user.id, { phone: e.target.value })} className="h-9" />
+                                  </div>
+                                  <div className="text-xs text-muted-foreground pt-1">
+                                    <p><span className="font-semibold">Joined:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString("en-IN") : "-"}</p>
+                                    <p className="mt-1"><span className="font-semibold">Address:</span> {user.addresses[0] ? `${user.addresses[0].line1}, ${user.addresses[0].city} ${user.addresses[0].pincode}` : user.oldHistory?.address || "No address"}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Column 2: Role, Balances & Status */}
+                              <div className="space-y-3">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Account & Balances</h3>
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Account Role</label>
+                                    <select value={user.role} onChange={(e) => updateUser(user.id, { role: e.target.value })} className="h-9 w-full rounded-lg border bg-white px-2.5 text-xs">
+                                      {roles.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
+                                    </select>
+                                    {user.role === "STAFF" && (
+                                      <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                                        <ShieldCheck className="h-3.5 w-3.5" />
+                                        Staff profile {user.staffProfile ? "linked" : "pending"}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Wallet Balance (₹)</label>
+                                      <Input type="number" defaultValue={user.wallet_balance} onBlur={(e) => updateUser(user.id, { wallet_balance: e.target.value })} className="h-9" />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Outstanding (₹)</label>
+                                      <Input type="number" defaultValue={user.outstanding_balance} onBlur={(e) => updateUser(user.id, { outstanding_balance: e.target.value })} className="h-9" />
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2 pt-1">
+                                    <button onClick={(e) => { e.stopPropagation(); updateUser(user.id, { is_active: !user.is_active }); }} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${user.is_active ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                                      {user.is_active ? "Active" : "Inactive"}
+                                    </button>
+                                    <button onClick={(e) => { e.stopPropagation(); updateUser(user.id, { emailVerified: !user.emailVerified }); }} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${user.emailVerified ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-slate-100 text-slate-700 border"}`}>
+                                      {user.emailVerified ? "Email verified" : "Mark verified"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Column 3: Security & Actions */}
+                              <div className="space-y-3">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Security & Management</h3>
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Reset Password</label>
+                                    <div className="flex gap-2">
+                                      <Input
+                                        type="password"
+                                        value={passwords[user.id] || ""}
+                                        onChange={(e) => setPasswords((prev) => ({ ...prev, [user.id]: e.target.value }))}
+                                        placeholder="New password"
+                                        className="h-9"
+                                      />
+                                      <Button size="sm" variant="outline" disabled={savingId === user.id || !passwords[user.id]} onClick={(e) => { e.stopPropagation(); resetPassword(user.id); }}>
+                                        <KeyRound className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="rounded-lg border bg-amber-50/45 p-3 space-y-1 text-xs">
+                                    <p className="font-semibold text-foreground">Pets ({user.pets.length}) & Bookings ({user.clientBookings.length})</p>
+                                    <p className="text-[11px] text-muted-foreground">Paid: {user.clientBookings.filter((booking) => booking.payment_status === "Paid").length} bookings</p>
+                                    {user.oldHistory && (
+                                      <p className="mt-1.5 text-[11px] font-semibold text-amber-800 bg-amber-100/50 p-1.5 rounded">
+                                        Imported History Match: {user.oldHistory.pet_names_json?.join(", ") || "Yes"}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2 pt-2">
+                                    <Button size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); openProfile(user); }}>
+                                      <Eye className="h-4 w-4 mr-1.5" /> Full Profile
+                                    </Button>
+                                    <Button size="sm" variant="destructive" disabled={savingId === user.id} onClick={(e) => { e.stopPropagation(); deleteUser(user.id); }}>
+                                      {savingId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="px-4 py-4">
-                      <button onClick={() => updateUser(user.id, { is_active: !user.is_active })} className={`rounded-lg px-3 py-1 text-xs font-bold ${user.is_active ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-                        {user.is_active ? "Active" : "Inactive"}
-                      </button>
-                      <button onClick={() => updateUser(user.id, { emailVerified: !user.emailVerified })} className={`mt-2 block rounded-lg px-3 py-1 text-xs font-bold ${user.emailVerified ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-700"}`}>
-                        {user.emailVerified ? "Email verified" : "Mark verified"}
-                      </button>
-                    </td>
-                    <td className="px-4 py-4">
-                      <Input type="number" defaultValue={user.wallet_balance} onBlur={(e) => updateUser(user.id, { wallet_balance: e.target.value })} className="mb-2 h-9" />
-                      <Input type="number" defaultValue={user.outstanding_balance} onBlur={(e) => updateUser(user.id, { outstanding_balance: e.target.value })} className="h-9" />
-                    </td>
-                    <td className="px-4 py-4">
-                      <p>{user.pets.length} pets</p>
-                      <p className="text-xs text-muted-foreground">{user.clientBookings.length} bookings</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{user.clientBookings.filter((booking) => booking.payment_status === "Paid").length} paid</p>
-                      {user.oldHistory && (
-                        <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
-                          Imported: {user.oldHistory.pet_names_json?.join(", ") || "history available"}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex min-w-56 gap-2">
-                        <Input
-                          type="password"
-                          value={passwords[user.id] || ""}
-                          onChange={(e) => setPasswords((prev) => ({ ...prev, [user.id]: e.target.value }))}
-                          placeholder="New password"
-                          className="h-9"
-                        />
-                        <Button size="sm" variant="outline" disabled={savingId === user.id || !passwords[user.id]} onClick={() => resetPassword(user.id)}>
-                          <KeyRound className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <Button size="sm" variant="outline" className="mr-2" onClick={() => openProfile(user)}>
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="sm" variant="destructive" disabled={savingId === user.id} onClick={() => deleteUser(user.id)}>
-                        {savingId === user.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

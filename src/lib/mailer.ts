@@ -378,6 +378,43 @@ export function welcomeEmailHtml(data: { userName: string; email: string }) {
   return baseLayout(body, `Welcome to Pupparazzi, ${data.userName}! Your pet's happiness is our mission.`);
 }
 
+export function clientProfileRequestEmailHtml(data: { userName: string }) {
+  const fields = [
+    "Pet name, breed, gender, age/date of birth, weight, coat type, and breed size",
+    "Vaccination status with anti-rabies / DHPPiL / corona / kennel cough details if available",
+    "Dietary preference, allergies, behaviour notes, medication, and illness history",
+    "Local guardian name/contact and walk or feeding schedule where applicable",
+    "KYC and vaccination certificate uploads when a boarding or grooming booking is created",
+  ];
+  const body = `
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:40px 48px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:30px;font-weight:800;color:#FFFFFF;line-height:1.2;">Help us complete your pet profile</h1>
+      <p style="margin:0;font-size:16px;color:#94A3B8;">We only ask for details that help us care safely for your pet.</p>
+    </div>
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 22px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Your Pupparazzi client profile has been created by our team. Please keep these details ready. When a service booking is created, the form will automatically show the required fields based on the selected service.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        ${fields.map((field) => `
+          <tr>
+            <td style="padding:10px 0;border-bottom:1px solid #F1F5F9;font-size:13px;color:#0F172A;font-weight:600;line-height:1.5;">${field}</td>
+          </tr>
+        `).join("")}
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        <tr>
+          <td style="background:#FDF2F8;border-left:4px solid #EC4899;border-radius:0 12px 12px 0;padding:16px 20px;">
+            <p style="margin:0;font-size:13px;color:#BE185D;line-height:1.6;">For grooming bookings we ask grooming timing/staff/service details. For boarding bookings we ask check-in/out, meal, kennel, weight, guardian, and document details.</p>
+          </td>
+        </tr>
+      </table>
+      ${primaryButton("Open Pupparazzi", `${BUSINESS.website}/dashboard`)}
+      <p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">If you do not have login details yet, simply reply to this email with the information and our team will update it for you.</p>
+    </div>`;
+
+  return baseLayout(body, "Please complete your Pupparazzi client and pet details");
+}
+
 export function emailVerificationOtpHtml(data: { userName: string; otp: string }) {
   const body = `
     <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:40px 48px;text-align:center;">
@@ -605,6 +642,14 @@ export async function sendWelcomeEmail(to: string, data: Parameters<typeof welco
     to,
     subject: `Welcome to ${BUSINESS.shortName}, ${data.userName}! `,
     html: welcomeEmailHtml(data),
+  });
+}
+
+export async function sendClientProfileRequestEmail(to: string, data: Parameters<typeof clientProfileRequestEmailHtml>[0]) {
+  return sendMail({
+    to,
+    subject: `Pet profile details needed | ${BUSINESS.shortName}`,
+    html: clientProfileRequestEmailHtml(data),
   });
 }
 

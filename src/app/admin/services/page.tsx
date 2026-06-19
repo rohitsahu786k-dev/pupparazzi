@@ -9,6 +9,11 @@ type Service = {
   id: string;
   name: string;
   category: string;
+  service_group?: string | null;
+  breed_size?: string | null;
+  coat_type?: string | null;
+  session_count?: number | null;
+  display_order: number;
   description_short?: string | null;
   price: number;
   discounted_price?: number | null;
@@ -25,6 +30,11 @@ const emptyForm = {
   id: "",
   name: "",
   category: "Grooming",
+  service_group: "Complete Grooming",
+  breed_size: "",
+  coat_type: "",
+  session_count: "",
+  display_order: "0",
   description_short: "",
   price: "",
   discounted_price: "",
@@ -45,13 +55,14 @@ export default function AdminServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [query, setQuery] = useState("");
+  const [groupFilter, setGroupFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function fetchServices() {
     setLoading(true);
-    const res = await fetch("/api/services?includeInactive=true");
+    const res = await fetch("/api/services");
     if (res.ok) {
       setServices(await res.json());
       setError("");
@@ -67,9 +78,35 @@ export default function AdminServicesPage() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return services;
-    return services.filter((service) => [service.name, service.category, service.description_short].filter(Boolean).some((value) => String(value).toLowerCase().includes(needle)));
-  }, [query, services]);
+    return services.filter((service) => {
+      if (groupFilter !== "All" && (service.service_group || service.category) !== groupFilter) return false;
+      if (!needle) return true;
+      return [service.name, service.category, service.service_group, service.breed_size, service.coat_type, service.description_short].filter(Boolean).some((value) => String(value).toLowerCase().includes(needle));
+    });
+  }, [groupFilter, query, services]);
+  const serviceGroups = useMemo(() => Array.from(new Set(services.map((service) => service.service_group || service.category))), [services]);
+  const categoryOptions = useMemo(() => Array.from(new Set(["Grooming", "Boarding", ...services.map((service) => service.category)])), [services]);
+  const serviceGroupOptions = useMemo(() => Array.from(new Set([
+    "Complete Grooming",
+    "Individual Grooming",
+    "Standard Boarding",
+    "Boarding Packages",
+    ...services.map((service) => service.service_group || service.category),
+  ])), [services]);
+  const groupedFiltered = useMemo(() => {
+    const grouped = new Map<string, Map<string, Service[]>>();
+    for (const service of filtered) {
+      const category = service.category || "Other";
+      const group = service.service_group || category;
+      if (!grouped.has(category)) grouped.set(category, new Map());
+      const categoryGroups = grouped.get(category)!;
+      categoryGroups.set(group, [...(categoryGroups.get(group) || []), service]);
+    }
+    return Array.from(grouped.entries()).map(([category, groups]) => ({
+      category,
+      groups: Array.from(groups.entries()).map(([group, items]) => ({ group, items })),
+    }));
+  }, [filtered]);
 
   async function saveService() {
     setSaving(true);
@@ -79,6 +116,8 @@ export default function AdminServicesPage() {
       price: Number(form.price || 0),
       discounted_price: form.discounted_price,
       slot_duration_mins: Number(form.slot_duration_mins || 60),
+      session_count: form.session_count,
+      display_order: Number(form.display_order || 0),
       max_slots_per_day: form.max_slots_per_day,
       free_services_json: form.free_services_json,
       images_json: form.images_json,
@@ -115,6 +154,11 @@ export default function AdminServicesPage() {
       id: service.id,
       name: service.name,
       category: service.category,
+      service_group: service.service_group || "",
+      breed_size: service.breed_size || "",
+      coat_type: service.coat_type || "",
+      session_count: service.session_count ? String(service.session_count) : "",
+      display_order: String(service.display_order || 0),
       description_short: service.description_short || "",
       price: String(service.price || ""),
       discounted_price: service.discounted_price ? String(service.discounted_price) : "",
@@ -153,10 +197,21 @@ export default function AdminServicesPage() {
             <Input placeholder="Service name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <div className="grid grid-cols-2 gap-2">
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm">
-                {["Grooming", "Boarding"].map((category) => <option key={category}>{category}</option>)}
+                {categoryOptions.map((category) => <option key={category}>{category}</option>)}
               </select>
               <Input placeholder="Duration mins" inputMode="numeric" value={form.slot_duration_mins} onChange={(e) => setForm({ ...form, slot_duration_mins: e.target.value.replace(/\D/g, "") })} />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select value={form.service_group} onChange={(e) => setForm({ ...form, service_group: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm">
+                {serviceGroupOptions.map((group) => <option key={group}>{group}</option>)}
+              </select>
+              <Input placeholder="Display order" inputMode="numeric" value={form.display_order} onChange={(e) => setForm({ ...form, display_order: e.target.value.replace(/\D/g, "") })} />
+            </div>
+            {form.service_group === "Complete Grooming" && <div className="grid grid-cols-3 gap-2">
+              <select value={form.breed_size} onChange={(e) => setForm({ ...form, breed_size: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm"><option value="">Breed size</option>{["Small Breed", "Large Breed", "Extra Large Breed"].map((item) => <option key={item}>{item}</option>)}</select>
+              <select value={form.coat_type} onChange={(e) => setForm({ ...form, coat_type: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm"><option value="">Coat type</option><option>Long Coat</option><option>Short Coat</option></select>
+              <select value={form.session_count} onChange={(e) => setForm({ ...form, session_count: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm"><option value="">Sessions</option>{[1, 6, 12, 24].map((item) => <option key={item} value={item}>{item === 1 ? "Single" : `${item} Sessions`}</option>)}</select>
+            </div>}
             <Input placeholder="Short description" value={form.description_short} onChange={(e) => setForm({ ...form, description_short: e.target.value })} />
             <textarea
               placeholder="Included items, one per line"
@@ -211,6 +266,9 @@ export default function AdminServicesPage() {
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search service, package, category..." className="pl-9" />
             </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {["All", ...serviceGroups].map((group) => <button key={group} type="button" onClick={() => setGroupFilter(group)} className={`rounded-lg border px-3 py-1.5 text-xs font-bold ${groupFilter === group ? "border-primary bg-primary text-white" : "bg-white text-muted-foreground"}`}>{group} ({group === "All" ? services.length : services.filter((service) => (service.service_group || service.category) === group).length})</button>)}
+            </div>
           </div>
           {loading ? (
             <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
@@ -222,6 +280,7 @@ export default function AdminServicesPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-bold">{service.name}</p>
+                      <p className="mt-1 text-xs font-semibold text-primary">{service.service_group || service.category}{service.breed_size ? ` · ${service.breed_size}` : ""}{service.coat_type ? ` · ${service.coat_type}` : ""}{service.session_count ? ` · ${service.session_count === 1 ? "Single session" : `${service.session_count} sessions`}` : ""}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{service.description_short || "-"}</p>
                     </div>
                     <span className={`shrink-0 rounded-lg border px-2 py-1 text-xs font-bold ${service.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
@@ -265,10 +324,18 @@ export default function AdminServicesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {filtered.map((service) => (
+                  {groupedFiltered.flatMap((category) => category.groups.flatMap((group) => [
+                    <tr key={`${category.category}-${group.group}`} className="bg-muted/35">
+                      <td colSpan={5} className="px-4 py-3">
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-primary">{category.category}</p>
+                        <p className="mt-1 text-sm font-bold text-foreground">{group.group} <span className="text-xs font-medium text-muted-foreground">({group.items.length} services)</span></p>
+                      </td>
+                    </tr>,
+                    ...group.items.map((service) => (
                     <tr key={service.id} className="align-top hover:bg-muted/30">
                       <td className="px-4 py-3">
                         <p className="font-bold">{service.name}</p>
+                        <p className="mt-1 text-xs font-semibold text-primary">{service.service_group || service.category}{service.breed_size ? ` · ${service.breed_size}` : ""}{service.coat_type ? ` · ${service.coat_type}` : ""}{service.session_count ? ` · ${service.session_count === 1 ? "Single session" : `${service.session_count} sessions`}` : ""}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{service.description_short || "-"}</p>
                         {service.addons?.length ? <p className="mt-1 text-xs text-primary">{service.addons.length} add-ons</p> : null}
                       </td>
@@ -287,7 +354,8 @@ export default function AdminServicesPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    )),
+                  ]))}
                 </tbody>
               </table>
             </div>

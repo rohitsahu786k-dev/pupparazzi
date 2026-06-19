@@ -163,6 +163,11 @@ model Service {
   id                  String   @id @default(auto()) @map("_id") @db.ObjectId
   name                String
   category            String   // Grooming, Boarding
+  service_group       String?
+  breed_size          String?
+  coat_type           String?
+  session_count       Int?
+  display_order       Int      @default(0)
   description_short   String?
   description_long    String?
   price               Float

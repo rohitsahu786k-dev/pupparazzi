@@ -67,6 +67,10 @@ function nullableDate(value: unknown) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function isRealEmail(value?: string | null): value is string {
+  return Boolean(value && value.includes("@") && !value.endsWith("@old-import.local") && !value.endsWith("@client.local"));
+}
+
 function bookingDetailData(body: any) {
   return {
     ...(body.boarding_type !== undefined ? { boarding_type: nullableString(body.boarding_type) } : {}),
@@ -315,7 +319,7 @@ export async function POST(req: Request) {
 
     // Send booking confirmation email (non-blocking)
     const clientEmail = booking.client?.email;
-    if (clientEmail) {
+    if (isRealEmail(clientEmail)) {
       const detailFormLink = bookingDetailFormUrl(booking.id, booking.service);
       sendBookingConfirmation(clientEmail, {
         userName: booking.client?.name || "Valued Customer",

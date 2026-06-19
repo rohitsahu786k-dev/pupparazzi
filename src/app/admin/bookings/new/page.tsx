@@ -5,17 +5,55 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, CalendarPlus, Loader2 } from "lucide-react";
+import { ArrowLeft, CalendarPlus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 type User = { id: string; name?: string | null; email?: string | null; phone?: string | null; pets: { id: string; name: string; type: string }[] };
-type Service = { id: string; name: string; category: string; price: number; discounted_price?: number | null; slot_duration_mins: number };
+type Service = { id: string; name: string; category: string; service_group?: string | null; breed_size?: string | null; coat_type?: string | null; session_count?: number | null; price: number; discounted_price?: number | null; slot_duration_mins: number; max_slots_per_day?: number | null };
 
 function dateKey(date = new Date()) {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function tomorrowKey() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return dateKey(date);
 }
 
 function money(value: number) {
   return `₹${Number(value || 0).toLocaleString("en-IN")}`;
+}
+
+const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function monthLabel(date: Date) {
+  return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+}
+
+function formatServiceLabel(service: Service) {
+  return [
+    service.name,
+    service.breed_size,
+    service.coat_type,
+    service.session_count ? (service.session_count === 1 ? "Single" : `${service.session_count} sessions`) : "",
+  ].filter(Boolean).join(" · ");
 }
 
 function priceOf(service?: Service | null) {
@@ -64,14 +102,16 @@ export default function NewAdminBookingPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [bookingMode, setBookingMode] = useState<"existing" | "new">("existing");
   const [clientId, setClientId] = useState("");
   const [clientSearch, setClientSearch] = useState("");
   const [petId, setPetId] = useState("");
   const [serviceId, setServiceId] = useState("");
-  const [slotDate, setSlotDate] = useState(dateKey());
+  const [slotDate, setSlotDate] = useState(tomorrowKey());
   const [slotTime, setSlotTime] = useState("10:00");
+  const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [boardingSchedule, setBoardingSchedule] = useState<BoardingSchedule>({
-    check_in_date: dateKey(),
+    check_in_date: tomorrowKey(),
     check_out_date: "",
     check_in_time: "10:00",
     check_out_time: "",
@@ -118,6 +158,25 @@ export default function NewAdminBookingPage() {
   const pets = useMemo(() => selectedUser?.pets || [], [selectedUser]);
   const isBoarding = selectedService?.category === "Boarding";
   const hours = useMemo(() => boardingHours(boardingSchedule), [boardingSchedule]);
+  const monthDays = useMemo(() => {
+    const first = startOfMonth(visibleMonth);
+    const start = addDays(first, -first.getDay());
+    return Array.from({ length: 42 }, (_, index) => addDays(start, index));
+  }, [visibleMonth]);
+  const groupedServices = useMemo(() => {
+    const grouped = new Map<string, Map<string, Service[]>>();
+    for (const service of services) {
+      const category = service.category || "Other";
+      const group = service.service_group || category;
+      if (!grouped.has(category)) grouped.set(category, new Map());
+      const categoryGroups = grouped.get(category)!;
+      categoryGroups.set(group, [...(categoryGroups.get(group) || []), service]);
+    }
+    return Array.from(grouped.entries()).map(([category, groups]) => ({
+      category,
+      groups: Array.from(groups.entries()).map(([group, items]) => ({ group, items })),
+    }));
+  }, [services]);
 
   const calculatedAmount = useMemo(() => {
     if (!selectedService) return 0;
@@ -150,19 +209,39 @@ export default function NewAdminBookingPage() {
       const nextUsers = Array.isArray(userData) ? userData : [];
       const nextServices = Array.isArray(serviceData) ? serviceData : [];
       const urlClientId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("clientId") : "";
-      const preselectedUser = nextUsers.find((user: User) => user.id === urlClientId) || nextUsers[0];
+      const mode = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("mode") : "";
+      const nextMode = mode === "new" ? "new" : "existing";
+      const preselectedUser = nextMode === "new" ? undefined : nextUsers.find((user: User) => user.id === urlClientId) || nextUsers[0];
+      setBookingMode(nextMode);
       setUsers(nextUsers);
       setServices(nextServices);
       setClientId(preselectedUser?.id || "");
       setPetId(preselectedUser?.pets?.[0]?.id || "");
       setClientSearch(urlClientId && preselectedUser ? `${preselectedUser.name || ""} ${preselectedUser.phone || ""}`.trim() : "");
       setServiceId(nextServices[0]?.id || "");
+      setShowQuickCreate(nextMode === "new");
     }).catch(() => setError("Unable to load booking data.")).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
     setPetId(pets[0]?.id || "");
   }, [clientId, pets]);
+
+  function startNewClientFlow() {
+    setBookingMode("new");
+    setClientId("");
+    setPetId("");
+    setClientSearch("");
+    setShowQuickCreate(true);
+  }
+
+  function startExistingClientFlow() {
+    const firstUser = users[0];
+    setBookingMode("existing");
+    setShowQuickCreate(false);
+    setClientId(firstUser?.id || "");
+    setPetId(firstUser?.pets?.[0]?.id || "");
+  }
 
   useEffect(() => {
     if (!selectedService || selectedService.category !== "Boarding" || isBoardingPackage(selectedService)) return;
@@ -180,13 +259,48 @@ export default function NewAdminBookingPage() {
       setError("Client, pet, and service are required.");
       return;
     }
-    if (isBoarding && (!boardingSchedule.check_in_date || !boardingSchedule.check_out_date || !boardingSchedule.check_in_time || !boardingSchedule.check_out_time)) {
-      setError("Check-in date, check-out date, check-in time, and check-out time are required for boarding.");
-      return;
-    }
-    if (!isBoarding && (!slotDate || !slotTime)) {
-      setError("Date and slot time are required.");
-      return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (isBoarding) {
+      if (!boardingSchedule.check_in_date || !boardingSchedule.check_out_date || !boardingSchedule.check_in_time || !boardingSchedule.check_out_time) {
+        setError("Check-in date, check-out date, check-in time, and check-out time are required for boarding.");
+        return;
+      }
+      
+      const checkInD = new Date(boardingSchedule.check_in_date);
+      const checkOutD = new Date(boardingSchedule.check_out_date);
+
+      if (checkInD < today) {
+        setError("Check-in date cannot be in the past.");
+        return;
+      }
+      if (checkOutD < checkInD) {
+        setError("Check-out date must be on or after the check-in date.");
+        return;
+      }
+      if (checkInD.getDay() === 0) {
+        setError("Sundays are blocked. Check-in date cannot be a Sunday.");
+        return;
+      }
+      if (checkOutD.getDay() === 0) {
+        setError("Sundays are blocked. Check-out date cannot be a Sunday.");
+        return;
+      }
+    } else {
+      if (!slotDate || !slotTime) {
+        setError("Date and slot time are required.");
+        return;
+      }
+      const slotD = new Date(slotDate);
+      if (slotD < today) {
+        setError("Booking date cannot be in the past.");
+        return;
+      }
+      if (slotD.getDay() === 0) {
+        setError("Sundays are blocked for service bookings.");
+        return;
+      }
     }
     setSaving(true);
     const res = await fetch("/api/bookings", {
@@ -296,7 +410,7 @@ export default function NewAdminBookingPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">New Booking</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Create a booking on behalf of a customer. Detail/KYC links can be shared from the bookings list after creation.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Choose an existing client or add a new client and pet, then create their booking from the same flow.</p>
         </div>
         <Button variant="outline" asChild><Link href="/admin/bookings"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Link></Button>
       </div>
@@ -305,7 +419,16 @@ export default function NewAdminBookingPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <section className="space-y-4 rounded-lg border bg-white p-5">
+          <div className="grid gap-2 rounded-lg bg-muted p-1 text-sm font-bold sm:grid-cols-2">
+            <button type="button" onClick={startExistingClientFlow} className={`rounded-lg px-3 py-2 ${bookingMode === "existing" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
+              Existing client
+            </button>
+            <button type="button" onClick={startNewClientFlow} className={`rounded-lg px-3 py-2 ${bookingMode === "new" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
+              New client only
+            </button>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
+            {bookingMode === "existing" && <>
             <label className="space-y-1 text-sm font-bold md:col-span-2">Find customer
               <Input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Search by name, phone, email, pet..." />
             </label>
@@ -324,13 +447,19 @@ export default function NewAdminBookingPage() {
               </select>
             </label>
             <div className="md:col-span-2">
-              <Button type="button" variant="outline" onClick={() => setShowQuickCreate((value) => !value)}>
-                {showQuickCreate ? "Hide quick add" : "Quick add client and pet"}
+              <Button type="button" variant="outline" onClick={startNewClientFlow}>
+                Quick add new client and pet
               </Button>
             </div>
+            </>}
+            {bookingMode === "new" && !showQuickCreate && selectedUser && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm md:col-span-2"><p className="font-bold text-emerald-800">New client ready: {selectedUser.name}</p><p className="mt-1 text-emerald-700">{selectedUser.phone || visibleEmail(selectedUser.email)} · {pets.map((pet) => pet.name).join(", ")}</p></div>}
             <label className="space-y-1 text-sm font-bold md:col-span-2">Service
               <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className="h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal">
-                {services.map((service) => <option key={service.id} value={service.id}>{service.category} · {service.name}</option>)}
+                {groupedServices.map((category) => category.groups.map((group) => (
+                  <optgroup key={`${category.category}-${group.group}`} label={`${category.category} / ${group.group}`}>
+                    {group.items.map((service) => <option key={service.id} value={service.id}>{formatServiceLabel(service)} · {money(priceOf(service))}</option>)}
+                  </optgroup>
+                )))}
               </select>
             </label>
           </div>
@@ -384,7 +513,7 @@ export default function NewAdminBookingPage() {
                   {creatingClient && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save client and pet
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setShowQuickCreate(false)}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={startExistingClientFlow}>Cancel</Button>
               </div>
             </div>
           )}
@@ -394,10 +523,36 @@ export default function NewAdminBookingPage() {
               <h2 className="font-bold">Boarding schedule</h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="space-y-1 text-sm font-bold">Check-in date
-                  <Input type="date" value={boardingSchedule.check_in_date} onChange={(e) => setBoardingSchedule((prev) => ({ ...prev, check_in_date: e.target.value }))} />
+                  <Input 
+                    type="date" 
+                    min={dateKey(new Date())}
+                    value={boardingSchedule.check_in_date} 
+                    onChange={(e) => {
+                      const d = new Date(e.target.value);
+                      if (d.getDay() === 0) {
+                        setError("Sundays are blocked. Please select a weekday.");
+                      } else {
+                        setError("");
+                      }
+                      setBoardingSchedule((prev) => ({ ...prev, check_in_date: e.target.value }));
+                    }} 
+                  />
                 </label>
                 <label className="space-y-1 text-sm font-bold">Check-out date
-                  <Input type="date" value={boardingSchedule.check_out_date} onChange={(e) => setBoardingSchedule((prev) => ({ ...prev, check_out_date: e.target.value }))} />
+                  <Input 
+                    type="date" 
+                    min={boardingSchedule.check_in_date || dateKey(new Date())}
+                    value={boardingSchedule.check_out_date} 
+                    onChange={(e) => {
+                      const d = new Date(e.target.value);
+                      if (d.getDay() === 0) {
+                        setError("Sundays are blocked. Please select a weekday.");
+                      } else {
+                        setError("");
+                      }
+                      setBoardingSchedule((prev) => ({ ...prev, check_out_date: e.target.value }));
+                    }} 
+                  />
                 </label>
                 <label className="space-y-1 text-sm font-bold">Check-in time
                   <Input type="time" value={boardingSchedule.check_in_time} onChange={(e) => setBoardingSchedule((prev) => ({ ...prev, check_in_time: e.target.value }))} />
@@ -413,9 +568,50 @@ export default function NewAdminBookingPage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Input type="date" value={slotDate} onChange={(e) => setSlotDate(e.target.value)} />
-              <Input type="time" value={slotTime} onChange={(e) => setSlotTime(e.target.value)} />
+            <div className="rounded-lg border bg-muted/25 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="font-bold">Advanced calendar</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">Past dates and Sundays are blocked for new service bookings.</p>
+                </div>
+                <label className="space-y-1 text-sm font-bold">Slot time
+                  <Input type="time" value={slotTime} onChange={(e) => setSlotTime(e.target.value)} />
+                </label>
+              </div>
+              <div className="mt-4 rounded-lg border bg-white p-3">
+                <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-muted/45 p-2">
+                  <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-white">
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <p className="text-sm font-extrabold">{monthLabel(visibleMonth)}</p>
+                  <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-white">
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-7 gap-1 text-center sm:gap-1.5">
+                  {WEEK_DAYS.map((day) => <div key={day} className="py-1 text-[10px] font-bold text-muted-foreground sm:py-2 sm:text-[11px]">{day}</div>)}
+                  {monthDays.map((day) => {
+                    const value = dateKey(day);
+                    const today = new Date();
+                    const past = day < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    const closed = day.getDay() === 0;
+                    const outMonth = day.getMonth() !== visibleMonth.getMonth();
+                    const selected = value === slotDate;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={past || closed}
+                        onClick={() => setSlotDate(value)}
+                        className={`min-h-12 rounded-lg border p-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-16 sm:p-1.5 ${selected ? "border-primary bg-primary text-white shadow-sm" : "bg-white hover:border-primary/50"} ${outMonth ? "text-muted-foreground" : ""}`}
+                      >
+                        <span className="block text-left font-bold">{day.getDate()}</span>
+                        <span className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full ${closed ? "bg-red-400" : "bg-green-400"}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 

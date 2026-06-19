@@ -3,7 +3,6 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { activeServiceCategories } from "@/lib/pet-care-pricing";
 
 function canManage(role?: string | null) {
   return role === "ADMIN" || role === "STAFF";
@@ -28,7 +27,7 @@ function cleanAddons(value: unknown) {
 }
 
 function isAllowedCategory(value: unknown) {
-  return activeServiceCategories.includes(String(value) as typeof activeServiceCategories[number]);
+  return String(value || "").trim().length > 0;
 }
 
 export async function GET(req: Request) {
@@ -44,11 +43,10 @@ export async function GET(req: Request) {
 
     const services = await prisma.service.findMany({
       where: {
-        category: { in: [...activeServiceCategories] },
         ...(includeInactive ? {} : { is_active: true }),
       },
       include: { addons: includeInactive ? true : { where: { is_active: true } } },
-      orderBy: [{ category: "asc" }, { name: "asc" }],
+      orderBy: [{ category: "asc" }, { display_order: "asc" }, { name: "asc" }],
     });
     return NextResponse.json(services);
   } catch (error) {
@@ -65,7 +63,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     if (!isAllowedCategory(body.category || "Grooming")) {
-      return NextResponse.json({ message: "Only Boarding and Grooming services are supported." }, { status: 400 });
+      return NextResponse.json({ message: "Service category is required." }, { status: 400 });
     }
     const addons = cleanAddons(body.addons);
     const includes = cleanList(body.free_services_json);
@@ -74,6 +72,11 @@ export async function POST(req: Request) {
       data: {
         name: String(body.name || "").trim(),
         category: String(body.category || "Grooming").trim(),
+        service_group: body.service_group ? String(body.service_group).trim() : null,
+        breed_size: body.breed_size ? String(body.breed_size).trim() : null,
+        coat_type: body.coat_type ? String(body.coat_type).trim() : null,
+        session_count: body.session_count === "" || body.session_count == null ? null : Number(body.session_count),
+        display_order: Number(body.display_order || 0),
         description_short: body.description_short || null,
         description_long: body.description_long || null,
         price: Number(body.price || 0),
@@ -105,7 +108,7 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     if (!body.id) return NextResponse.json({ message: "Service ID is required" }, { status: 400 });
     if (body.category !== undefined && !isAllowedCategory(body.category)) {
-      return NextResponse.json({ message: "Only Boarding and Grooming services are supported." }, { status: 400 });
+      return NextResponse.json({ message: "Service category is required." }, { status: 400 });
     }
     const addons = body.addons !== undefined ? cleanAddons(body.addons) : undefined;
     const includes = body.free_services_json !== undefined ? cleanList(body.free_services_json) : undefined;
@@ -116,6 +119,11 @@ export async function PATCH(req: Request) {
       data: {
         ...(body.name !== undefined ? { name: String(body.name).trim() } : {}),
         ...(body.category !== undefined ? { category: String(body.category).trim() } : {}),
+        ...(body.service_group !== undefined ? { service_group: body.service_group ? String(body.service_group).trim() : null } : {}),
+        ...(body.breed_size !== undefined ? { breed_size: body.breed_size ? String(body.breed_size).trim() : null } : {}),
+        ...(body.coat_type !== undefined ? { coat_type: body.coat_type ? String(body.coat_type).trim() : null } : {}),
+        ...(body.session_count !== undefined ? { session_count: body.session_count === "" || body.session_count == null ? null : Number(body.session_count) } : {}),
+        ...(body.display_order !== undefined ? { display_order: Number(body.display_order || 0) } : {}),
         ...(body.description_short !== undefined ? { description_short: body.description_short || null } : {}),
         ...(body.description_long !== undefined ? { description_long: body.description_long || null } : {}),
         ...(body.price !== undefined ? { price: Number(body.price || 0) } : {}),
