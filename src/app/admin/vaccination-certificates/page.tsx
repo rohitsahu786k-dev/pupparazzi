@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, Eye, Loader2, Printer, Search, Share2, ShieldCheck } from "lucide-react";
+import { Download, Eye, Loader2, Printer, Search, Share2, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -72,6 +72,21 @@ export default function VaccinationCertificatesPage() {
     win?.addEventListener("load", () => win.print());
   }
 
+  async function deleteCertificate(id: string) {
+    if (!confirm("Are you sure you want to delete this vaccination certificate?")) return;
+    try {
+      const res = await fetch(`/api/assets?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        await fetchData();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.message || "Failed to delete certificate");
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to delete certificate");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -111,6 +126,7 @@ export default function VaccinationCertificatesPage() {
                   <Button size="sm" variant="outline" asChild><a href={asset.path} download><Download className="mr-1 h-3.5 w-3.5" /> Download</a></Button>
                   <Button size="sm" variant="outline" onClick={() => shareDocument(asset.path)}><Share2 className="h-3.5 w-3.5" /></Button>
                   <Button size="sm" variant="outline" onClick={() => printDocument(asset.path)}><Printer className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => deleteCertificate(asset.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
             );

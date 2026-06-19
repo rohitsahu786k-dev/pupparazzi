@@ -418,6 +418,33 @@ export default function AdminClientsPage() {
     }
   }
 
+  async function handleDeleteAsset(assetId: string) {
+    if (!confirm("Are you sure you want to delete this document?")) return;
+    try {
+      const res = await fetch(`/api/assets?id=${assetId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.message || "Failed to delete document");
+        return;
+      }
+      // Refresh documents list
+      const assetRes = await fetch(`/api/assets?clientId=${profileUser!.id}`);
+      if (assetRes.ok) {
+        setProfileAssets(await assetRes.json());
+      }
+      // Refresh pet list to sync vaccination certificates
+      const petRes = await fetch("/api/pets");
+      if (petRes.ok) {
+        const allPets = await petRes.json();
+        setProfilePets(Array.isArray(allPets) ? allPets.filter((pet: PetProfile) => pet.owner_id === profileUser!.id) : []);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to delete document");
+    }
+  }
+
   async function handleAddPet(e: React.FormEvent) {
     e.preventDefault();
     if (!newPetName.trim()) {
@@ -1070,6 +1097,7 @@ export default function AdminClientsPage() {
                             <Button size="sm" variant="outline" asChild><a href={asset.path} download><Download className="h-3.5 w-3.5" /></a></Button>
                             <Button size="sm" variant="outline" onClick={() => shareDocument(asset.path)}><Share2 className="h-3.5 w-3.5" /></Button>
                             <Button size="sm" variant="outline" onClick={() => printDocument(asset.path)}><Printer className="h-3.5 w-3.5" /></Button>
+                            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleDeleteAsset(asset.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                           </div>
                         </div>
                       ))}

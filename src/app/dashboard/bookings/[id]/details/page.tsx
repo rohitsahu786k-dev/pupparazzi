@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Download, Eye, Loader2, Printer, Share2, Upload } from "lucide-react";
+import { ArrowLeft, Check, Download, Eye, Loader2, Printer, Share2, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FILE_COMPRESSOR_URL, isUploadTooLarge, MAX_UPLOAD_FILE_SIZE_MB, UPLOAD_SIZE_ERROR_MESSAGE } from "@/lib/upload-limits";
@@ -190,6 +190,38 @@ export default function BookingDetailsPage() {
       },
     }));
     setUploadingKey("");
+  }
+
+  async function deleteDocument(doc: (typeof REQUIRED_DOCS)[number]) {
+    const saved = form.documents_json[doc.key];
+    if (!saved?.path) return;
+    if (!confirm(`Are you sure you want to delete ${doc.label}?`)) return;
+
+    setUploadingKey(doc.key);
+    setError("");
+    try {
+      if (saved.assetId) {
+        const res = await fetch(`/api/assets?id=${saved.assetId}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          console.error("Failed to delete asset:", data.message);
+        }
+      }
+      setForm((prev) => ({
+        ...prev,
+        documents_json: {
+          ...prev.documents_json,
+          [doc.key]: { assetId: "", path: "", name: "" },
+        },
+      }));
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to delete document.");
+    } finally {
+      setUploadingKey("");
+    }
   }
 
   async function shareDocument(path: string) {
@@ -384,6 +416,7 @@ export default function BookingDetailsPage() {
                           <Button size="sm" variant="outline" asChild><a href={saved.path} download><Download className="h-3.5 w-3.5" /></a></Button>
                           <Button size="sm" variant="outline" onClick={() => shareDocument(saved.path)}><Share2 className="h-3.5 w-3.5" /></Button>
                           <Button size="sm" variant="outline" onClick={() => printDocument(saved.path)}><Printer className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => deleteDocument(doc)}><Trash2 className="h-3.5 w-3.5" /></Button>
                         </>
                       )}
                     </div>

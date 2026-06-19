@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { deleteStoredUpload } from "@/lib/upload-storage";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -35,8 +37,10 @@ export async function GET(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const session = await requireAdmin();
-    if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -47,6 +51,13 @@ export async function DELETE(req: Request) {
     const asset = await prisma.asset.findUnique({ where: { id } });
     if (!asset) {
       return NextResponse.json({ message: "Asset not found" }, { status: 404 });
+    }
+
+    const isOwner = asset.client_id === session.user.id;
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "STAFF";
+
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     await deleteStoredUpload(asset.path, asset.id);
