@@ -8,12 +8,12 @@ export default withAuth(
 
     // Authenticated users visiting /login get redirected away (prevents refresh loop)
     if (pathname === "/login" && token) {
-      const raw = token.role === "ADMIN" ? "/admin" : req.nextUrl.searchParams.get("callbackUrl") || "/dashboard";
-      const safeUrl = raw.startsWith("/") ? raw : token.role === "ADMIN" ? "/admin" : "/dashboard";
+      const raw = (token.role === "ADMIN" || token.role === "STAFF") ? "/admin" : req.nextUrl.searchParams.get("callbackUrl") || "/dashboard";
+      const safeUrl = raw.startsWith("/") ? raw : (token.role === "ADMIN" || token.role === "STAFF") ? "/admin" : "/dashboard";
       return NextResponse.redirect(new URL(safeUrl, req.url));
     }
 
-    if (pathname.startsWith("/admin") && token?.role !== "ADMIN") {
+    if (pathname.startsWith("/admin") && token?.role !== "ADMIN" && token?.role !== "STAFF") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
