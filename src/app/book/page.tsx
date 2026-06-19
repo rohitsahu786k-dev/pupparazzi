@@ -46,6 +46,7 @@ type Service = {
   slot_duration_mins: number;
   max_slots_per_day?: number | null;
   addons?: Addon[];
+  service_group?: string | null;
 };
 
 type Addon = {
@@ -199,6 +200,7 @@ function BookPageContent() {
   const [address, setAddress] = useState<Address>({ line1: "", city: "", state: "Gujarat", pincode: "", phone: "" });
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [serviceCategory, setServiceCategory] = useState("Grooming");
+  const [serviceSubGroup, setServiceSubGroup] = useState("Complete Grooming");
   const [groomingBreed, setGroomingBreed] = useState("Large Breed");
   const [groomingCoat, setGroomingCoat] = useState("Long Coat");
   const [groomingSessions, setGroomingSessions] = useState("12");
@@ -244,8 +246,39 @@ function BookPageContent() {
   const subtotal = servicePrice + addonTotal;
   const couponDiscount = Math.min(coupon?.discount || 0, subtotal);
   const total = Math.max(0, subtotal - couponDiscount);
-  const visibleServices = useMemo(() => services.filter((service) => service.category === serviceCategory), [serviceCategory, services]);
+  
+  const visibleServices = useMemo(() => {
+    return services.filter((service) => {
+      if (service.category !== serviceCategory) return false;
+      if (serviceCategory === "Grooming") {
+        if (serviceSubGroup === "Complete Grooming") {
+          return serviceMatchesPackage(service, groomingBreed, groomingCoat, groomingSessions);
+        }
+        if (serviceSubGroup === "Individual Grooming") {
+          return service.service_group === "Individual Grooming";
+        }
+      }
+      if (serviceCategory === "Boarding") {
+        if (serviceSubGroup) {
+          return service.service_group === serviceSubGroup;
+        }
+      }
+      return true;
+    });
+  }, [serviceCategory, serviceSubGroup, services, groomingBreed, groomingCoat, groomingSessions]);
+
   const serviceCategories = useMemo(() => Array.from(new Set(services.map((service) => service.category))), [services]);
+
+  const handleSubGroupChange = (subGroup: string) => {
+    setServiceSubGroup(subGroup);
+    if (serviceCategory === "Grooming" && subGroup === "Complete Grooming") {
+      const match = services.find((service) => serviceMatchesPackage(service, groomingBreed, groomingCoat, groomingSessions));
+      if (match) setSelectedServiceId(match.id);
+    } else {
+      const first = services.find((service) => service.category === serviceCategory && service.service_group === subGroup);
+      if (first) setSelectedServiceId(first.id);
+    }
+  };
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -281,7 +314,15 @@ function BookPageContent() {
         ? activeServices.find((service: Service) => service.category.toLowerCase() === serviceQuery || service.name.toLowerCase().includes(serviceQuery))
         : activeServices[0];
       setSelectedServiceId(initialService?.id || "");
-      setServiceCategory(initialService?.category || "Grooming");
+      const initialCategory = initialService?.category || "Grooming";
+      setServiceCategory(initialCategory);
+      if (initialCategory === "Grooming") {
+        setServiceSubGroup(initialService?.service_group || "Complete Grooming");
+      } else if (initialCategory === "Boarding") {
+        setServiceSubGroup(initialService?.service_group || "Standard Boarding");
+      } else {
+        setServiceSubGroup("");
+      }
       setSelectedPetId(petQuery || userPets[0]?.id || "");
     }).catch(() => {
       setError("Booking details could not be loaded. Please refresh and try again.");
@@ -675,16 +716,28 @@ function BookPageContent() {
                 <HeartPulse className="h-5 w-5 text-primary" />
                 <h2 className="font-bold">1. Choose service</h2>
               </div>
-              <div className="mb-4 grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
-                <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/40 p-2 text-xs font-bold sm:grid-cols-3 lg:grid-cols-2">
+              <div className="mb-4 flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/40 p-2 text-xs font-bold sm:grid-cols-3 lg:grid-cols-2 max-w-md">
                   {serviceCategories.map((category) => (
                     <button
                       key={category}
                       type="button"
                       onClick={() => {
                         setServiceCategory(category);
-                        const first = services.find((service) => service.category === category);
-                        setSelectedServiceId(first?.id || "");
+                        let sub = "";
+                        if (category === "Grooming") sub = "Complete Grooming";
+                        else if (category === "Boarding") sub = "Standard Boarding";
+                        setServiceSubGroup(sub);
+                        
+                        if (category === "Grooming") {
+                          const match = services.find((service) => serviceMatchesPackage(service, groomingBreed, groomingCoat, groomingSessions));
+                          if (match) setSelectedServiceId(match.id);
+                        } else {
+                          const first = sub 
+                            ? services.find((s) => s.category === category && s.service_group === sub)
+                            : services.find((s) => s.category === category);
+                          setSelectedServiceId(first?.id || "");
+                        }
                       }}
                       className={`rounded-lg px-3 py-2 ${serviceCategory === category ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}
                     >
@@ -692,23 +745,73 @@ function BookPageContent() {
                     </button>
                   ))}
                 </div>
-                {serviceCategory === "Grooming" && (
-                  <div className="grid gap-2 rounded-lg border bg-white p-2 sm:grid-cols-3">
-                    <select value={groomingBreed} onChange={(e) => setGroomingBreed(e.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm">
-                      <option>Small Breed</option>
-                      <option>Large Breed</option>
-                      <option>Extra Large Breed</option>
-                    </select>
-                    <select value={groomingCoat} onChange={(e) => setGroomingCoat(e.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm">
-                      <option>Long Coat</option>
-                      <option>Short Coat</option>
-                    </select>
-                    <select value={groomingSessions} onChange={(e) => setGroomingSessions(e.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm">
-                      <option>Single Session</option>
-                      <option>6</option>
-                      <option>12</option>
-                      <option>24</option>
-                    </select>
+
+                <div className="grid gap-3 sm:grid-cols-2 max-w-lg">
+                  {serviceCategory === "Grooming" && (
+                    <div className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/20 p-1 text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => handleSubGroupChange("Complete Grooming")}
+                        className={`rounded-md px-3 py-2 transition ${serviceSubGroup === "Complete Grooming" ? "bg-white text-foreground shadow-xs font-bold" : "text-muted-foreground"}`}
+                      >
+                        Complete Packages
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSubGroupChange("Individual Grooming")}
+                        className={`rounded-md px-3 py-2 transition ${serviceSubGroup === "Individual Grooming" ? "bg-white text-foreground shadow-xs font-bold" : "text-muted-foreground"}`}
+                      >
+                        Individual Services
+                      </button>
+                    </div>
+                  )}
+
+                  {serviceCategory === "Boarding" && (
+                    <div className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/20 p-1 text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => handleSubGroupChange("Standard Boarding")}
+                        className={`rounded-md px-3 py-2 transition ${serviceSubGroup === "Standard Boarding" ? "bg-white text-foreground shadow-xs font-bold" : "text-muted-foreground"}`}
+                      >
+                        Daily Stays / Hours
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSubGroupChange("Boarding Packages")}
+                        className={`rounded-md px-3 py-2 transition ${serviceSubGroup === "Boarding Packages" ? "bg-white text-foreground shadow-xs font-bold" : "text-muted-foreground"}`}
+                      >
+                        Long-Term Packages
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {serviceCategory === "Grooming" && serviceSubGroup === "Complete Grooming" && (
+                  <div className="grid gap-3 rounded-lg border bg-muted/15 p-3.5 sm:grid-cols-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-extrabold uppercase text-muted-foreground tracking-wider">Select Breed Size</label>
+                      <select value={groomingBreed} onChange={(e) => setGroomingBreed(e.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold text-foreground focus:outline-primary">
+                        <option>Small Breed</option>
+                        <option>Large Breed</option>
+                        <option>Extra Large Breed</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-extrabold uppercase text-muted-foreground tracking-wider">Select Coat Type</label>
+                      <select value={groomingCoat} onChange={(e) => setGroomingCoat(e.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold text-foreground focus:outline-primary">
+                        <option>Long Coat</option>
+                        <option>Short Coat</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-extrabold uppercase text-muted-foreground tracking-wider">Select Session Count</label>
+                      <select value={groomingSessions} onChange={(e) => setGroomingSessions(e.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold text-foreground focus:outline-primary">
+                        <option>Single Session</option>
+                        <option>6</option>
+                        <option>12</option>
+                        <option>24</option>
+                      </select>
+                    </div>
                   </div>
                 )}
               </div>

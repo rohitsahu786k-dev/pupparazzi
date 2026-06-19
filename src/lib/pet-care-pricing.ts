@@ -137,7 +137,7 @@ export const boardingServices: ServiceSeed[] = [
     max_slots_per_day: 8,
     is_bestseller: true,
     free_services_json: ["Flexible day usage", "Air-conditioned kennels", "Meals", "Basic care and supervision"],
-    images_json: ["/service-boarding-premium.png"],
+    images_json: ["/service-boarding-package.png"],
   },
   {
     name: "Boarding - 20 Days Package",
@@ -152,7 +152,7 @@ export const boardingServices: ServiceSeed[] = [
     slot_duration_mins: 1440,
     max_slots_per_day: 8,
     free_services_json: ["Flexible day usage", "Air-conditioned kennels", "Meals", "Basic care and supervision"],
-    images_json: ["/service-boarding-premium.png"],
+    images_json: ["/service-boarding-package.png"],
   },
   {
     name: "Boarding - 30 Days Package",
@@ -167,7 +167,7 @@ export const boardingServices: ServiceSeed[] = [
     slot_duration_mins: 1440,
     max_slots_per_day: 8,
     free_services_json: ["20% off", "Complimentary grooming session", "Flexible day usage"],
-    images_json: ["/service-boarding-premium.png"],
+    images_json: ["/service-boarding-package.png"],
   },
 ];
 
@@ -301,12 +301,16 @@ export const specialGroomingServices: ServiceSeed[] = packagePrices.flatMap((ite
     session_count: 1,
     display_order: 100 + packageIndex * 10,
     description_short: `${item.breed}, ${item.coat.toLowerCase()} complete grooming session.`,
-      description_long: "Complete grooming session. De-matting and shaving are extra. Puppies below 6 months get ₹200 off per session.",
+    description_long: "Complete grooming session. De-matting and shaving are extra. Puppies below 6 months get ₹200 off per session.",
     price: item.single,
     slot_duration_mins: item.breed === "Extra Large Breed" ? 150 : 120,
     max_slots_per_day: 4,
     free_services_json: groomingIncludes,
-    images_json: ["/service-grooming-premium.png"],
+    images_json: [
+      item.breed === "Small Breed" ? "/service-grooming-small.png" :
+      item.breed === "Large Breed" ? "/service-grooming-large.png" :
+      "/service-grooming-xlarge.png"
+    ],
     addons: serviceAddons,
   },
   ...([6, 12, 24] as const).map((sessionCount) => {
@@ -326,7 +330,11 @@ export const specialGroomingServices: ServiceSeed[] = packagePrices.flatMap((ite
       slot_duration_mins: item.breed === "Extra Large Breed" ? 150 : 120,
       max_slots_per_day: 4,
       free_services_json: [...groomingIncludes, discount],
-      images_json: ["/service-grooming-premium.png"],
+      images_json: [
+        item.breed === "Small Breed" ? "/service-grooming-small.png" :
+        item.breed === "Large Breed" ? "/service-grooming-large.png" :
+        "/service-grooming-xlarge.png"
+      ],
       addons: serviceAddons,
     };
   }),
