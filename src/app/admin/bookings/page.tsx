@@ -300,6 +300,8 @@ export default function AdminBookingsPage() {
     return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
   }
 
+  const isSelectedToday = selectedCalendarDate === dateKey(new Date());
+  const selectedDateBookingsCount = bookings.filter((booking) => dateKey(booking.slot_date) === selectedCalendarDate).length;
   const todayBookings = bookings.filter((booking) => dateKey(booking.slot_date) === dateKey(new Date())).length;
   const createdTodayBookings = bookings.filter((booking) => booking.created_at && dateKey(booking.created_at) === dateKey(new Date())).length;
   const revenue = bookings
@@ -331,8 +333,8 @@ export default function AdminBookingsPage() {
         </div>
         <div className="grid grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
           <div className="rounded-lg border bg-white px-4 py-3">
-            <p className="text-muted-foreground">Service today</p>
-            <p className="text-xl font-bold">{todayBookings}</p>
+            <p className="text-muted-foreground text-ellipsis overflow-hidden whitespace-nowrap">{isSelectedToday ? "Service today" : `Service on ${new Date(selectedCalendarDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}`}</p>
+            <p className="text-xl font-bold">{selectedDateBookingsCount}</p>
           </div>
           <div className="rounded-lg border bg-white px-4 py-3">
             <p className="text-muted-foreground">Booked today</p>
@@ -413,7 +415,7 @@ export default function AdminBookingsPage() {
             </div>
           </div>
           <div className="rounded-lg border bg-white p-4">
-            <h2 className="font-bold">{new Date(selectedCalendarDate).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}</h2>
+            <h2 className="font-bold flex items-center justify-between"><span>{new Date(selectedCalendarDate).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}</span><span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">{selectedDateBookings.length} {selectedDateBookings.length === 1 ? "booking" : "bookings"}</span></h2>
             <div className="mt-4 space-y-3">
               {selectedDateBookings.length === 0 ? (
                 <p className="rounded-lg border bg-muted/35 p-4 text-sm text-muted-foreground">No bookings for this date.</p>

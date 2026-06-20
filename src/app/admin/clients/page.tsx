@@ -639,6 +639,12 @@ export default function AdminClientsPage() {
         )}
         {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
         {message && <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-green-700"><CheckCircle2 className="h-4 w-4" /> {message}</p>}
+        <div className="mt-4 flex justify-end">
+          <Button onClick={createUser} disabled={creating}>
+            {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+            Add
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border bg-white p-4">
@@ -760,12 +766,6 @@ export default function AdminClientsPage() {
             </div>
           </div>
         )}
-        <div className="mt-4 flex justify-end">
-          <Button onClick={createUser} disabled={creating}>
-            {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-            Add
-          </Button>
-        </div>
       </div>
               );
             })}
