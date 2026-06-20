@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Download, Eye, Loader2, Printer, Share2, Trash2, Upload } from "lucide-react";
@@ -19,6 +20,7 @@ type Asset = {
 type Booking = {
   id: string;
   booking_id: string;
+  created_at?: string;
   status: string;
   slot_date: string;
   slot_time: string;
@@ -73,6 +75,7 @@ function emptyDocuments() {
 export default function BookingDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -107,6 +110,8 @@ export default function BookingDetailsPage() {
   const category = booking?.service?.category || "";
   const isBoarding = category === "Boarding";
   const isGrooming = category !== "Boarding";
+  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "STAFF";
+  const isLocked = Boolean(booking?.details_completed && !isAdmin);
 
   const allVerified = useMemo(() => {
     if (!booking?.documents || booking.documents.length === 0) return false;
@@ -251,6 +256,10 @@ export default function BookingDetailsPage() {
 
   async function saveDetails() {
     if (!booking) return;
+    if (isLocked) {
+      setError("Details already submitted. Please contact admin for changes.");
+      return;
+    }
     setSaving(true);
     setError("");
     if (missingDocuments.length) {
@@ -298,7 +307,7 @@ export default function BookingDetailsPage() {
       setSaving(false);
       return;
     }
-    router.push("/dashboard/bookings?details=saved");
+    router.push(isAdmin ? "/admin/bookings?details=saved" : "/dashboard/bookings?details=saved");
   }
 
   if (loading) {
@@ -318,14 +327,19 @@ export default function BookingDetailsPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             {booking.service?.name || "Service"} for {booking.pet?.name || "pet"}.
           </p>
+          <p className="mt-1 text-xs font-semibold text-muted-foreground">
+            Booking date/time: {new Date(booking.slot_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} at {booking.slot_time}
+            {booking.created_at ? ` - Created on ${new Date(booking.created_at).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}
+          </p>
         </div>
-        <Button variant="outline" asChild><Link href="/dashboard/bookings"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Link></Button>
+        <Button variant="outline" asChild><Link href={isAdmin ? "/admin/bookings" : "/dashboard/bookings"}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Link></Button>
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>}
+      {isLocked && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">Details/KYC submitted. This form is locked for clients. Admin can still edit all details.</div>}
 
       <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="space-y-5">
+        <fieldset disabled={isLocked} className="space-y-5 disabled:opacity-70">
           <div className="rounded-lg border bg-white p-5">
             <h2 className="font-bold">Booking Identity</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -384,7 +398,7 @@ export default function BookingDetailsPage() {
               placeholder="Notes (optional)"
             />
           </div>
-        </section>
+        </fieldset>
 
         <aside className="space-y-5">
           <div className="rounded-lg border bg-white p-5">
@@ -439,6 +453,7 @@ export default function BookingDetailsPage() {
                         <input
                           type="file"
                           accept="image/*,.pdf"
+                          disabled={isLocked}
                           className="sr-only"
                           onChange={(e) => {
                             uploadDocument(doc, e.target.files?.[0]);
@@ -452,7 +467,7 @@ export default function BookingDetailsPage() {
                           <Button size="sm" variant="outline" asChild><a href={saved.path} download><Download className="h-3.5 w-3.5" /></a></Button>
                           <Button size="sm" variant="outline" onClick={() => shareDocument(saved.path)}><Share2 className="h-3.5 w-3.5" /></Button>
                           <Button size="sm" variant="outline" onClick={() => printDocument(saved.path)}><Printer className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => deleteDocument(doc)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="outline" disabled={isLocked} className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => deleteDocument(doc)}><Trash2 className="h-3.5 w-3.5" /></Button>
                         </>
                       )}
                     </div>
@@ -460,7 +475,7 @@ export default function BookingDetailsPage() {
                 );
               })}
             </div>
-            <Button className="mt-5 w-full" onClick={saveDetails} disabled={saving || Boolean(uploadingKey)}>
+            <Button className="mt-5 w-full" onClick={saveDetails} disabled={saving || Boolean(uploadingKey) || isLocked}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
               Save Details
             </Button>

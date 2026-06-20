@@ -11,6 +11,7 @@ type Booking = {
   booking_id: string;
   status: string;
   payment_status: string;
+  details_completed?: boolean;
   slot_date: string;
   slot_time: string;
   service?: { name?: string; category?: string } | null;
@@ -23,6 +24,12 @@ function statusClass(status: string) {
   if (status === "Completed") return "bg-blue-50 text-blue-700";
   if (status === "Cancelled" || status === "Expired") return "bg-red-50 text-red-700";
   return "bg-gray-100 text-gray-600";
+}
+
+function detailsLink(booking: Booking) {
+  const category = booking.service?.category?.toLowerCase();
+  if (category !== "boarding" && category !== "grooming") return "";
+  return `/dashboard/bookings/${booking.id}/details?service=${category}`;
 }
 
 export default function DashboardBookingsPage() {
@@ -81,6 +88,15 @@ export default function DashboardBookingsPage() {
               <p className="mt-3 inline-flex rounded-lg bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
                 {booking.payment_status}
               </p>
+              {detailsLink(booking) ? (
+                booking.details_completed ? (
+                  <Button className="mt-3 w-full" variant="outline" disabled>Details submitted</Button>
+                ) : (
+                  <Button asChild className="mt-3 w-full" variant="outline">
+                    <Link href={detailsLink(booking)}>Details/KYC</Link>
+                  </Button>
+                )
+              ) : null}
             </div>
           ))}
         </div>

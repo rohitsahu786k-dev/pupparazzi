@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, ChevronDown, ChevronUp, CreditCard, Download, Edit3, Eye, Grid2X2, List, Loader2, Mail, MapPin, MessageCircle, Phone, Printer, Save, Search, Share2, Trash2, UserCheck, UserPlus } from "lucide-react";
@@ -9,6 +9,7 @@ type Booking = {
   id: string;
   client_id: string;
   booking_id: string;
+  created_at?: string;
   status: string;
   payment_status: string;
   slot_date: string;
@@ -23,7 +24,7 @@ type Booking = {
   client?: { name?: string | null; email?: string | null; phone?: string | null };
   pet?: { name?: string | null; type?: string | null; breed?: string | null };
   service?: { name?: string | null; category?: string | null; price?: number | null; discounted_price?: number | null };
-  address?: { line1?: string | null; city?: string | null; pincode?: string | null } | null;
+  address?: { id?: string; line1?: string | null; city?: string | null; state?: string | null; pincode?: string | null; phone?: string | null } | null;
   documents?: { id: string; original_name: string; path: string; document_type?: string | null }[];
   payments?: { id: string; amount: number; mode: string; source?: string | null; status: string; transaction_id?: string | null; created_at: string }[];
   invoices?: { id: string; invoice_id: string; total: number; status: string; created_at: string }[];
@@ -31,7 +32,19 @@ type Booking = {
 };
 
 type ClientOption = { id: string; name?: string | null; phone?: string | null; email?: string | null };
-type BookingEditDraft = { slot_date: string; slot_time: string; final_amount: string };
+type BookingEditDraft = {
+  slot_date: string;
+  slot_time: string;
+  final_amount: string;
+  client_name: string;
+  client_phone: string;
+  client_email: string;
+  address_line1: string;
+  address_city: string;
+  address_state: string;
+  address_pincode: string;
+  address_phone: string;
+};
 
 const STATUSES = ["All", "Pending", "Confirmed", "In Progress", "Completed", "Cancelled", "Expired"];
 const PAYMENT_STATUSES = ["All", "Pending", "Advance Paid", "Partially Paid", "Paid", "Failed", "Cancelled", "Refunded"];
@@ -45,6 +58,11 @@ const PERIODS = [
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 function badgeClass(value: string) {
@@ -217,6 +235,14 @@ export default function AdminBookingsPage() {
       slot_date: dateKey(booking.slot_date),
       slot_time: booking.slot_time || "",
       final_amount: String(bookingAmount(booking) || ""),
+      client_name: booking.client?.name || "",
+      client_phone: booking.client?.phone || "",
+      client_email: booking.client?.email || "",
+      address_line1: booking.address?.line1 || "",
+      address_city: booking.address?.city || "",
+      address_state: booking.address?.state || "Gujarat",
+      address_pincode: booking.address?.pincode || "",
+      address_phone: booking.address?.phone || booking.client?.phone || "",
     };
   }
 
@@ -230,6 +256,18 @@ export default function AdminBookingsPage() {
       slot_date: draft.slot_date,
       slot_time: draft.slot_time,
       final_amount: draft.final_amount === "" ? undefined : Number(draft.final_amount),
+      client: {
+        name: draft.client_name,
+        phone: draft.client_phone,
+        email: draft.client_email,
+      },
+      address: {
+        line1: draft.address_line1,
+        city: draft.address_city,
+        state: draft.address_state,
+        pincode: draft.address_pincode,
+        phone: draft.address_phone,
+      },
     });
   }
 
@@ -262,8 +300,8 @@ export default function AdminBookingsPage() {
     return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
   }
 
-  const todayBookings = bookings.filter((booking) => new Date(booking.slot_date).toDateString() === new Date().toDateString()).length;
-  const pending = bookings.filter((booking) => booking.status === "Pending").length;
+  const todayBookings = bookings.filter((booking) => dateKey(booking.slot_date) === dateKey(new Date())).length;
+  const createdTodayBookings = bookings.filter((booking) => booking.created_at && dateKey(booking.created_at) === dateKey(new Date())).length;
   const revenue = bookings
     .filter((booking) => booking.payment_status === "Paid")
     .reduce((sum, booking) => sum + bookingAmount(booking), 0);
@@ -293,12 +331,12 @@ export default function AdminBookingsPage() {
         </div>
         <div className="grid grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
           <div className="rounded-lg border bg-white px-4 py-3">
-            <p className="text-muted-foreground">Today</p>
+            <p className="text-muted-foreground">Service today</p>
             <p className="text-xl font-bold">{todayBookings}</p>
           </div>
           <div className="rounded-lg border bg-white px-4 py-3">
-            <p className="text-muted-foreground">Pending</p>
-            <p className="text-xl font-bold">{pending}</p>
+            <p className="text-muted-foreground">Booked today</p>
+            <p className="text-xl font-bold">{createdTodayBookings}</p>
           </div>
           <div className="rounded-lg border bg-white px-4 py-3">
             <p className="text-muted-foreground">Paid</p>
@@ -434,6 +472,7 @@ export default function AdminBookingsPage() {
                       </div>
                       <hr />
                       <p className="flex items-center gap-1 text-foreground"><Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(booking.slot_date)} at {booking.slot_time}</p>
+                      <p className="text-xs text-muted-foreground">Booked on {formatDateTime(booking.created_at)}</p>
                       <p className="flex items-start gap-1"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" /> {booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.pincode || ""}` : "-"}</p>
                       {booking.notes && <p className="bg-amber-50 text-amber-800 p-2 rounded border border-amber-200"><strong>Notes:</strong> {booking.notes}</p>}
                       <hr />
@@ -463,6 +502,18 @@ export default function AdminBookingsPage() {
                           <Input type="date" value={draft.slot_date} onChange={(e) => setBookingEditDraft(booking, { slot_date: e.target.value })} className="h-9 text-xs" />
                           <Input value={draft.slot_time} onChange={(e) => setBookingEditDraft(booking, { slot_time: e.target.value })} placeholder="Time" className="h-9 text-xs" />
                           <Input type="number" value={draft.final_amount} onChange={(e) => setBookingEditDraft(booking, { final_amount: e.target.value })} placeholder="Amount" className="h-9 text-xs" />
+                        </div>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                          <Input value={draft.client_name} onChange={(e) => setBookingEditDraft(booking, { client_name: e.target.value })} placeholder="Client name" className="h-9 text-xs" />
+                          <Input value={draft.client_phone} onChange={(e) => setBookingEditDraft(booking, { client_phone: e.target.value.replace(/[^\d+]/g, "").slice(0, 14) })} placeholder="Client phone" className="h-9 text-xs" />
+                          <Input value={draft.client_email} onChange={(e) => setBookingEditDraft(booking, { client_email: e.target.value })} placeholder="Client email" className="h-9 text-xs" />
+                        </div>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          <Input value={draft.address_line1} onChange={(e) => setBookingEditDraft(booking, { address_line1: e.target.value })} placeholder="Address" className="h-9 text-xs" />
+                          <Input value={draft.address_city} onChange={(e) => setBookingEditDraft(booking, { address_city: e.target.value })} placeholder="City" className="h-9 text-xs" />
+                          <Input value={draft.address_state} onChange={(e) => setBookingEditDraft(booking, { address_state: e.target.value })} placeholder="State" className="h-9 text-xs" />
+                          <Input value={draft.address_pincode} onChange={(e) => setBookingEditDraft(booking, { address_pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })} placeholder="Pincode" className="h-9 text-xs" />
+                          <Input value={draft.address_phone} onChange={(e) => setBookingEditDraft(booking, { address_phone: e.target.value.replace(/[^\d+]/g, "").slice(0, 14) })} placeholder="Address phone" className="h-9 text-xs sm:col-span-2" />
                         </div>
                         <Button size="sm" variant="outline" className="mt-2" disabled={savingId === booking.id} onClick={() => saveBookingEdit(booking)}>
                           <Save className="mr-1 h-3.5 w-3.5" /> Save edit
@@ -546,9 +597,8 @@ export default function AdminBookingsPage() {
                   const isExpanded = expandedBookingId === booking.id;
                   const draft = editDraft(booking);
                   return (
-                    <>
+                    <Fragment key={booking.id}>
                       <tr
-                        key={booking.id}
                         className={`align-middle hover:bg-muted/30 cursor-pointer transition-colors ${isExpanded ? "bg-muted/20" : ""}`}
                         onClick={() => setExpandedBookingId(isExpanded ? null : booking.id)}
                       >
@@ -612,6 +662,7 @@ export default function AdminBookingsPage() {
                                 <div className="rounded-lg border bg-white p-3 space-y-2 text-xs">
                                   <p><span className="font-semibold text-muted-foreground">Date:</span> {formatDate(booking.slot_date)}</p>
                                   <p><span className="font-semibold text-muted-foreground">Time Slot:</span> {booking.slot_time}</p>
+                                  <p><span className="font-semibold text-muted-foreground">Booked On:</span> {formatDateTime(booking.created_at)}</p>
                                   <p className="flex items-start gap-1">
                                     <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                                     <span>{booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.pincode || ""}` : "No address specified"}</span>
@@ -647,6 +698,20 @@ export default function AdminBookingsPage() {
                                       <Input type="date" value={draft.slot_date} onChange={(e) => setBookingEditDraft(booking, { slot_date: e.target.value })} className="h-9 text-xs" />
                                       <Input value={draft.slot_time} onChange={(e) => setBookingEditDraft(booking, { slot_time: e.target.value })} placeholder="Time" className="h-9 text-xs" />
                                       <Input type="number" value={draft.final_amount} onChange={(e) => setBookingEditDraft(booking, { final_amount: e.target.value })} placeholder="Amount" className="h-9 text-xs" />
+                                    </div>
+                                    <div className="mt-2 grid gap-2">
+                                      <Input value={draft.client_name} onChange={(e) => setBookingEditDraft(booking, { client_name: e.target.value })} placeholder="Client name" className="h-9 text-xs" />
+                                      <Input value={draft.client_phone} onChange={(e) => setBookingEditDraft(booking, { client_phone: e.target.value.replace(/[^\d+]/g, "").slice(0, 14) })} placeholder="Client phone" className="h-9 text-xs" />
+                                      <Input value={draft.client_email} onChange={(e) => setBookingEditDraft(booking, { client_email: e.target.value })} placeholder="Client email" className="h-9 text-xs" />
+                                      <Input value={draft.address_line1} onChange={(e) => setBookingEditDraft(booking, { address_line1: e.target.value })} placeholder="Address" className="h-9 text-xs" />
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <Input value={draft.address_city} onChange={(e) => setBookingEditDraft(booking, { address_city: e.target.value })} placeholder="City" className="h-9 text-xs" />
+                                        <Input value={draft.address_state} onChange={(e) => setBookingEditDraft(booking, { address_state: e.target.value })} placeholder="State" className="h-9 text-xs" />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <Input value={draft.address_pincode} onChange={(e) => setBookingEditDraft(booking, { address_pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })} placeholder="Pincode" className="h-9 text-xs" />
+                                        <Input value={draft.address_phone} onChange={(e) => setBookingEditDraft(booking, { address_phone: e.target.value.replace(/[^\d+]/g, "").slice(0, 14) })} placeholder="Address phone" className="h-9 text-xs" />
+                                      </div>
                                     </div>
                                     <Button size="sm" variant="outline" className="mt-2 w-full" disabled={savingId === booking.id} onClick={() => saveBookingEdit(booking)}>
                                       <Save className="mr-1 h-3.5 w-3.5" /> Save edit
@@ -721,7 +786,7 @@ export default function AdminBookingsPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </tbody>

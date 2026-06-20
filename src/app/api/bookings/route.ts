@@ -157,7 +157,7 @@ export async function GET(req: Request) {
           : {}),
       },
       include: { pet: true, service: true, address: true, client: true, staff: true, payments: true, invoices: true },
-      orderBy: [{ slot_date: "desc" }, { created_at: "desc" }],
+      orderBy: [{ created_at: "desc" }, { slot_date: "desc" }],
     });
     const bookingIds = bookings.map((booking) => booking.id);
     const assets = bookingIds.length
@@ -355,7 +355,7 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const {
       id, status, payment_status, notes, internal_notes, transaction_id,
-      payment_method, staff_id, service_id, pet_id, address_id, address, slot_date, slot_time, after_photos_json, collect_cod,
+      payment_method, staff_id, service_id, pet_id, address_id, address, client, slot_date, slot_time, after_photos_json, collect_cod,
     } = body;
 
     if (!id) {
@@ -390,6 +390,7 @@ export async function PATCH(req: Request) {
       && pet_id === undefined
       && address_id === undefined
       && address === undefined
+      && client === undefined
       && after_photos_json === undefined
       && collect_cod === undefined
       && body.details_completed !== undefined;
@@ -406,6 +407,7 @@ export async function PATCH(req: Request) {
       && pet_id === undefined
       && address_id === undefined
       && address === undefined
+      && client === undefined
       && slot_date === undefined
       && slot_time === undefined
       && after_photos_json === undefined
@@ -413,6 +415,9 @@ export async function PATCH(req: Request) {
 
     if (!admin && !userCancellingOwnBooking && !userSavingOwnDetails) {
       return NextResponse.json({ message: "Admin access required" }, { status: 403 });
+    }
+    if (!admin && userSavingOwnDetails && existingBooking.details_completed) {
+      return NextResponse.json({ message: "Booking details are already submitted. Please contact admin for changes." }, { status: 409 });
     }
     if (userCancellingOwnBooking && ["Completed", "Cancelled", "Expired"].includes(existingBooking.status)) {
       return NextResponse.json({ message: `Booking is already ${existingBooking.status.toLowerCase()}` }, { status: 400 });
@@ -458,19 +463,40 @@ export async function PATCH(req: Request) {
     }
 
     let bookingAddressId = address_id !== undefined ? (address_id || null) : undefined;
-    if (admin && bookingAddressId === undefined && address?.line1 && address?.city && address?.state && address?.pincode) {
-      const createdAddress = await prisma.address.create({
+    if (admin && client && typeof client === "object") {
+      await prisma.user.update({
+        where: { id: existingBooking.client_id },
         data: {
-          user_id: existingBooking.client_id,
-          label: address.label || "Service Address",
-          line1: address.line1,
-          city: address.city,
-          state: address.state,
-          pincode: address.pincode,
-          phone: address.phone || undefined,
+          ...(client.name !== undefined ? { name: nullableString(client.name) } : {}),
+          ...(client.phone !== undefined ? { phone: nullableString(client.phone) } : {}),
+          ...(client.email !== undefined ? { email: nullableString(client.email) } : {}),
         },
       });
-      bookingAddressId = createdAddress.id;
+    }
+    if (admin && bookingAddressId === undefined && address?.line1 && address?.city && address?.state && address?.pincode) {
+      const addressData = {
+        label: address.label || "Service Address",
+        line1: String(address.line1).trim(),
+        city: String(address.city).trim(),
+        state: String(address.state).trim(),
+        pincode: String(address.pincode).trim(),
+        phone: address.phone ? String(address.phone).trim() : null,
+      };
+      if (existingBooking.address_id) {
+        await prisma.address.update({
+          where: { id: existingBooking.address_id },
+          data: addressData,
+        });
+        bookingAddressId = existingBooking.address_id;
+      } else {
+        const createdAddress = await prisma.address.create({
+          data: {
+            user_id: existingBooking.client_id,
+            ...addressData,
+          },
+        });
+        bookingAddressId = createdAddress.id;
+      }
     }
 
     const adminTotalOverride = admin ? nullableNumber(body.final_amount ?? body.admin_total) : null;
