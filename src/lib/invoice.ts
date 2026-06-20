@@ -1,4 +1,6 @@
 import { jsPDF } from "jspdf";
+import fs from "fs";
+import path from "path";
 import { BUSINESS } from "./mailer";
 
 export interface InvoiceData {
@@ -17,6 +19,19 @@ export interface InvoiceData {
   quantity: number;
   unitPrice: number;
   gstRate?: number;
+}
+
+let cachedLogoDataUrl: string | null | undefined;
+
+function logoDataUrl() {
+  if (cachedLogoDataUrl !== undefined) return cachedLogoDataUrl;
+  const logoPath = path.join(process.cwd(), "public", "pupparazzi-logo.png");
+  if (!fs.existsSync(logoPath)) {
+    cachedLogoDataUrl = null;
+    return cachedLogoDataUrl;
+  }
+  cachedLogoDataUrl = `data:image/png;base64,${fs.readFileSync(logoPath).toString("base64")}`;
+  return cachedLogoDataUrl;
 }
 
 export function generateInvoicePdf(data: InvoiceData): Buffer {
@@ -66,17 +81,24 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   doc.rect(0, 52, PW, 3, "F");
 
   // ── Logo / Company name ──────────────────────────────────────
+  const logo = logoDataUrl();
+  if (logo) {
+    fill(C.white);
+    doc.roundedRect(16, 10, 42, 20, 2, 2, "F");
+    doc.addImage(logo, "PNG", 19, 13, 36, 14);
+  }
   text(C.white);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
-  doc.text(BUSINESS.name, 16, 20);
+  doc.text(BUSINESS.name, logo ? 64 : 16, 20);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   text(C.slate3);
-  const addrLines = doc.splitTextToSize(BUSINESS.address, 130) as string[];
-  doc.text(addrLines, 16, 28);
-  doc.text(`GSTIN: ${BUSINESS.gst}  |  ${BUSINESS.email}`, 16, 43);
+  const companyX = logo ? 64 : 16;
+  const addrLines = doc.splitTextToSize(BUSINESS.address, logo ? 76 : 130) as string[];
+  doc.text(addrLines, companyX, 28);
+  doc.text(`GSTIN: ${BUSINESS.gst}  |  ${BUSINESS.email}`, companyX, 43);
 
   // ── TAX INVOICE badge ────────────────────────────────────────
   // Gradient-like effect: draw two rects slightly offset
@@ -289,7 +311,7 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
   text(C.slate5);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text("Thank you for choosing Pupparazzi! 🐾", PW / 2, footerY + 8, { align: "center" });
+  doc.text("Thank you for choosing Pupparazzi!", PW / 2, footerY + 8, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   text(C.slate3);

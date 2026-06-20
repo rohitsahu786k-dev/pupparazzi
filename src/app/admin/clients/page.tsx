@@ -343,17 +343,20 @@ export default function AdminClientsPage() {
     const [bookingRes, assetRes, petRes, historyRes] = await Promise.all([
       fetch(`/api/bookings?userId=${user.id}`),
       fetch(`/api/assets?clientId=${user.id}`),
-      fetch("/api/pets"),
+      fetch(`/api/users/${user.id}/pets`),
       user.oldHistory?.id ? fetch(`/api/admin/old-data-import?profileId=${user.oldHistory.id}`) : Promise.resolve(null),
     ]);
-    if (bookingRes.ok) setProfileBookings(await bookingRes.json());
+    if (bookingRes.ok) {
+      const bookings = await bookingRes.json();
+      setProfileBookings(Array.isArray(bookings) ? bookings.sort((a: Booking, b: Booking) => new Date(b.slot_date).getTime() - new Date(a.slot_date).getTime()) : []);
+    }
     if (assetRes.ok) setProfileAssets(await assetRes.json());
     if (petRes.ok) {
-      const allPets = await petRes.json();
-      const filteredPets = Array.isArray(allPets) ? allPets.filter((pet: PetProfile) => pet.owner_id === user.id) : [];
-      setProfilePets(filteredPets);
-      if (filteredPets.length > 0) {
-        setUploadPetId(filteredPets[0].id);
+      const pets = await petRes.json();
+      const nextPets = Array.isArray(pets) ? pets : [];
+      setProfilePets(nextPets);
+      if (nextPets.length > 0) {
+        setUploadPetId(nextPets[0].id);
       }
     }
     if (historyRes && historyRes.ok) setProfileOldHistory(await historyRes.json());
@@ -399,10 +402,10 @@ export default function AdminClientsPage() {
       
       // If vaccination, refresh pet list too to show vaccination path
       if (isVaccine) {
-        const petRes = await fetch("/api/pets");
+        const petRes = await fetch(`/api/users/${profileUser!.id}/pets`);
         if (petRes.ok) {
-          const allPets = await petRes.json();
-          setProfilePets(Array.isArray(allPets) ? allPets.filter((pet: PetProfile) => pet.owner_id === profileUser!.id) : []);
+          const pets = await petRes.json();
+          setProfilePets(Array.isArray(pets) ? pets : []);
         }
       }
 
@@ -436,10 +439,10 @@ export default function AdminClientsPage() {
         setProfileAssets(await assetRes.json());
       }
       // Refresh pet list to sync vaccination certificates
-      const petRes = await fetch("/api/pets");
+      const petRes = await fetch(`/api/users/${profileUser!.id}/pets`);
       if (petRes.ok) {
-        const allPets = await petRes.json();
-        setProfilePets(Array.isArray(allPets) ? allPets.filter((pet: PetProfile) => pet.owner_id === profileUser!.id) : []);
+        const pets = await petRes.json();
+        setProfilePets(Array.isArray(pets) ? pets : []);
       }
     } catch (err: any) {
       alert(err.message || "Failed to delete document");
@@ -501,13 +504,13 @@ export default function AdminClientsPage() {
       }
 
       // Refresh pets list
-      const petRes = await fetch("/api/pets");
+      const petRes = await fetch(`/api/users/${profileUser!.id}/pets`);
       if (petRes.ok) {
-        const allPets = await petRes.json();
-        const filteredPets = Array.isArray(allPets) ? allPets.filter((pet: PetProfile) => pet.owner_id === profileUser!.id) : [];
-        setProfilePets(filteredPets);
-        if (filteredPets.length > 0 && !uploadPetId) {
-          setUploadPetId(filteredPets[0].id);
+        const pets = await petRes.json();
+        const nextPets = Array.isArray(pets) ? pets : [];
+        setProfilePets(nextPets);
+        if (nextPets.length > 0 && !uploadPetId) {
+          setUploadPetId(nextPets[0].id);
         }
       }
 
@@ -558,7 +561,11 @@ export default function AdminClientsPage() {
       });
     }
     if (timelinePetFilter !== "All pets") rows = rows.filter((row) => JSON.stringify(row.item || {}).toLowerCase().includes(timelinePetFilter.toLowerCase()));
-    return rows;
+    return [...rows].sort((a, b) => {
+      const aTime = a.date ? new Date(a.date).getTime() : 0;
+      const bTime = b.date ? new Date(b.date).getTime() : 0;
+      return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+    });
   }, [profileOldHistory, timelineFilter, timelinePetFilter]);
 
   return (
@@ -586,7 +593,7 @@ export default function AdminClientsPage() {
 
       <div className="rounded-lg border bg-white p-5">
         <h2 className="mb-4 font-bold">Create Client / User</h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_160px_140px_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_160px_140px]">
           <Input placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -594,10 +601,6 @@ export default function AdminClientsPage() {
           <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm">
             {roles.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
           </select>
-          <Button onClick={createUser} disabled={creating}>
-            {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-            Add
-          </Button>
         </div>
         {form.role === "CLIENT" && (
           <div className="mt-4 pt-4 border-t space-y-3">
@@ -754,10 +757,16 @@ export default function AdminClientsPage() {
                         <Button size="sm" variant="destructive" disabled={savingId === user.id} onClick={(e) => { e.stopPropagation(); deleteUser(user.id); }}>
                           {savingId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                         </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+            </div>
+          </div>
+        )}
+        <div className="mt-4 flex justify-end">
+          <Button onClick={createUser} disabled={creating}>
+            {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+            Add
+          </Button>
+        </div>
+      </div>
               );
             })}
           </div>

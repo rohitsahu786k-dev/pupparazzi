@@ -29,6 +29,7 @@ function cleanCoupon(body: any, existing?: CouponRule): CouponRule {
     expires_at: String(body.expires_at ?? existing?.expires_at ?? ""),
     is_active: body.is_active ?? existing?.is_active ?? true,
     terms: String(body.terms ?? existing?.terms ?? ""),
+    send_in_welcome_email: Boolean(body.send_in_welcome_email ?? existing?.send_in_welcome_email ?? false),
   };
 }
 
@@ -86,7 +87,9 @@ export async function POST(req: Request) {
   if (coupons.some((item) => item.code.toUpperCase() === coupon.code)) {
     return NextResponse.json({ message: "Coupon already exists" }, { status: 409 });
   }
-  const next = [...coupons, coupon];
+  const next = coupon.send_in_welcome_email
+    ? [...coupons.map((item) => ({ ...item, send_in_welcome_email: false })), coupon]
+    : [...coupons, coupon];
   await saveCoupons(next);
   return NextResponse.json(coupon, { status: 201 });
 }
@@ -100,7 +103,11 @@ export async function PATCH(req: Request) {
   const coupons = await getCoupons();
   const existing = coupons.find((item) => item.code.toUpperCase() === code);
   if (!existing) return NextResponse.json({ message: "Coupon not found" }, { status: 404 });
-  const next = coupons.map((item) => item.code.toUpperCase() === code ? cleanCoupon(body, existing) : item);
+  const cleaned = cleanCoupon(body, existing);
+  const next = coupons.map((item) => {
+    if (item.code.toUpperCase() === code) return cleaned;
+    return cleaned.send_in_welcome_email ? { ...item, send_in_welcome_email: false } : item;
+  });
   await saveCoupons(next);
   return NextResponse.json(next.find((item) => item.code.toUpperCase() === code));
 }

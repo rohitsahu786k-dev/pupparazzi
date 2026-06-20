@@ -33,6 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FILE_COMPRESSOR_URL, isUploadTooLarge, MAX_UPLOAD_FILE_SIZE_MB, UPLOAD_SIZE_ERROR_MESSAGE } from "@/lib/upload-limits";
+import { boardingCalculatedAmount, boardingDurationHours, boardingSlabLabel, isBoardingPackageService } from "@/lib/pet-care-pricing";
 
 type Service = {
   id: string;
@@ -241,7 +242,13 @@ function BookPageContent() {
   const selectedPet = pets.find((pet) => pet.id === selectedPetId) || null;
   const today = useMemo(() => new Date(), []);
   const selectedAddons = useMemo(() => selectedService?.addons?.filter((addon) => selectedAddonIds.includes(addon.id)) || [], [selectedAddonIds, selectedService]);
-  const servicePrice = priceOf(selectedService);
+  const boardingHours = useMemo(
+    () => selectedService?.category === "Boarding" ? boardingDurationHours(boardingSchedule) : null,
+    [boardingSchedule, selectedService?.category]
+  );
+  const servicePrice = selectedService?.category === "Boarding"
+    ? boardingCalculatedAmount(boardingHours, selectedService)
+    : priceOf(selectedService);
   const addonTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
   const subtotal = servicePrice + addonTotal;
   const couponDiscount = Math.min(coupon?.discount || 0, subtotal);
@@ -285,6 +292,14 @@ function BookPageContent() {
       router.replace(`/login?callbackUrl=${encodeURIComponent("/book")}`);
     }
   }, [router, status]);
+
+  useEffect(() => {
+    if (!selectedService || selectedService.category !== "Boarding" || isBoardingPackageService(selectedService)) return;
+    const slab = boardingSlabLabel(boardingHours);
+    if (!slab || slab.includes("billable")) return;
+    const matchingService = services.find((service) => service.category === "Boarding" && service.name.includes(slab));
+    if (matchingService && matchingService.id !== selectedService.id) setSelectedServiceId(matchingService.id);
+  }, [boardingHours, selectedService, services]);
 
   useEffect(() => {
     if (!userId) return;
@@ -405,8 +420,7 @@ function BookPageContent() {
       const label = minutesToLabel(start);
       const booked = (availability.slotCounts?.[`${dayKey}|${label}`] || 0) >= capacity;
       const past = sameDay(selectedDate, new Date()) && start <= nowMinutes + 30;
-      const closed = selectedDate.getDay() === 0;
-      result.push({ label, disabled: booked || past || closed || selectedDate < new Date(today.getFullYear(), today.getMonth(), today.getDate()), booked });
+      result.push({ label, disabled: booked || past || selectedDate < new Date(today.getFullYear(), today.getMonth(), today.getDate()), booked });
     }
     return result;
   }, [availability.slotCounts, selectedDate, selectedService, today]);
@@ -694,7 +708,7 @@ function BookPageContent() {
             <p className="text-sm font-bold uppercase text-primary">Professional Booking</p>
             <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-4xl">Book pet care with live availability</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Service duration, cleaning buffer, closed days, existing bookings, pet profile, reminders, and payment preference are handled in one flow.
+              Service duration, cleaning buffer, booked slots, pet profile, reminders, and payment preference are handled in one flow.
             </p>
           </div>
           <Button variant="outline" asChild>
@@ -988,6 +1002,9 @@ function BookPageContent() {
                   <Input placeholder="Check-in slot (optional)" value={boardingSchedule.check_in_slot} onChange={(e) => setBoardingSchedule((prev) => ({ ...prev, check_in_slot: e.target.value }))} />
                   <Input placeholder="Check-out slot (optional)" value={boardingSchedule.check_out_slot} onChange={(e) => setBoardingSchedule((prev) => ({ ...prev, check_out_slot: e.target.value }))} />
                 </div>
+                <p className="mt-3 text-xs font-semibold text-muted-foreground">
+                  {boardingHours == null ? "Enter complete check-in/check-out details to auto-calculate boarding amount." : `Detected duration: ${boardingHours.toFixed(1)} hours - ${boardingSlabLabel(boardingHours)}`}
+                </p>
               </div>
             )}
 
@@ -1030,7 +1047,6 @@ function BookPageContent() {
                         {monthDays.map((day) => {
                           const dateKey = toDateKey(day);
                           const past = day < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                          const closed = day.getDay() === 0;
                           const outMonth = day.getMonth() !== visibleMonth.getMonth();
                           const count = availability.dayCounts?.[dateKey] || 0;
                           const capacity = selectedService?.max_slots_per_day || 4;
@@ -1039,7 +1055,7 @@ function BookPageContent() {
                             <button
                               key={dateKey}
                               type="button"
-                              disabled={past || closed}
+                              disabled={past}
                               onClick={() => {
                                 setSelectedDate(day);
                                 setSelectedSlot("");
@@ -1047,8 +1063,8 @@ function BookPageContent() {
                               className={`min-h-12 rounded-lg border p-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-18 sm:p-1.5 ${sameDay(day, selectedDate) ? "border-primary bg-primary text-white shadow-sm" : "hover:border-primary/50"} ${outMonth ? "bg-muted/40 text-muted-foreground" : "bg-white"}`}
                             >
                               <span className="block text-left font-bold">{day.getDate()}</span>
-                              <span className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full sm:mt-2 ${closed || dayStatus === "Fully booked" ? "bg-red-400" : dayStatus === "Few slots" ? "bg-amber-400" : "bg-green-400"}`} />
-                              <span className="mt-0.5 hidden truncate text-[10px] sm:mt-1 sm:block">{closed ? "Closed" : dayStatus}</span>
+                              <span className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full sm:mt-2 ${dayStatus === "Fully booked" ? "bg-red-400" : dayStatus === "Few slots" ? "bg-amber-400" : "bg-green-400"}`} />
+                              <span className="mt-0.5 hidden truncate text-[10px] sm:mt-1 sm:block">{dayStatus}</span>
                             </button>
                           );
                         })}
@@ -1061,7 +1077,7 @@ function BookPageContent() {
                           <button
                             key={toDateKey(day)}
                             type="button"
-                            disabled={day.getDay() === 0 || day < new Date(today.getFullYear(), today.getMonth(), today.getDate())}
+                            disabled={day < new Date(today.getFullYear(), today.getMonth(), today.getDate())}
                             onClick={() => {
                               setSelectedDate(day);
                               setVisibleMonth(startOfMonth(day));
@@ -1071,7 +1087,7 @@ function BookPageContent() {
                           >
                             <p className="text-[10px] font-bold sm:text-xs">{WEEK_DAYS[day.getDay()]}</p>
                             <p className="mt-1 text-lg font-extrabold sm:mt-2 sm:text-2xl">{day.getDate()}</p>
-                            <p className="mt-1 truncate text-[8px] sm:mt-2 sm:text-[11px]">{day.getDay() === 0 ? "Closed" : `${availability.dayCounts?.[toDateKey(day)] || 0} bkd`}</p>
+                            <p className="mt-1 truncate text-[8px] sm:mt-2 sm:text-[11px]">{availability.dayCounts?.[toDateKey(day)] || 0} bkd</p>
                           </button>
                         ))}
                       </div>
@@ -1082,7 +1098,7 @@ function BookPageContent() {
                   <div className="space-y-3">
                     <div className="rounded-lg border bg-muted/35 p-3">
                       <p className="text-sm font-bold">{selectedDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Choose one open slot. Past slots, lunch break and Sunday are blocked.</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Choose one open slot. Past slots and lunch break are blocked.</p>
                     </div>
                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-3">
                       {slots.map((slot) => (

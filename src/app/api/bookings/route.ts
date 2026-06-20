@@ -151,7 +151,7 @@ export async function GET(req: Request) {
           ? {
               slot_date: {
                 ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-                ...(dateTo ? { lte: new Date(dateTo) } : {}),
+                ...(dateTo ? { lte: dayRange(new Date(dateTo)).end } : {}),
               },
             }
           : {}),
@@ -355,7 +355,7 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const {
       id, status, payment_status, notes, internal_notes, transaction_id,
-      payment_method, staff_id, slot_date, slot_time, after_photos_json, collect_cod,
+      payment_method, staff_id, service_id, pet_id, address_id, address, slot_date, slot_time, after_photos_json, collect_cod,
     } = body;
 
     if (!id) {
@@ -386,6 +386,10 @@ export async function PATCH(req: Request) {
       && transaction_id === undefined
       && payment_method === undefined
       && staff_id === undefined
+      && service_id === undefined
+      && pet_id === undefined
+      && address_id === undefined
+      && address === undefined
       && after_photos_json === undefined
       && collect_cod === undefined
       && body.details_completed !== undefined;
@@ -398,6 +402,10 @@ export async function PATCH(req: Request) {
       && transaction_id === undefined
       && payment_method === undefined
       && staff_id === undefined
+      && service_id === undefined
+      && pet_id === undefined
+      && address_id === undefined
+      && address === undefined
       && slot_date === undefined
       && slot_time === undefined
       && after_photos_json === undefined
@@ -422,6 +430,61 @@ export async function PATCH(req: Request) {
       }
     }
 
+    if (admin && pet_id) {
+      const pet = await prisma.pet.findUnique({ where: { id: pet_id }, select: { owner_id: true } });
+      if (!pet || pet.owner_id !== existingBooking.client_id) {
+        return NextResponse.json({ message: "Pet not found for this client" }, { status: 400 });
+      }
+    }
+
+    const nextServiceId = admin && service_id ? String(service_id) : existingBooking.service_id;
+    const nextSlotDate = slot_date ? new Date(slot_date) : existingBooking.slot_date;
+    const nextSlotTime = slot_time || existingBooking.slot_time;
+    if (admin && (service_id || slot_date || slot_time)) {
+      const service = await prisma.service.findUnique({ where: { id: nextServiceId }, select: { max_slots_per_day: true, is_active: true } });
+      if (!service?.is_active) return NextResponse.json({ message: "Service is not available" }, { status: 404 });
+      const existingSlotCount = await prisma.booking.count({
+        where: {
+          id: { not: id },
+          service_id: nextServiceId,
+          slot_date: nextSlotDate,
+          slot_time: nextSlotTime,
+          status: { in: ACTIVE_BOOKING_STATUSES },
+        },
+      });
+      if (existingSlotCount >= (service.max_slots_per_day || 1)) {
+        return NextResponse.json({ message: "This slot is no longer available" }, { status: 409 });
+      }
+    }
+
+    let bookingAddressId = address_id !== undefined ? (address_id || null) : undefined;
+    if (admin && bookingAddressId === undefined && address?.line1 && address?.city && address?.state && address?.pincode) {
+      const createdAddress = await prisma.address.create({
+        data: {
+          user_id: existingBooking.client_id,
+          label: address.label || "Service Address",
+          line1: address.line1,
+          city: address.city,
+          state: address.state,
+          pincode: address.pincode,
+          phone: address.phone || undefined,
+        },
+      });
+      bookingAddressId = createdAddress.id;
+    }
+
+    const adminTotalOverride = admin ? nullableNumber(body.final_amount ?? body.admin_total) : null;
+    const nextAddonsJson = adminTotalOverride !== null
+      ? {
+          ...((existingBooking.addons_json && typeof existingBooking.addons_json === "object") ? existingBooking.addons_json as any : {}),
+          pricing: {
+            ...(((existingBooking.addons_json as any)?.pricing && typeof (existingBooking.addons_json as any).pricing === "object") ? (existingBooking.addons_json as any).pricing : {}),
+            subtotal: adminTotalOverride,
+            total: adminTotalOverride,
+          },
+        }
+      : undefined;
+
     const booking = await prisma.booking.update({
       where: { id },
       data: {
@@ -430,12 +493,16 @@ export async function PATCH(req: Request) {
         ...(notes !== undefined && { notes }),
         ...(internal_notes !== undefined && { internal_notes }),
         ...(staff_id !== undefined && { staff_id: staff_id || null }),
+        ...(admin && service_id ? { service_id: nextServiceId } : {}),
+        ...(admin && pet_id ? { pet_id: String(pet_id) } : {}),
+        ...(admin && bookingAddressId !== undefined ? { address_id: bookingAddressId } : {}),
         ...(slot_date && { slot_date: new Date(slot_date) }),
         ...(slot_time && { slot_time }),
         ...(after_photos_json !== undefined && { after_photos_json }),
+        ...(nextAddonsJson ? { addons_json: nextAddonsJson } : {}),
         ...bookingDetailData(body),
       },
-      include: { pet: true, service: true, client: true, payments: true, invoices: true },
+      include: { pet: true, service: true, address: true, client: true, payments: true, invoices: true },
     });
 
     const clientEmail = booking.client?.email;
@@ -498,6 +565,7 @@ export async function PATCH(req: Request) {
         customerName: booking.client?.name || "Customer",
         customerEmail: clientEmail,
         customerPhone: booking.client?.phone || undefined,
+        customerAddress: booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.state} ${booking.address.pincode}` : undefined,
         serviceName: booking.service?.name || "Pet Service",
         petName: booking.pet?.name || "Pet",
         slotDate: slotDateStr,

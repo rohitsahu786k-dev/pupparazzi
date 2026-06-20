@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, PawPrint, Search, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, PawPrint, Search, Trash2 } from "lucide-react";
 
 type Pet = {
   id: string;
@@ -27,6 +27,7 @@ export default function AdminPetsPage() {
   const [savingId, setSavingId] = useState("");
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [expandedPetId, setExpandedPetId] = useState<string | null>(null);
 
   async function fetchPets() {
     setLoading(true);
@@ -101,40 +102,54 @@ export default function AdminPetsPage() {
         ) : (
           <>
           <div className="grid gap-3 p-3 lg:hidden">
-            {filtered.map((pet) => (
+            {filtered.map((pet) => {
+              const isExpanded = expandedPetId === pet.id;
+              return (
               <div key={pet.id} className="rounded-lg border bg-white p-4 shadow-sm">
-                <div className="flex items-start gap-3">
+                <div className="flex cursor-pointer items-start gap-3" onClick={() => setExpandedPetId(isExpanded ? null : pet.id)}>
                   <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <PawPrint className="h-5 w-5" />
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-bold">{pet.name}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{[pet.type, pet.breed, pet.weight ? `${pet.weight} kg` : ""].filter(Boolean).join(" - ")}</p>
                     <p className="mt-1 truncate text-xs text-muted-foreground">{pet.owner?.name || "Customer"} - {pet.owner?.phone || pet.owner?.email || "-"}</p>
                   </div>
+                  {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                 </div>
-                <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                  <div className="rounded-lg bg-muted/45 p-2">
-                    <p className="text-muted-foreground">Care</p>
-                    <p className="mt-1 font-semibold">{[pet.size, pet.coat_type, pet.dietary_preference].filter(Boolean).join(" - ") || "Not recorded"}</p>
+                {isExpanded && (
+                  <div className="mt-3 border-t pt-3">
+                    <div className="grid gap-2 text-xs sm:grid-cols-2">
+                      <div className="rounded-lg bg-muted/45 p-2">
+                        <p className="text-muted-foreground">Care</p>
+                        <p className="mt-1 font-semibold">{[pet.size, pet.coat_type, pet.dietary_preference].filter(Boolean).join(" - ") || "Not recorded"}</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/45 p-2">
+                        <p className="text-muted-foreground">Medical</p>
+                        <p className="mt-1 font-semibold">{pet.medical?.vaccination_status || "Not recorded"}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <Input defaultValue={pet.name} onBlur={(e) => updatePet(pet.id, { name: e.target.value })} className="h-9" />
+                      <Input defaultValue={pet.breed || ""} placeholder="Breed" onBlur={(e) => updatePet(pet.id, { breed: e.target.value })} className="h-9" />
+                      <Input defaultValue={pet.weight || ""} placeholder="Weight" onBlur={(e) => updatePet(pet.id, { weight: e.target.value })} className="h-9" />
+                      <Input defaultValue={pet.size || ""} placeholder="Size" onBlur={(e) => updatePet(pet.id, { size: e.target.value })} className="h-9" />
+                    </div>
+                    <div className="mt-3 flex justify-end">
+                      <Button size="sm" variant="destructive" disabled={savingId === pet.id} onClick={() => deletePet(pet.id)}>
+                        {savingId === pet.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="rounded-lg bg-muted/45 p-2">
-                    <p className="text-muted-foreground">Medical</p>
-                    <p className="mt-1 font-semibold">{pet.medical?.vaccination_status || "Not recorded"}</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex justify-end">
-                  <Button size="sm" variant="destructive" disabled={savingId === pet.id} onClick={() => deletePet(pet.id)}>
-                    {savingId === pet.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                  </Button>
-                </div>
+                )}
               </div>
-            ))}
+            );})}
           </div>
           <div className="hidden overflow-x-auto lg:block">
             <table className="w-full min-w-250 text-left text-sm">
               <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
                 <tr>
+                  <th className="w-12 px-4 py-3"></th>
                   <th className="px-4 py-3">Pet</th>
                   <th className="px-4 py-3">Owner</th>
                   <th className="px-4 py-3">Care Profile</th>
@@ -143,19 +158,20 @@ export default function AdminPetsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filtered.map((pet) => (
-                  <tr key={pet.id} className="align-top">
+                {filtered.map((pet) => {
+                  const isExpanded = expandedPetId === pet.id;
+                  return (
+                  <Fragment key={pet.id}>
+                  <tr className={`cursor-pointer align-middle hover:bg-muted/30 ${isExpanded ? "bg-muted/20" : ""}`} onClick={() => setExpandedPetId(isExpanded ? null : pet.id)}>
+                    <td className="px-4 py-4 text-center">
+                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </td>
                     <td className="px-4 py-4">
                       <div className="flex items-start gap-2">
                         <PawPrint className="mt-2 h-4 w-4 text-primary" />
-                        <div className="space-y-2">
-                          <Input defaultValue={pet.name} onBlur={(e) => updatePet(pet.id, { name: e.target.value })} className="h-9" />
-                          <div className="grid grid-cols-2 gap-2">
-                            <select defaultValue={pet.type} onBlur={(e) => updatePet(pet.id, { type: e.currentTarget.value })} className="h-9 rounded-lg border bg-white px-2 text-xs">
-                              {["Dog", "Cat", "Bird", "Other"].map((item) => <option key={item}>{item}</option>)}
-                            </select>
-                            <Input defaultValue={pet.breed || ""} placeholder="Breed" onBlur={(e) => updatePet(pet.id, { breed: e.target.value })} className="h-9" />
-                          </div>
+                        <div>
+                          <p className="font-bold">{pet.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{[pet.type, pet.breed].filter(Boolean).join(" - ") || "-"}</p>
                         </div>
                       </div>
                     </td>
@@ -165,13 +181,8 @@ export default function AdminPetsPage() {
                       <p className="mt-1 text-xs text-muted-foreground">{pet.owner?.phone || "-"}</p>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input defaultValue={pet.weight || ""} placeholder="Weight" onBlur={(e) => updatePet(pet.id, { weight: e.target.value })} className="h-9" />
-                        <Input defaultValue={pet.size || ""} placeholder="Size" onBlur={(e) => updatePet(pet.id, { size: e.target.value })} className="h-9" />
-                        <Input defaultValue={pet.coat_type || ""} placeholder="Coat" onBlur={(e) => updatePet(pet.id, { coat_type: e.target.value })} className="h-9" />
-                        <Input defaultValue={pet.dietary_preference || ""} placeholder="Diet" onBlur={(e) => updatePet(pet.id, { dietary_preference: e.target.value })} className="h-9" />
-                      </div>
-                      <Input defaultValue={pet.allergies || ""} placeholder="Allergies" onBlur={(e) => updatePet(pet.id, { allergies: e.target.value })} className="mt-2 h-9" />
+                      <p className="font-medium">{[pet.weight ? `${pet.weight} kg` : "", pet.size, pet.coat_type].filter(Boolean).join(" - ") || "Not recorded"}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{pet.dietary_preference || pet.allergies || "No diet/allergy notes"}</p>
                     </td>
                     <td className="px-4 py-4">
                       <p className="font-medium">{pet.medical?.vaccination_status || "Not recorded"}</p>
@@ -183,7 +194,47 @@ export default function AdminPetsPage() {
                       </Button>
                     </td>
                   </tr>
-                ))}
+                  {isExpanded && (
+                    <tr className="bg-muted/5">
+                      <td colSpan={6} className="border-t px-6 py-4">
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div className="space-y-2">
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pet details</p>
+                            <Input defaultValue={pet.name} onBlur={(e) => updatePet(pet.id, { name: e.target.value })} className="h-9" />
+                            <div className="grid grid-cols-2 gap-2">
+                              <select defaultValue={pet.type} onBlur={(e) => updatePet(pet.id, { type: e.currentTarget.value })} className="h-9 rounded-lg border bg-white px-2 text-xs">
+                                {["Dog", "Cat", "Bird", "Other"].map((item) => <option key={item}>{item}</option>)}
+                              </select>
+                              <Input defaultValue={pet.breed || ""} placeholder="Breed" onBlur={(e) => updatePet(pet.id, { breed: e.target.value })} className="h-9" />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Care profile</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input defaultValue={pet.weight || ""} placeholder="Weight" onBlur={(e) => updatePet(pet.id, { weight: e.target.value })} className="h-9" />
+                              <Input defaultValue={pet.size || ""} placeholder="Size" onBlur={(e) => updatePet(pet.id, { size: e.target.value })} className="h-9" />
+                              <Input defaultValue={pet.coat_type || ""} placeholder="Coat" onBlur={(e) => updatePet(pet.id, { coat_type: e.target.value })} className="h-9" />
+                              <Input defaultValue={pet.dietary_preference || ""} placeholder="Diet" onBlur={(e) => updatePet(pet.id, { dietary_preference: e.target.value })} className="h-9" />
+                            </div>
+                            <Input defaultValue={pet.allergies || ""} placeholder="Allergies" onBlur={(e) => updatePet(pet.id, { allergies: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Medical</p>
+                            <div className="rounded-lg border bg-white p-3 text-xs">
+                              <p className="font-semibold">{pet.medical?.vaccination_status || "Not recorded"}</p>
+                              <p className="mt-1 text-muted-foreground">{pet.medical?.vet_name || "No vet"} {pet.medical?.vet_contact ? `- ${pet.medical.vet_contact}` : ""}</p>
+                            </div>
+                            <Button size="sm" variant="destructive" disabled={savingId === pet.id} onClick={() => deletePet(pet.id)}>
+                              {savingId === pet.id ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-2 h-3.5 w-3.5" />}
+                              Delete pet
+                            </Button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
+                );})}
               </tbody>
             </table>
           </div>

@@ -33,6 +33,7 @@ function invoicePdf(booking: any, invoiceNumber: string, amount: number) {
     customerName: booking.client?.name || "Customer",
     customerEmail: booking.client?.email || "",
     customerPhone: booking.client?.phone || undefined,
+    customerAddress: booking.address ? `${booking.address.line1}, ${booking.address.city}, ${booking.address.state} ${booking.address.pincode}` : undefined,
     serviceName: booking.service?.name || "Pet Service",
     petName: booking.pet?.name || "Pet",
     slotDate: formatBookingDate(booking.slot_date),
@@ -87,7 +88,7 @@ export async function recordSuccessfulOnlinePayment(params: {
 }) {
   const booking = await prisma.booking.findFirst({
     where: { id: params.bookingId, client_id: params.clientId },
-    include: { service: true, pet: true, client: true, invoices: true },
+    include: { service: true, pet: true, address: true, client: true, invoices: true },
   });
   if (!booking) throw new Error("Booking not found");
 
@@ -118,7 +119,7 @@ export async function recordSuccessfulOnlinePayment(params: {
       status: "Confirmed",
       payment_status: paymentStatus,
     },
-    include: { service: true, pet: true, client: true },
+    include: { service: true, pet: true, address: true, client: true },
   });
 
   const invoiceId = isAdvance ? `INV-${booking.booking_id}-ADV` : `INV-${booking.booking_id}-FINAL`;
@@ -166,7 +167,7 @@ export async function collectCodPayment(params: {
 }) {
   const booking = await prisma.booking.findUnique({
     where: { id: params.bookingId },
-    include: { service: true, pet: true, client: true, payments: true },
+    include: { service: true, pet: true, address: true, client: true, payments: true },
   });
   if (!booking) throw new Error("Booking not found");
 
@@ -213,7 +214,7 @@ export async function collectCodPayment(params: {
   const updatedBooking = await prisma.booking.update({
     where: { id: booking.id },
     data: { payment_status: "Paid" },
-    include: { service: true, pet: true, client: true },
+    include: { service: true, pet: true, address: true, client: true },
   });
 
   if (updatedBooking.client?.email) {

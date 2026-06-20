@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, ChevronDown, ChevronUp, CreditCard, Download, Eye, Grid2X2, List, Loader2, Mail, MapPin, MessageCircle, Phone, Printer, Search, Share2, Trash2, UserCheck, UserPlus } from "lucide-react";
+import { Calendar, ChevronDown, ChevronUp, CreditCard, Download, Edit3, Eye, Grid2X2, List, Loader2, Mail, MapPin, MessageCircle, Phone, Printer, Save, Search, Share2, Trash2, UserCheck, UserPlus } from "lucide-react";
 
 type Booking = {
   id: string;
@@ -31,6 +31,7 @@ type Booking = {
 };
 
 type ClientOption = { id: string; name?: string | null; phone?: string | null; email?: string | null };
+type BookingEditDraft = { slot_date: string; slot_time: string; final_amount: string };
 
 const STATUSES = ["All", "Pending", "Confirmed", "In Progress", "Completed", "Cancelled", "Expired"];
 const PAYMENT_STATUSES = ["All", "Pending", "Advance Paid", "Partially Paid", "Paid", "Failed", "Cancelled", "Refunded"];
@@ -128,6 +129,7 @@ export default function AdminBookingsPage() {
   const [viewer, setViewer] = useState<{ label: string; path: string } | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [editDrafts, setEditDrafts] = useState<Record<string, BookingEditDraft>>({});
   const [error, setError] = useState("");
 
   async function fetchBookings() {
@@ -208,6 +210,27 @@ export default function AdminBookingsPage() {
   async function collectCodPayment(id: string) {
     if (!confirm("Mark remaining COD payment as collected and generate final invoice?")) return;
     await updateBooking(id, { collect_cod: true });
+  }
+
+  function editDraft(booking: Booking) {
+    return editDrafts[booking.id] || {
+      slot_date: dateKey(booking.slot_date),
+      slot_time: booking.slot_time || "",
+      final_amount: String(bookingAmount(booking) || ""),
+    };
+  }
+
+  function setBookingEditDraft(booking: Booking, patch: Partial<BookingEditDraft>) {
+    setEditDrafts((prev) => ({ ...prev, [booking.id]: { ...(prev[booking.id] || editDraft(booking)), ...patch } }));
+  }
+
+  async function saveBookingEdit(booking: Booking) {
+    const draft = editDraft(booking);
+    await updateBooking(booking.id, {
+      slot_date: draft.slot_date,
+      slot_time: draft.slot_time,
+      final_amount: draft.final_amount === "" ? undefined : Number(draft.final_amount),
+    });
   }
 
   async function shareDocument(path: string) {
@@ -383,6 +406,7 @@ export default function AdminBookingsPage() {
           <div className="space-y-3 p-3 lg:hidden">
             {filtered.map((booking) => {
               const isExpanded = expandedBookingId === booking.id;
+              const draft = editDraft(booking);
               return (
                 <div key={booking.id} className="rounded-lg border bg-white shadow-sm overflow-hidden">
                   <div
@@ -431,6 +455,19 @@ export default function AdminBookingsPage() {
                         </div>
                       ) : null}
                       <hr />
+                      <div className="rounded-lg border bg-white p-3 text-foreground">
+                        <p className="mb-2 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                          <Edit3 className="h-3 w-3" /> Edit booking
+                        </p>
+                        <div className="grid gap-2 sm:grid-cols-3">
+                          <Input type="date" value={draft.slot_date} onChange={(e) => setBookingEditDraft(booking, { slot_date: e.target.value })} className="h-9 text-xs" />
+                          <Input value={draft.slot_time} onChange={(e) => setBookingEditDraft(booking, { slot_time: e.target.value })} placeholder="Time" className="h-9 text-xs" />
+                          <Input type="number" value={draft.final_amount} onChange={(e) => setBookingEditDraft(booking, { final_amount: e.target.value })} placeholder="Amount" className="h-9 text-xs" />
+                        </div>
+                        <Button size="sm" variant="outline" className="mt-2" disabled={savingId === booking.id} onClick={() => saveBookingEdit(booking)}>
+                          <Save className="mr-1 h-3.5 w-3.5" /> Save edit
+                        </Button>
+                      </div>
                       <div className="space-y-2 pt-1">
                         <div>
                           <label className="font-semibold text-foreground text-[10px] block mb-1">Update Status</label>
@@ -507,6 +544,7 @@ export default function AdminBookingsPage() {
               <tbody className="divide-y">
                 {filtered.map((booking) => {
                   const isExpanded = expandedBookingId === booking.id;
+                  const draft = editDraft(booking);
                   return (
                     <>
                       <tr
@@ -601,6 +639,19 @@ export default function AdminBookingsPage() {
                               <div className="space-y-3">
                                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Management & Actions</h3>
                                 <div className="rounded-lg border bg-white p-3 space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                                  <div className="rounded-lg border bg-muted/20 p-2">
+                                    <p className="mb-2 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                                      <Edit3 className="h-3 w-3" /> Edit booking
+                                    </p>
+                                    <div className="grid gap-2">
+                                      <Input type="date" value={draft.slot_date} onChange={(e) => setBookingEditDraft(booking, { slot_date: e.target.value })} className="h-9 text-xs" />
+                                      <Input value={draft.slot_time} onChange={(e) => setBookingEditDraft(booking, { slot_time: e.target.value })} placeholder="Time" className="h-9 text-xs" />
+                                      <Input type="number" value={draft.final_amount} onChange={(e) => setBookingEditDraft(booking, { final_amount: e.target.value })} placeholder="Amount" className="h-9 text-xs" />
+                                    </div>
+                                    <Button size="sm" variant="outline" className="mt-2 w-full" disabled={savingId === booking.id} onClick={() => saveBookingEdit(booking)}>
+                                      <Save className="mr-1 h-3.5 w-3.5" /> Save edit
+                                    </Button>
+                                  </div>
                                   <div>
                                     <label className="font-semibold text-muted-foreground text-[10px] block">Booking Status</label>
                                     <select

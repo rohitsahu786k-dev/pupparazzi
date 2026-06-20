@@ -1,6 +1,8 @@
 import nodemailer from "nodemailer";
 import { DEFAULT_SMTP_SETTINGS, getSetting } from "@/lib/settings";
 import { SITE_URL } from "@/lib/booking-detail-forms";
+import { prisma } from "@/lib/prisma";
+import { CouponRule, defaultCoupons } from "@/lib/pet-care-pricing";
 
 export const BUSINESS = {
   name: "Pupparazzi Pet Store & Grooming Salon",
@@ -41,6 +43,25 @@ function primaryButton(label: string, url: string) {
 
 function sectionTitle(text: string) {
   return `<h2 style="margin:0 0 20px;font-size:13px;font-weight:700;color:#94A3B8;letter-spacing:0.12em;text-transform:uppercase;">${text}</h2>`;
+}
+
+async function welcomeEmailCoupon() {
+  const setting = await prisma.appSetting.findUnique({ where: { key: "coupons" } });
+  const coupons = (Array.isArray(setting?.value) ? setting.value : defaultCoupons) as CouponRule[];
+  const now = new Date();
+  return coupons.find((coupon) => (
+    coupon.send_in_welcome_email
+    && coupon.is_active
+    && (!coupon.expires_at || new Date(coupon.expires_at) >= now)
+  )) || coupons.find((coupon) => coupon.is_active && (!coupon.expires_at || new Date(coupon.expires_at) >= now)) || null;
+}
+
+function couponOfferLine(coupon: CouponRule) {
+  const value = coupon.discount_type === "FLAT"
+    ? `Rs. ${Number(coupon.discount_value || 0).toLocaleString("en-IN")} OFF`
+    : `${Number(coupon.discount_value || 0).toLocaleString("en-IN")}% OFF`;
+  const category = coupon.category ? ` on ${coupon.category.toLowerCase()} services` : "";
+  return `${value}${category}`;
 }
 
 // ── Base Layout ─────────────────────────────────────────────────
@@ -305,7 +326,7 @@ export function paymentConfirmationHtml(data: {
 // TEMPLATE 3 – WELCOME EMAIL
 // ═══════════════════════════════════════════════════════════════
 
-export function welcomeEmailHtml(data: { userName: string; email: string; password?: string }) {
+export function welcomeEmailHtml(data: { userName: string; email: string; password?: string; welcomeCoupon?: CouponRule | null }) {
   const services = [
     { icon: "", name: "Premium Grooming", desc: "Certified groomers, spa treatments" },
     { icon: "", name: "Luxury Boarding", desc: "Climate-controlled, 24/7 care" },
@@ -369,19 +390,22 @@ export function welcomeEmailHtml(data: { userName: string; email: string; passwo
         </tr>` : "").filter(Boolean).join("")}
       </table>
 
+      ${data.welcomeCoupon ? `
       <!-- Welcome Offer -->
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:32px;">
         <tr>
           <td style="background:linear-gradient(135deg,#FDF4FF 0%,#FFF7ED 100%);border:1px solid #E9D5FF;border-radius:16px;padding:24px 28px;text-align:center;">
             <p style="margin:0 0 8px;font-size:24px;"></p>
             <p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#6B21A8;">Exclusive Welcome Offer</p>
-            <p style="margin:0 0 16px;font-size:13px;color:#7E22CE;">Use code below for <strong>50% OFF</strong> on your first grooming session!</p>
+            <p style="margin:0 0 16px;font-size:13px;color:#7E22CE;">Use code below for <strong>${couponOfferLine(data.welcomeCoupon)}</strong>.</p>
             <div style="display:inline-block;background:#FFFFFF;border:2px dashed #C084FC;border-radius:10px;padding:10px 28px;">
-              <span style="font-family:'Courier New',monospace;font-size:22px;font-weight:800;color:#7C3AED;letter-spacing:0.1em;">WELCOME50</span>
+              <span style="font-family:'Courier New',monospace;font-size:22px;font-weight:800;color:#7C3AED;letter-spacing:0.1em;">${data.welcomeCoupon.code}</span>
             </div>
+            ${data.welcomeCoupon.terms ? `<p style="margin:14px 0 0;font-size:11px;color:#9F7AEA;line-height:1.5;">${data.welcomeCoupon.terms}</p>` : ""}
           </td>
         </tr>
       </table>
+      ` : ""}
 
       ${primaryButton("Book Your First Service", `${BUSINESS.website}/book`)}
 
@@ -651,10 +675,11 @@ export async function sendPaymentConfirmation(
 }
 
 export async function sendWelcomeEmail(to: string, data: Parameters<typeof welcomeEmailHtml>[0]) {
+  const welcomeCoupon = data.welcomeCoupon === undefined ? await welcomeEmailCoupon() : data.welcomeCoupon;
   return sendMail({
     to,
     subject: `Welcome to ${BUSINESS.shortName}, ${data.userName}! `,
-    html: welcomeEmailHtml(data),
+    html: welcomeEmailHtml({ ...data, welcomeCoupon }),
   });
 }
 

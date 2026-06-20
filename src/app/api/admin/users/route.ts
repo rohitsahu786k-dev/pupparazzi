@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { sendClientProfileRequestEmail, sendWelcomeEmail } from "@/lib/mailer";
@@ -28,7 +29,7 @@ function phoneKey(value?: string | null) {
   return String(value || "").replace(/\D/g, "");
 }
 
-function publicUserSelect() {
+function publicUserSelect(): Prisma.UserSelect {
   return {
     id: true,
     name: true,
@@ -41,10 +42,36 @@ function publicUserSelect() {
     outstanding_balance: true,
     created_at: true,
     addresses: { select: { id: true, label: true, line1: true, city: true, state: true, pincode: true, phone: true, is_default: true } },
-    pets: { select: { id: true, name: true, type: true, breed: true, weight: true, medical: { select: { vaccination_status: true } } } },
-    clientBookings: { select: { id: true, booking_id: true, status: true, payment_status: true, slot_date: true } },
+    pets: { orderBy: { created_at: "desc" }, select: { id: true, name: true, type: true, breed: true, weight: true, medical: { select: { vaccination_status: true } } } },
+    clientBookings: { orderBy: [{ slot_date: "desc" }, { created_at: "desc" }], take: 25, select: { id: true, booking_id: true, status: true, payment_status: true, slot_date: true } },
     staffProfile: { select: { id: true, role: true, services_json: true, working_hours_json: true } },
-  } as const;
+  };
+}
+
+function compactClientSelect(): Prisma.UserSelect {
+  return {
+    id: true,
+    name: true,
+    email: true,
+    phone: true,
+    created_at: true,
+    addresses: { select: { id: true, label: true, line1: true, city: true, state: true, pincode: true, phone: true, is_default: true } },
+    pets: { orderBy: { created_at: "desc" }, select: { id: true, name: true, type: true, breed: true, weight: true } },
+    clientBookings: {
+      orderBy: [{ slot_date: "desc" }, { created_at: "desc" }],
+      take: 10,
+      select: {
+        id: true,
+        booking_id: true,
+        status: true,
+        payment_status: true,
+        slot_date: true,
+        slot_time: true,
+        service: { select: { name: true, category: true } },
+        pet: { select: { name: true, type: true } },
+      },
+    },
+  };
 }
 
 async function syncStaffProfile(userId: string, role: string) {
@@ -71,6 +98,7 @@ export async function GET(req: Request) {
   const email = searchParams.get("email")?.trim();
   const history = searchParams.get("history") || "All";
   const balance = searchParams.get("balance") || "All";
+  const compact = searchParams.get("compact") === "true";
   const and: any[] = [];
   const qOr: any[] = [];
 
@@ -132,9 +160,13 @@ export async function GET(req: Request) {
 
   const users = await prisma.user.findMany({
     where: and.length ? { AND: and } : {},
-    select: publicUserSelect(),
+    select: compact ? compactClientSelect() : publicUserSelect(),
     orderBy: { created_at: "desc" },
   });
+
+  if (compact) {
+    return NextResponse.json(users);
+  }
 
   const userIds = users.map((user) => user.id);
   const userPhones = Array.from(new Set(users.map((user) => user.phone).filter(Boolean) as string[]));

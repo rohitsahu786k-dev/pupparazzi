@@ -35,8 +35,7 @@ export default function ContactPage() {
             <div className="rounded-xl border p-6">
               <Clock className="h-8 w-8 text-primary" />
               <h3 className="mt-3 font-bold text-foreground">Working Hours</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Monday – Saturday: 9:00 AM – 8:00 PM</p>
-              <p className="text-sm text-muted-foreground">Sunday: Closed</p>
+              <p className="mt-2 text-sm text-muted-foreground">Monday to Sunday: 9:00 AM to 8:00 PM</p>
             </div>
           </div>
 

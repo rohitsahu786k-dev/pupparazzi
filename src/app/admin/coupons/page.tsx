@@ -16,6 +16,7 @@ type Coupon = {
   expires_at: string;
   is_active: boolean;
   terms: string;
+  send_in_welcome_email?: boolean;
 };
 
 type CouponForm = {
@@ -29,6 +30,7 @@ type CouponForm = {
   expires_at: string;
   is_active: boolean;
   terms: string;
+  send_in_welcome_email: boolean;
 };
 
 const emptyForm: CouponForm = {
@@ -42,6 +44,7 @@ const emptyForm: CouponForm = {
   expires_at: "2026-12-31",
   is_active: true,
   terms: "",
+  send_in_welcome_email: false,
 };
 
 export default function AdminCouponsPage() {
@@ -117,6 +120,7 @@ export default function AdminCouponsPage() {
       expires_at: coupon.expires_at || "",
       is_active: coupon.is_active,
       terms: coupon.terms || "",
+      send_in_welcome_email: Boolean(coupon.send_in_welcome_email),
     });
   }
 
@@ -145,10 +149,11 @@ export default function AdminCouponsPage() {
           <Input placeholder="Minimum" inputMode="decimal" value={form.minimum_order_amount} onChange={(e) => setForm({ ...form, minimum_order_amount: e.target.value.replace(/[^\d.]/g, "") })} />
           <Input placeholder="Usage" inputMode="numeric" value={form.usage_limit} onChange={(e) => setForm({ ...form, usage_limit: e.target.value.replace(/\D/g, "") })} />
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[160px_1fr_160px]">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[160px_1fr_160px_190px]">
           <Input type="date" value={form.expires_at} onChange={(e) => setForm({ ...form, expires_at: e.target.value })} />
           <Input placeholder="Terms" value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value })} />
           <label className="flex h-11 items-center gap-2 rounded-lg border px-3 text-sm"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Active</label>
+          <label className="flex h-11 items-center gap-2 rounded-lg border px-3 text-sm"><input type="checkbox" checked={form.send_in_welcome_email} onChange={(e) => setForm({ ...form, send_in_welcome_email: e.target.checked })} /> Welcome email</label>
         </div>
         <div className="mt-4 flex gap-2">
           <Button onClick={saveCoupon} disabled={saving || !form.code || !form.discount_value}>
@@ -180,7 +185,12 @@ export default function AdminCouponsPage() {
                     <td className="px-4 py-3 font-bold">{coupon.code}</td>
                     <td className="px-4 py-3">{coupon.description}<br /><span className="text-xs text-muted-foreground">{coupon.discount_type === "FLAT" ? "₹" : ""}{coupon.discount_value}{coupon.discount_type === "PERCENTAGE" ? "%" : ""} off</span></td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{coupon.category || "All services"} · min ₹{coupon.minimum_order_amount} · expires {coupon.expires_at || "-"}</td>
-                    <td className="px-4 py-3"><span className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${coupon.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>{coupon.is_active ? "Active" : "Disabled"}</span></td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${coupon.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>{coupon.is_active ? "Active" : "Disabled"}</span>
+                        {coupon.send_in_welcome_email ? <span className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">Email coupon</span> : null}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => editCoupon(coupon)}><Edit3 className="h-3.5 w-3.5" /></Button>

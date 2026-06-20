@@ -35,6 +35,7 @@ export type CouponRule = {
   expires_at: string;
   is_active: boolean;
   terms: string;
+  send_in_welcome_email?: boolean;
 };
 
 export const activeServiceCategories = ["Boarding", "Grooming"] as const;
@@ -357,6 +358,7 @@ export const defaultCoupons: CouponRule[] = [
     expires_at: "2026-12-31",
     is_active: true,
     terms: "Valid on active services above ₹500.",
+    send_in_welcome_email: true,
   },
   {
     code: "GROOM20",
@@ -386,6 +388,67 @@ export const defaultCoupons: CouponRule[] = [
 
 export function serviceBookablePrice(service: { price?: number | null; discounted_price?: number | null }) {
   return Number(service.discounted_price || service.price || 0);
+}
+
+export type BoardingScheduleInput = {
+  check_in_date?: string | Date | null;
+  check_out_date?: string | Date | null;
+  check_in_time?: string | null;
+  check_out_time?: string | null;
+};
+
+function timeParts(value?: string | null) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) return null;
+  let hour = Number(match[1]);
+  const minute = Number(match[2] || 0);
+  const meridiem = match[3]?.toUpperCase();
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || minute < 0 || minute > 59) return null;
+  if (meridiem === "PM" && hour < 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  if (hour < 0 || hour > 23) return null;
+  return { hour, minute };
+}
+
+function localDateTime(value?: string | Date | null, time?: string | null) {
+  if (!value) return null;
+  const date = value instanceof Date ? new Date(value) : new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  const parts = timeParts(time);
+  if (!parts || Number.isNaN(date.getTime())) return null;
+  date.setHours(parts.hour, parts.minute, 0, 0);
+  return date;
+}
+
+export function boardingDurationHours(schedule: BoardingScheduleInput) {
+  const checkIn = localDateTime(schedule.check_in_date, schedule.check_in_time);
+  const checkOut = localDateTime(schedule.check_out_date, schedule.check_out_time);
+  if (!checkIn || !checkOut || checkOut <= checkIn) return null;
+  return (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
+}
+
+export function isBoardingPackageService(service?: { name?: string | null; service_group?: string | null } | null) {
+  return Boolean(
+    service?.service_group?.toLowerCase().includes("package")
+    || service?.name?.toLowerCase().includes("package")
+  );
+}
+
+export function boardingSlabLabel(hours: number | null) {
+  if (hours == null) return "";
+  if (hours <= 6) return "Up to 6 Hours";
+  if (hours <= 12) return "6 to 12 Hours";
+  const billableDays = Math.max(1, Math.ceil(hours / 24));
+  return billableDays === 1 ? "24 Hours / 1 Day" : `${billableDays} billable days`;
+}
+
+export function boardingCalculatedAmount(hours: number | null, service?: { price?: number | null; discounted_price?: number | null; name?: string | null; service_group?: string | null } | null) {
+  if (isBoardingPackageService(service)) return serviceBookablePrice(service || {});
+  if (hours == null) return serviceBookablePrice(service || {});
+  if (hours <= 6) return 600;
+  if (hours <= 12) return 900;
+  return Math.ceil(hours / 24) * 1200;
 }
 
 export function calculateCouponDiscount(coupon: CouponRule, subtotal: number) {

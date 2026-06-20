@@ -6,8 +6,26 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, CalendarPlus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { boardingCalculatedAmount, boardingDurationHours, boardingSlabLabel, isBoardingPackageService } from "@/lib/pet-care-pricing";
 
-type User = { id: string; name?: string | null; email?: string | null; phone?: string | null; pets: { id: string; name: string; type: string }[] };
+type User = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  addresses?: { id: string; line1: string; city: string; state: string; pincode: string; phone?: string | null; is_default?: boolean }[];
+  pets: { id: string; name: string; type: string }[];
+  clientBookings?: {
+    id: string;
+    booking_id: string;
+    status: string;
+    payment_status: string;
+    slot_date: string;
+    slot_time?: string | null;
+    service?: { name?: string | null; category?: string | null } | null;
+    pet?: { name?: string | null; type?: string | null } | null;
+  }[];
+};
 type Service = { id: string; name: string; category: string; service_group?: string | null; breed_size?: string | null; coat_type?: string | null; session_count?: number | null; price: number; discounted_price?: number | null; slot_duration_mins: number; max_slots_per_day?: number | null };
 
 function dateKey(date = new Date()) {
@@ -63,30 +81,6 @@ function priceOf(service?: Service | null) {
 function visibleEmail(value?: string | null) {
   if (!value || value.endsWith("@old-import.local") || value.endsWith("@client.local")) return "";
   return value;
-}
-
-function parseDateTime(date: string, time: string) {
-  if (!date || !time) return null;
-  const parsed = new Date(`${date}T${time}`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function boardingHours(schedule: BoardingSchedule) {
-  const checkIn = parseDateTime(schedule.check_in_date, schedule.check_in_time);
-  const checkOut = parseDateTime(schedule.check_out_date, schedule.check_out_time);
-  if (!checkIn || !checkOut || checkOut <= checkIn) return null;
-  return (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
-}
-
-function isBoardingPackage(service?: Service | null) {
-  return Boolean(service?.name.toLowerCase().includes("package"));
-}
-
-function boardingSlabLabel(hours: number | null) {
-  if (hours == null) return "";
-  if (hours <= 6) return "Up to 6 Hours";
-  if (hours <= 12) return "6 to 12 Hours";
-  return "24 Hours / 1 Day";
 }
 
 type BoardingSchedule = {
@@ -157,7 +151,7 @@ export default function NewAdminBookingPage() {
   const selectedService = services.find((service) => service.id === serviceId);
   const pets = useMemo(() => selectedUser?.pets || [], [selectedUser]);
   const isBoarding = selectedService?.category === "Boarding";
-  const hours = useMemo(() => boardingHours(boardingSchedule), [boardingSchedule]);
+  const hours = useMemo(() => boardingDurationHours(boardingSchedule), [boardingSchedule]);
   const monthDays = useMemo(() => {
     const first = startOfMonth(visibleMonth);
     const start = addDays(first, -first.getDay());
@@ -181,12 +175,14 @@ export default function NewAdminBookingPage() {
   const calculatedAmount = useMemo(() => {
     if (!selectedService) return 0;
     if (!isBoarding) return priceOf(selectedService);
-    if (isBoardingPackage(selectedService)) return priceOf(selectedService);
-    if (hours == null) return priceOf(selectedService);
-    if (hours <= 6) return 600;
-    if (hours <= 12) return 900;
-    return Math.ceil(hours / 24) * 1200;
+    return boardingCalculatedAmount(hours, selectedService);
   }, [hours, isBoarding, selectedService]);
+  const bookingHistory = useMemo(() => {
+    return [...(selectedUser?.clientBookings || [])].sort((a, b) => {
+      const byDate = new Date(b.slot_date).getTime() - new Date(a.slot_date).getTime();
+      return byDate || b.booking_id.localeCompare(a.booking_id);
+    });
+  }, [selectedUser]);
   const filteredUsers = useMemo(() => {
     const term = clientSearch.trim().toLowerCase();
     if (!term) return users;
@@ -203,7 +199,7 @@ export default function NewAdminBookingPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/admin/users?role=CLIENT").then((res) => res.json()),
+      fetch("/api/admin/users?role=CLIENT&compact=true").then((res) => res.json()),
       fetch("/api/services").then((res) => res.json()),
     ]).then(([userData, serviceData]) => {
       const nextUsers = Array.isArray(userData) ? userData : [];
@@ -227,6 +223,36 @@ export default function NewAdminBookingPage() {
     setPetId(pets[0]?.id || "");
   }, [clientId, pets]);
 
+  useEffect(() => {
+    if (bookingMode !== "existing") return;
+    const term = clientSearch.trim();
+    if (!term) return;
+    if (filteredUsers.some((user) => user.id === clientId)) return;
+    const firstMatch = filteredUsers[0];
+    if (firstMatch) {
+      setClientId(firstMatch.id);
+    } else {
+      setClientId("");
+      setPetId("");
+    }
+  }, [bookingMode, clientId, clientSearch, filteredUsers]);
+
+  useEffect(() => {
+    if (!selectedUser) return;
+    const savedAddress = selectedUser.addresses?.find((item) => item.is_default) || selectedUser.addresses?.[0];
+    if (savedAddress) {
+      setAddress({
+        line1: savedAddress.line1 || "",
+        city: savedAddress.city || "",
+        state: savedAddress.state || "Gujarat",
+        pincode: savedAddress.pincode || "",
+        phone: savedAddress.phone || selectedUser.phone || "",
+      });
+    } else if (selectedUser.phone) {
+      setAddress((prev) => ({ ...prev, phone: prev.phone || selectedUser.phone || "" }));
+    }
+  }, [selectedUser]);
+
   function startNewClientFlow() {
     setBookingMode("new");
     setClientId("");
@@ -244,9 +270,9 @@ export default function NewAdminBookingPage() {
   }
 
   useEffect(() => {
-    if (!selectedService || selectedService.category !== "Boarding" || isBoardingPackage(selectedService)) return;
+    if (!selectedService || selectedService.category !== "Boarding" || isBoardingPackageService(selectedService)) return;
     const slab = boardingSlabLabel(hours);
-    if (!slab) return;
+    if (!slab || slab.includes("billable")) return;
     const matchingService = services.find((service) => service.category === "Boarding" && service.name.includes(slab));
     if (matchingService && matchingService.id !== selectedService.id) setServiceId(matchingService.id);
   }, [hours, selectedService, services]);
@@ -279,14 +305,6 @@ export default function NewAdminBookingPage() {
         setError("Check-out date must be on or after the check-in date.");
         return;
       }
-      if (checkInD.getDay() === 0) {
-        setError("Sundays are blocked. Check-in date cannot be a Sunday.");
-        return;
-      }
-      if (checkOutD.getDay() === 0) {
-        setError("Sundays are blocked. Check-out date cannot be a Sunday.");
-        return;
-      }
     } else {
       if (!slotDate || !slotTime) {
         setError("Date and slot time are required.");
@@ -295,10 +313,6 @@ export default function NewAdminBookingPage() {
       const slotD = new Date(slotDate);
       if (slotD < today) {
         setError("Booking date cannot be in the past.");
-        return;
-      }
-      if (slotD.getDay() === 0) {
-        setError("Sundays are blocked for service bookings.");
         return;
       }
     }
@@ -446,6 +460,25 @@ export default function NewAdminBookingPage() {
                 {pets.map((pet) => <option key={pet.id} value={pet.id}>{pet.name} ({pet.type})</option>)}
               </select>
             </label>
+            <div className="rounded-lg border bg-muted/20 p-3 text-sm md:col-span-2">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-bold">Booking history</p>
+                <span className="text-xs font-semibold text-muted-foreground">Latest first</span>
+              </div>
+              <div className="mt-2 space-y-2">
+                {bookingHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No previous bookings for this client.</p>
+                ) : bookingHistory.slice(0, 5).map((booking) => (
+                  <div key={booking.id} className="rounded-lg border bg-white px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-bold">{booking.booking_id}</p>
+                      <p className="text-xs font-semibold text-muted-foreground">{new Date(booking.slot_date).toLocaleDateString("en-IN")} {booking.slot_time || ""}</p>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{booking.service?.name || "Service"} - {booking.pet?.name || "Pet"} - {booking.status} / {booking.payment_status}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
             <div className="md:col-span-2">
               <Button type="button" variant="outline" onClick={startNewClientFlow}>
                 Quick add new client and pet
@@ -528,12 +561,7 @@ export default function NewAdminBookingPage() {
                     min={dateKey(new Date())}
                     value={boardingSchedule.check_in_date} 
                     onChange={(e) => {
-                      const d = new Date(e.target.value);
-                      if (d.getDay() === 0) {
-                        setError("Sundays are blocked. Please select a weekday.");
-                      } else {
-                        setError("");
-                      }
+                      setError("");
                       setBoardingSchedule((prev) => ({ ...prev, check_in_date: e.target.value }));
                     }} 
                   />
@@ -544,12 +572,7 @@ export default function NewAdminBookingPage() {
                     min={boardingSchedule.check_in_date || dateKey(new Date())}
                     value={boardingSchedule.check_out_date} 
                     onChange={(e) => {
-                      const d = new Date(e.target.value);
-                      if (d.getDay() === 0) {
-                        setError("Sundays are blocked. Please select a weekday.");
-                      } else {
-                        setError("");
-                      }
+                      setError("");
                       setBoardingSchedule((prev) => ({ ...prev, check_out_date: e.target.value }));
                     }} 
                   />
@@ -572,7 +595,7 @@ export default function NewAdminBookingPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="font-bold">Advanced calendar</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">Past dates and Sundays are blocked for new service bookings.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Past dates are blocked for new service bookings.</p>
                 </div>
                 <label className="space-y-1 text-sm font-bold">Slot time
                   <Input type="time" value={slotTime} onChange={(e) => setSlotTime(e.target.value)} />
@@ -594,19 +617,18 @@ export default function NewAdminBookingPage() {
                     const value = dateKey(day);
                     const today = new Date();
                     const past = day < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                    const closed = day.getDay() === 0;
                     const outMonth = day.getMonth() !== visibleMonth.getMonth();
                     const selected = value === slotDate;
                     return (
                       <button
                         key={value}
                         type="button"
-                        disabled={past || closed}
+                        disabled={past}
                         onClick={() => setSlotDate(value)}
                         className={`min-h-12 rounded-lg border p-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-16 sm:p-1.5 ${selected ? "border-primary bg-primary text-white shadow-sm" : "bg-white hover:border-primary/50"} ${outMonth ? "text-muted-foreground" : ""}`}
                       >
                         <span className="block text-left font-bold">{day.getDate()}</span>
-                        <span className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full ${closed ? "bg-red-400" : "bg-green-400"}`} />
+                        <span className="mx-auto mt-1 block h-1.5 w-1.5 rounded-full bg-green-400" />
                       </button>
                     );
                   })}
