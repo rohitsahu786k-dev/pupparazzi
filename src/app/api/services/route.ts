@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 function canManage(role?: string | null) {
-  return role === "ADMIN" || role === "STAFF";
+  return role === "ADMIN";
 }
 
 function cleanList(value: unknown) {

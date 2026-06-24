@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 function isAdmin(role?: string | null) {
-  return role === "ADMIN" || role === "STAFF";
+  return role === "ADMIN";
 }
 
 // Create a new pet
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
         walk_schedule_3: walk_schedule_3 || null,
         local_guardian_name: local_guardian_name || null,
         local_guardian_contact: local_guardian_contact || null,
-        tc_accepted: tc_accepted ?? false,
+        tc_accepted: tc_accepted ?? true,
         medical: (vaccination_status || vet_name || ongoing_medication !== undefined) ? {
           create: {
             vaccination_status: vaccination_status || null,

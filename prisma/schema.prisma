@@ -108,7 +108,7 @@ model Pet {
   walk_schedule_3       String?
   local_guardian_name   String?
   local_guardian_contact String?
-  tc_accepted           Boolean?    @default(false)
+  tc_accepted           Boolean?    @default(true)
   created_at            DateTime    @default(now())
   updated_at            DateTime    @updatedAt
 

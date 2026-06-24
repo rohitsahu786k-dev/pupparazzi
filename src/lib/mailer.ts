@@ -326,12 +326,21 @@ export function paymentConfirmationHtml(data: {
 // TEMPLATE 3 – WELCOME EMAIL
 // ═══════════════════════════════════════════════════════════════
 
-export function welcomeEmailHtml(data: { userName: string; email: string; password?: string; welcomeCoupon?: CouponRule | null }) {
+export function welcomeEmailHtml(data: { userName: string; email: string; password?: string; role?: "CLIENT" | "STAFF" | "ADMIN"; welcomeCoupon?: CouponRule | null }) {
+  const role = data.role || "CLIENT";
+  const portalUrl = role === "ADMIN" ? `${BUSINESS.website}/admin` : role === "STAFF" ? `${BUSINESS.website}/staff` : `${BUSINESS.website}/dashboard`;
+  const roleTitle = role === "ADMIN" ? "Admin" : role === "STAFF" ? "Staff" : "Client";
   const services = [
     { icon: "", name: "Premium Grooming", desc: "Certified groomers, spa treatments" },
     { icon: "", name: "Luxury Boarding", desc: "Climate-controlled, 24/7 care" },
     { icon: "", name: "Boarding Packages", desc: "Flexible prepaid stay packages" },
     { icon: "", name: "Individual Grooming", desc: "Focused add-on grooming care" },
+  ];
+  const profileFields = [
+    "Profile details: name, email, mobile number, and service address",
+    "Pet details: name, breed, gender, age/date of birth, weight, coat type, and size",
+    "Health details: vaccination status, allergies, medication, illness history, and vet contact",
+    "Care details: guardian contact, dietary preference, walk or feeding schedule, and behavior notes",
   ];
 
   const body = `
@@ -339,7 +348,7 @@ export function welcomeEmailHtml(data: { userName: string; email: string; passwo
     <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:40px 48px;text-align:center;">
       <div style="font-size:52px;margin-bottom:16px;"></div>
       <h1 style="margin:0 0 10px;font-size:30px;font-weight:800;color:#FFFFFF;line-height:1.2;">Welcome to Pupparazzi!</h1>
-      <p style="margin:0;font-size:16px;color:#94A3B8;">Ahmedabad&rsquo;s most trusted pet care destination</p>
+      <p style="margin:0;font-size:16px;color:#94A3B8;">Your ${roleTitle} account is ready</p>
     </div>
 
     <!-- Body -->
@@ -358,7 +367,16 @@ export function welcomeEmailHtml(data: { userName: string; email: string; passwo
         </tr>
       </table>
       ` : ""}
-      <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.7;">We&rsquo;re absolutely thrilled to have you join the Pupparazzi family! Your furry friend is about to experience the finest pet care in Ahmedabad. Here&rsquo;s everything we offer:</p>
+      ${role === "CLIENT" ? `
+      <p style="margin:0 0 22px;font-size:15px;color:#475569;line-height:1.7;">Your Pupparazzi profile can now hold multiple pets, booking history, documents, addresses, and service notes. Please keep these details updated so our team can care for every pet safely.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        ${profileFields.map((field) => `
+          <tr>
+            <td style="padding:10px 0;border-bottom:1px solid #F1F5F9;font-size:13px;color:#0F172A;font-weight:600;line-height:1.5;">${field}</td>
+          </tr>
+        `).join("")}
+      </table>
+      <p style="margin:0 0 32px;font-size:15px;color:#475569;line-height:1.7;">Here are the care options available from your client portal:</p>
 
       <!-- Services Grid -->
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:32px;">
@@ -389,8 +407,22 @@ export function welcomeEmailHtml(data: { userName: string; email: string; passwo
           </td>
         </tr>` : "").filter(Boolean).join("")}
       </table>
+      ` : `
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">You have been assigned ${roleTitle} access. Please use the portal for your assigned responsibilities only.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        ${[
+          role === "ADMIN" ? "Manage services, pricing, staff, clients, bookings, payments, settings, and reports." : "Manage assigned booking progress, service notes, and customer handoff updates.",
+          role === "ADMIN" ? "Review operational dashboards and system configuration." : "Pricing, services, products, client records, payments, and admin settings are restricted.",
+          "Keep your password private and sign out on shared devices.",
+        ].map((field) => `
+          <tr>
+            <td style="padding:10px 0;border-bottom:1px solid #F1F5F9;font-size:13px;color:#0F172A;font-weight:600;line-height:1.5;">${field}</td>
+          </tr>
+        `).join("")}
+      </table>
+      `}
 
-      ${data.welcomeCoupon ? `
+      ${role === "CLIENT" && data.welcomeCoupon ? `
       <!-- Welcome Offer -->
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:32px;">
         <tr>
@@ -407,12 +439,12 @@ export function welcomeEmailHtml(data: { userName: string; email: string; passwo
       </table>
       ` : ""}
 
-      ${primaryButton("Book Your First Service", `${BUSINESS.website}/book`)}
+      ${primaryButton(role === "CLIENT" ? "Open Client Portal" : `Open ${roleTitle} Portal`, portalUrl)}
 
       <p style="margin:0;font-size:13px;color:#94A3B8;text-align:center;line-height:1.6;">Need help? Just reply to this email or reach us at <a href="mailto:${BUSINESS.email}" style="color:#EC4899;text-decoration:none;">${BUSINESS.email}</a></p>
     </div>`;
 
-  return baseLayout(body, `Welcome to Pupparazzi, ${data.userName}! Your pet's happiness is our mission.`);
+  return baseLayout(body, `Welcome to Pupparazzi, ${data.userName}! Your ${roleTitle.toLowerCase()} account is ready.`);
 }
 
 export function clientProfileRequestEmailHtml(data: { userName: string }) {
@@ -469,6 +501,22 @@ export function emailVerificationOtpHtml(data: { userName: string; otp: string }
     </div>`;
 
   return baseLayout(body, `Your ${BUSINESS.shortName} verification OTP is ${data.otp}`);
+}
+
+export function passwordResetEmailHtml(data: { userName: string; resetUrl: string }) {
+  const body = `
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:40px 48px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:30px;font-weight:800;color:#FFFFFF;line-height:1.2;">Reset your password</h1>
+      <p style="margin:0;font-size:16px;color:#94A3B8;">Use the secure link below to choose a new password.</p>
+    </div>
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">We received a request to reset your Pupparazzi account password. This link expires in 30 minutes.</p>
+      ${primaryButton("Reset Password", data.resetUrl)}
+      <p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">If you did not request this, you can safely ignore this email.</p>
+    </div>`;
+
+  return baseLayout(body, `Reset your ${BUSINESS.shortName} password`);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -696,6 +744,14 @@ export async function sendEmailVerificationOtp(to: string, data: Parameters<type
     to,
     subject: `${data.otp} is your ${BUSINESS.shortName} verification OTP`,
     html: emailVerificationOtpHtml(data),
+  });
+}
+
+export async function sendPasswordResetEmail(to: string, data: Parameters<typeof passwordResetEmailHtml>[0]) {
+  return sendMail({
+    to,
+    subject: `Reset your ${BUSINESS.shortName} password`,
+    html: passwordResetEmailHtml(data),
   });
 }
 

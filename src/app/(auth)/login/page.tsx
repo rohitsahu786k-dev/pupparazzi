@@ -66,7 +66,7 @@ function LoginContent() {
       } else {
         const sessionRes = await fetch("/api/auth/session");
         const session = await sessionRes.json().catch(() => ({}));
-        window.location.href = session?.user?.role === "ADMIN" ? "/admin" : callbackUrl;
+        window.location.href = session?.user?.role === "ADMIN" ? "/admin" : session?.user?.role === "STAFF" ? "/staff" : callbackUrl;
         return;
       }
     } catch {
@@ -103,7 +103,7 @@ function LoginContent() {
       }
       const sessionRes = await fetch("/api/auth/session");
       const session = await sessionRes.json().catch(() => ({}));
-      window.location.href = session?.user?.role === "ADMIN" ? "/admin" : callbackUrl;
+      window.location.href = session?.user?.role === "ADMIN" ? "/admin" : session?.user?.role === "STAFF" ? "/staff" : callbackUrl;
     } catch {
       setError("An unexpected error occurred");
     } finally {
@@ -258,7 +258,7 @@ function LoginContent() {
               </button>
             </div>
             <div className="flex justify-end">
-              <Link href="mailto:pupparazzipetstore@gmail.com" className="text-xs font-bold text-primary hover:underline">
+              <Link href="/forgot-password" className="text-xs font-bold text-primary hover:underline">
                 Forgot password?
               </Link>
             </div>

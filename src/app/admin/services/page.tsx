@@ -62,7 +62,7 @@ export default function AdminServicesPage() {
 
   async function fetchServices() {
     setLoading(true);
-    const res = await fetch("/api/services");
+    const res = await fetch("/api/services?includeInactive=true");
     if (res.ok) {
       setServices(await res.json());
       setError("");

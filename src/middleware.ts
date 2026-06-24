@@ -8,12 +8,21 @@ export default withAuth(
 
     // Authenticated users visiting /login get redirected away (prevents refresh loop)
     if (pathname === "/login" && token) {
-      const raw = (token.role === "ADMIN" || token.role === "STAFF") ? "/admin" : req.nextUrl.searchParams.get("callbackUrl") || "/dashboard";
-      const safeUrl = raw.startsWith("/") ? raw : (token.role === "ADMIN" || token.role === "STAFF") ? "/admin" : "/dashboard";
+      const portal = token.role === "ADMIN" ? "/admin" : token.role === "STAFF" ? "/staff" : "/dashboard";
+      const raw = (token.role === "ADMIN" || token.role === "STAFF") ? portal : req.nextUrl.searchParams.get("callbackUrl") || "/dashboard";
+      const safeUrl = raw.startsWith("/") ? raw : portal;
       return NextResponse.redirect(new URL(safeUrl, req.url));
     }
 
-    if (pathname.startsWith("/admin") && token?.role !== "ADMIN" && token?.role !== "STAFF") {
+    if (pathname.startsWith("/admin") && token?.role === "STAFF") {
+      return NextResponse.redirect(new URL("/staff", req.url));
+    }
+
+    if (pathname.startsWith("/admin") && token?.role !== "ADMIN") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+
+    if (pathname.startsWith("/staff") && token?.role !== "STAFF" && token?.role !== "ADMIN") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
@@ -33,5 +42,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/login", "/dashboard/:path*", "/admin/:path*", "/book/:path*", "/profile/:path*", "/settings/:path*"],
+  matcher: ["/login", "/dashboard/:path*", "/admin/:path*", "/staff/:path*", "/book/:path*", "/profile/:path*", "/settings/:path*"],
 };

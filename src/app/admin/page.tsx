@@ -6,16 +6,22 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-function startOfDay(date: Date) {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  return next;
-}
-
-function endOfDay(date: Date) {
-  const next = new Date(date);
-  next.setHours(23, 59, 59, 999);
-  return next;
+function indiaDayRange(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+  return {
+    start: new Date(Date.UTC(year, month - 1, day, -5, -30, 0, 0)),
+    end: new Date(Date.UTC(year, month - 1, day, 18, 29, 59, 999)),
+    slotStart: new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0)),
+    slotEnd: new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999)),
+  };
 }
 
 function money(value: number) {
@@ -24,14 +30,23 @@ function money(value: number) {
 
 export default async function AdminDashboard() {
   const today = new Date();
-  const [todayBookings, activeClients, pets, activeServices, paidPayments, upcomingBookings, couponSetting] = await Promise.all([
-    prisma.booking.count({ where: { slot_date: { gte: startOfDay(today), lte: endOfDay(today) }, status: { not: "Cancelled" } } }),
+  const todayRange = indiaDayRange(today);
+  const [todayBookings, activeClients, pets, activeServices, paidPayments, paidBookingsWithoutPayment, upcomingBookings, couponSetting] = await Promise.all([
+    prisma.booking.count({ where: { slot_date: { gte: todayRange.slotStart, lte: todayRange.slotEnd }, status: { notIn: ["Cancelled", "Expired"] } } }),
     prisma.user.count({ where: { role: "CLIENT", is_active: true } }),
     prisma.pet.count(),
     prisma.service.count({ where: { is_active: true } }),
-    prisma.payment.findMany({ where: { status: "Success", created_at: { gte: startOfDay(today), lte: endOfDay(today) } }, select: { amount: true } }),
+    prisma.payment.findMany({ where: { status: "Success", created_at: { gte: todayRange.start, lte: todayRange.end } }, select: { amount: true, booking_id: true } }),
     prisma.booking.findMany({
-      where: { slot_date: { gte: startOfDay(today) }, status: { in: ["Pending", "Confirmed", "In Progress"] } },
+      where: {
+        payment_status: "Paid",
+        updated_at: { gte: todayRange.start, lte: todayRange.end },
+        payments: { none: { status: "Success" } },
+      },
+      include: { service: true },
+    }),
+    prisma.booking.findMany({
+      where: { slot_date: { gte: todayRange.slotStart }, status: { in: ["Pending", "Confirmed", "In Progress"] } },
       include: { client: true, pet: true, service: true },
       orderBy: [{ slot_date: "asc" }, { created_at: "desc" }],
       take: 8,
@@ -39,7 +54,8 @@ export default async function AdminDashboard() {
     prisma.appSetting.findUnique({ where: { key: "coupons" } }),
   ]);
 
-  const revenueToday = paidPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const revenueToday = paidPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+    + paidBookingsWithoutPayment.reduce((sum, booking) => sum + Number((booking.addons_json as any)?.pricing?.total ?? booking.final_amount ?? booking.service?.discounted_price ?? booking.service?.price ?? 0), 0);
   const activeCoupons = Array.isArray(couponSetting?.value) ? couponSetting.value.filter((coupon: any) => coupon.is_active).length : 0;
 
   const stats = [

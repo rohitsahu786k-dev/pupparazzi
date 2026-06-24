@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { generateInvoicePdf } from "@/lib/invoice";
-import { sendPaymentConfirmation } from "@/lib/mailer";
+import { sendBookingConfirmation, sendPaymentConfirmation } from "@/lib/mailer";
 import { serviceBookablePrice } from "@/lib/pet-care-pricing";
 import { formatBookingDate } from "@/lib/booking-lifecycle";
+import { bookingDetailFormUrl, detailFormService } from "@/lib/booking-detail-forms";
 
 export const COD_ADVANCE_AMOUNT = 100;
 
@@ -140,6 +141,21 @@ export async function recordSuccessfulOnlinePayment(params: {
   });
 
   if (updatedBooking.client?.email) {
+    sendBookingConfirmation(updatedBooking.client.email, {
+      userName: updatedBooking.client?.name || "Valued Customer",
+      bookingDatabaseId: updatedBooking.id,
+      bookingId: updatedBooking.booking_id,
+      serviceName: updatedBooking.service?.name || "Pet Service",
+      serviceCategory: updatedBooking.service?.category || undefined,
+      petName: updatedBooking.pet?.name || "Pet",
+      slotDate: formatBookingDate(updatedBooking.slot_date),
+      slotTime: updatedBooking.slot_time || "",
+      price: String(total),
+      address: updatedBooking.address ? `${updatedBooking.address.line1}, ${updatedBooking.address.city}` : undefined,
+      detailFormLink: bookingDetailFormUrl(updatedBooking.id, updatedBooking.service),
+      detailFormService: detailFormService(updatedBooking.service),
+    }).catch(console.error);
+
     const pdf = invoicePdf(updatedBooking, invoiceId, isAdvance ? paid : total);
     sendPaymentConfirmation(updatedBooking.client.email, {
       userName: updatedBooking.client?.name || "Valued Customer",

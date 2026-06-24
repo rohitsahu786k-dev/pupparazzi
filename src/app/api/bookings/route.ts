@@ -15,8 +15,16 @@ import {
 import { collectCodPayment } from "@/lib/payment-invoices";
 import { bookingDetailFormUrl, detailFormService } from "@/lib/booking-detail-forms";
 
-function isAdmin(role?: string | null) {
+function canManageBookings(role?: string | null) {
   return role === "ADMIN" || role === "STAFF";
+}
+
+function isFullAdmin(role?: string | null) {
+  return role === "ADMIN";
+}
+
+function isStaff(role?: string | null) {
+  return role === "STAFF";
 }
 
 function bookingPricing(service: { price?: number | null; discounted_price?: number | null }, addonsJson: unknown) {
@@ -65,10 +73,6 @@ function nullableDate(value: unknown) {
   if (!value) return null;
   const date = new Date(String(value));
   return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function isRealEmail(value?: string | null): value is string {
-  return Boolean(value && value.includes("@") && !value.endsWith("@old-import.local") && !value.endsWith("@client.local"));
 }
 
 function bookingDetailData(body: any) {
@@ -126,7 +130,9 @@ export async function GET(req: Request) {
     await expirePastBookings();
 
     const requestedUserId = searchParams.get("userId");
-    const userId = isAdmin(session.user.role) ? requestedUserId : session.user.id;
+    const fullAdmin = isFullAdmin(session.user.role);
+    const staffUser = isStaff(session.user.role);
+    const userId = fullAdmin ? requestedUserId : staffUser ? undefined : session.user.id;
     const status = searchParams.get("status");
     const paymentStatus = searchParams.get("paymentStatus");
     const dateFrom = searchParams.get("dateFrom");
@@ -141,6 +147,7 @@ export async function GET(req: Request) {
       where: {
         ...(bookingId ? { id: bookingId } : {}),
         ...(userId ? { client_id: userId } : {}),
+        ...(staffUser ? { OR: [{ staff_id: session.user.id }, { staff_id: null }] } : {}),
         ...(status && status !== "All" ? { status } : {}),
         ...(paymentStatus && paymentStatus !== "All" ? { payment_status: paymentStatus } : {}),
         ...(serviceCategory && serviceCategory !== "All" ? { service: { category: serviceCategory } } : {}),
@@ -190,7 +197,9 @@ export async function POST(req: Request) {
       client_id, pet_id, service_id, slot_date, slot_time,
       address_id, address, notes, addons_json,
     } = body;
-    const clientId = isAdmin(session.user.role) && client_id ? client_id : session.user.id;
+    const operationsUser = canManageBookings(session.user.role);
+    const fullAdmin = isFullAdmin(session.user.role);
+    const clientId = operationsUser && client_id ? client_id : session.user.id;
 
     if (!clientId || !pet_id || !service_id || !slot_date || !slot_time) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
@@ -211,7 +220,7 @@ export async function POST(req: Request) {
     const addonTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
     const basePrice = serviceBookablePrice(service);
     const subtotal = basePrice + addonTotal;
-    const adminTotalOverride = isAdmin(session.user.role) ? nullableNumber(body.final_amount ?? body.admin_total) : null;
+    const adminTotalOverride = fullAdmin ? nullableNumber(body.final_amount ?? body.admin_total) : null;
     let couponPayload = null;
     if (addons_json?.coupon?.code) {
       const code = String(addons_json.coupon.code).trim().toUpperCase();
@@ -267,7 +276,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "This slot is no longer available" }, { status: 409 });
     }
 
-    if (!isAdmin(session.user.role) && service.category === "Grooming") {
+    if (!operationsUser && service.category === "Grooming") {
       const { start, end } = dayRange(requestedDate);
       const groomingCount = await prisma.booking.count({
         where: {
@@ -317,26 +326,6 @@ export async function POST(req: Request) {
       include: { pet: true, service: true, address: true, client: true },
     });
 
-    // Send booking confirmation email (non-blocking)
-    const clientEmail = booking.client?.email;
-    if (isRealEmail(clientEmail)) {
-      const detailFormLink = bookingDetailFormUrl(booking.id, booking.service);
-      sendBookingConfirmation(clientEmail, {
-        userName: booking.client?.name || "Valued Customer",
-        bookingDatabaseId: booking.id,
-        bookingId: booking_id,
-        serviceName: booking.service?.name || "Pet Service",
-        serviceCategory: booking.service?.category || undefined,
-        petName: booking.pet?.name || "Your Pet",
-        slotDate: new Date(slot_date).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-        slotTime: slot_time,
-        price: String(bookingPricing(booking.service, booking.addons_json).total),
-        address: booking.address ? `${booking.address.line1}, ${booking.address.city}` : undefined,
-        detailFormLink,
-        detailFormService: detailFormService(booking.service),
-      }).catch(console.error);
-    }
-
     return NextResponse.json(booking, { status: 201 });
   } catch (error) {
     console.error("POST booking error:", error);
@@ -377,8 +366,10 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ message: "Booking not found" }, { status: 404 });
     }
 
-    const admin = isAdmin(session.user.role);
-    const userSavingOwnDetails = !admin
+    const operationsUser = canManageBookings(session.user.role);
+    const admin = isFullAdmin(session.user.role);
+    const staff = isStaff(session.user.role);
+    const userSavingOwnDetails = !operationsUser
       && existingBooking.client_id === session.user.id
       && status === undefined
       && payment_status === undefined
@@ -394,7 +385,7 @@ export async function PATCH(req: Request) {
       && after_photos_json === undefined
       && collect_cod === undefined
       && body.details_completed !== undefined;
-    const userCancellingOwnBooking = !admin
+    const userCancellingOwnBooking = !operationsUser
       && existingBooking.client_id === session.user.id
       && status === "Cancelled"
       && payment_status === undefined
@@ -413,10 +404,10 @@ export async function PATCH(req: Request) {
       && after_photos_json === undefined
       && collect_cod === undefined;
 
-    if (!admin && !userCancellingOwnBooking && !userSavingOwnDetails) {
+    if (!operationsUser && !userCancellingOwnBooking && !userSavingOwnDetails) {
       return NextResponse.json({ message: "Admin access required" }, { status: 403 });
     }
-    if (!admin && userSavingOwnDetails && existingBooking.details_completed) {
+    if (!operationsUser && userSavingOwnDetails && existingBooking.details_completed) {
       return NextResponse.json({ message: "Booking details are already submitted. Please contact admin for changes." }, { status: 409 });
     }
     if (userCancellingOwnBooking && ["Completed", "Cancelled", "Expired"].includes(existingBooking.status)) {
@@ -432,6 +423,17 @@ export async function PATCH(req: Request) {
       const missing = missingDetailFields(existingBooking.service?.category || "", { ...body, slot_date: slot_date || existingBooking.slot_date, slot_time: slot_time || existingBooking.slot_time });
       if (missing.length > 0) {
         return NextResponse.json({ message: `Missing required detail fields: ${missing.join(", ")}` }, { status: 400 });
+      }
+    }
+
+    if (staff) {
+      const allowedStaffKeys = new Set(["id", "status", "internal_notes", "after_photos_json"]);
+      const blocked = Object.keys(body).filter((key) => !allowedStaffKeys.has(key));
+      if (blocked.length > 0) {
+        return NextResponse.json({ message: `Staff cannot modify: ${blocked.join(", ")}` }, { status: 403 });
+      }
+      if (status && !["Confirmed", "In Progress", "Completed"].includes(status)) {
+        return NextResponse.json({ message: "Staff can only move bookings through confirmed, in-progress, and completed states" }, { status: 403 });
       }
     }
 
@@ -618,7 +620,9 @@ export async function PATCH(req: Request) {
     }
 
     // Booking cancelled → send cancellation email
-    if (status === "Cancelled" && clientEmail) {
+    const statusChanged = Boolean(status && status !== existingBooking.status);
+
+    if (statusChanged && status === "Cancelled" && clientEmail) {
       sendCancellationEmail(clientEmail, {
         userName: booking.client?.name || "Valued Customer",
         bookingId: booking.booking_id,
@@ -627,7 +631,23 @@ export async function PATCH(req: Request) {
       }).catch(console.error);
     }
 
-    if (status && status !== "Cancelled" && clientEmail) {
+    if (statusChanged && status === "Confirmed" && clientEmail) {
+      const detailFormLink = bookingDetailFormUrl(booking.id, booking.service);
+      sendBookingConfirmation(clientEmail, {
+        userName: booking.client?.name || "Valued Customer",
+        bookingDatabaseId: booking.id,
+        bookingId: booking.booking_id,
+        serviceName: booking.service?.name || "Pet Service",
+        serviceCategory: booking.service?.category || undefined,
+        petName: booking.pet?.name || "Your Pet",
+        slotDate: slotDateStr,
+        slotTime: booking.slot_time || "",
+        price: String(bookingPricing(booking.service, booking.addons_json).total),
+        address: booking.address ? `${booking.address.line1}, ${booking.address.city}` : undefined,
+        detailFormLink,
+        detailFormService: detailFormService(booking.service),
+      }).catch(console.error);
+    } else if (statusChanged && status && !["Cancelled", "Confirmed", "In Progress"].includes(status) && clientEmail) {
       sendBookingStatusEmail(clientEmail, {
         userName: booking.client?.name || "Valued Customer",
         bookingId: booking.booking_id,
@@ -650,7 +670,7 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !isAdmin(session.user.role)) {
+    if (!session?.user?.id || !isFullAdmin(session.user.role)) {
       return NextResponse.json({ message: "Admin access required" }, { status: 403 });
     }
 

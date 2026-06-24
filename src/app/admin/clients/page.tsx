@@ -205,10 +205,29 @@ export default function AdminClientsPage() {
   }
 
   useEffect(() => {
-    fetchUsers();
-  }, [role]);
+    const timer = window.setTimeout(fetchUsers, 250);
+    return () => window.clearTimeout(timer);
+  }, [role, query, phoneQuery, emailQuery, petQuery, historyFilter, balanceFilter]);
 
-  const filtered = useMemo(() => users, [users]);
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const phoneNeedle = phoneQuery.trim().toLowerCase();
+    const emailNeedle = emailQuery.trim().toLowerCase();
+    const petNeedle = petQuery.trim().toLowerCase();
+    return users.filter((user) => {
+      if (role !== "All" && user.role !== role) return false;
+      if (phoneNeedle && !String(user.phone || "").toLowerCase().includes(phoneNeedle)) return false;
+      if (emailNeedle && !String(user.email || "").toLowerCase().includes(emailNeedle)) return false;
+      if (petNeedle && !user.pets.some((pet) => [pet.name, pet.type, pet.breed].filter(Boolean).join(" ").toLowerCase().includes(petNeedle))) return false;
+      if (!needle) return true;
+      return [
+        user.name,
+        user.email,
+        user.phone,
+        user.pets.map((pet) => [pet.name, pet.type, pet.breed].filter(Boolean).join(" ")).join(" "),
+      ].filter(Boolean).some((value) => String(value).toLowerCase().includes(needle));
+    });
+  }, [emailQuery, petQuery, phoneQuery, query, role, users]);
 
   async function createUser() {
     setError("");

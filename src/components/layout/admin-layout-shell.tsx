@@ -6,9 +6,11 @@ import { Menu, X } from "lucide-react";
 interface AdminLayoutShellProps {
   sidebar: React.ReactNode;
   children: React.ReactNode;
+  title?: string;
+  avatarLabel?: string;
 }
 
-export function AdminLayoutShell({ sidebar, children }: AdminLayoutShellProps) {
+export function AdminLayoutShell({ sidebar, children, title = "Admin Portal", avatarLabel = "A" }: AdminLayoutShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
@@ -56,10 +58,10 @@ export function AdminLayoutShell({ sidebar, children }: AdminLayoutShellProps) {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <h2 className="text-base font-semibold text-foreground sm:text-lg">Admin Portal</h2>
+            <h2 className="text-base font-semibold text-foreground sm:text-lg">{title}</h2>
           </div>
           <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm">
-            A
+            {avatarLabel}
           </div>
         </header>
         <main className="flex-1 overflow-y-auto px-3 py-4 sm:px-4 md:px-5 lg:px-8 lg:py-8">

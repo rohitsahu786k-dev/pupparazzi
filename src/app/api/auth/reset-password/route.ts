@@ -1,0 +1,53 @@
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+
+function normalizeEmail(value: unknown) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function identifierFor(email: string) {
+  return `password-reset:${email}`;
+}
+
+export async function POST(req: Request) {
+  try {
+    const { email, token, password } = await req.json();
+    const normalizedEmail = normalizeEmail(email);
+    const nextPassword = String(password || "");
+    if (!normalizedEmail || !token || nextPassword.length < 8) {
+      return NextResponse.json({ message: "A valid reset link and an 8+ character password are required" }, { status: 400 });
+    }
+
+    const records = await prisma.verificationToken.findMany({
+      where: {
+        identifier: identifierFor(normalizedEmail),
+        expires: { gt: new Date() },
+      },
+    });
+
+    let matched = false;
+    for (const record of records) {
+      if (await bcrypt.compare(String(token), record.token)) {
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      return NextResponse.json({ message: "Reset link is invalid or expired" }, { status: 400 });
+    }
+
+    const user = await prisma.user.update({
+      where: { email: normalizedEmail },
+      data: { password_hash: await bcrypt.hash(nextPassword, 10), emailVerified: new Date() },
+    });
+    await prisma.verificationToken.deleteMany({ where: { identifier: identifierFor(normalizedEmail) } });
+    await prisma.session.deleteMany({ where: { userId: user.id } });
+
+    return NextResponse.json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    return NextResponse.json({ message: "Unable to reset password" }, { status: 500 });
+  }
+}

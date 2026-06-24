@@ -130,6 +130,14 @@ function dateKey(value: string | Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function paidAmount(booking: Booking) {
+  const successfulPayments = (booking.payments || []).filter((payment) => payment.status === "Success");
+  if (successfulPayments.length) {
+    return successfulPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  }
+  return booking.payment_status === "Paid" ? bookingAmount(booking) : 0;
+}
+
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
@@ -301,12 +309,9 @@ export default function AdminBookingsPage() {
   }
 
   const isSelectedToday = selectedCalendarDate === dateKey(new Date());
-  const selectedDateBookingsCount = bookings.filter((booking) => dateKey(booking.slot_date) === selectedCalendarDate).length;
-  const todayBookings = bookings.filter((booking) => dateKey(booking.slot_date) === dateKey(new Date())).length;
-  const createdTodayBookings = bookings.filter((booking) => booking.created_at && dateKey(booking.created_at) === dateKey(new Date())).length;
-  const revenue = bookings
-    .filter((booking) => booking.payment_status === "Paid")
-    .reduce((sum, booking) => sum + bookingAmount(booking), 0);
+  const selectedDateBookingsCount = filtered.filter((booking) => dateKey(booking.slot_date) === selectedCalendarDate).length;
+  const createdTodayBookings = filtered.filter((booking) => booking.created_at && dateKey(booking.created_at) === dateKey(new Date())).length;
+  const revenue = filtered.reduce((sum, booking) => sum + paidAmount(booking), 0);
   const calendarDays = useMemo(() => {
     const base = selectedCalendarDate ? new Date(selectedCalendarDate) : new Date();
     const start = new Date(base.getFullYear(), base.getMonth(), 1);

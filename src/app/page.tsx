@@ -48,6 +48,12 @@ function serviceImage(service: { images_json?: unknown; category: string }) {
 
 export default async function LandingPage() {
   const { testimonials, services, bookingCount, clientCount, petCount } = await getHomepageData();
+  const serviceCategories = services.reduce((groups, service) => {
+    const category = service.category || "Other";
+    const existing = groups.get(category) || [];
+    groups.set(category, [...existing, service]);
+    return groups;
+  }, new Map<string, typeof services>());
   const proof = [
     { value: bookingCount.toLocaleString("en-IN"), label: "bookings recorded" },
     { value: clientCount.toLocaleString("en-IN"), label: "active clients" },
@@ -110,8 +116,17 @@ export default async function LandingPage() {
             </Button>
           </div>
 
-          <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {services.map((service) => {
+          <div className="mt-12 space-y-14">
+            {Array.from(serviceCategories.entries()).map(([category, categoryServices]) => (
+              <div key={category}>
+                <div className="mb-5 flex flex-col gap-1 border-b pb-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h3 className="text-2xl font-black tracking-tight">{category}</h3>
+                    <p className="text-sm text-muted-foreground">{categoryServices.length} active {category.toLowerCase()} service{categoryServices.length === 1 ? "" : "s"}</p>
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {categoryServices.map((service) => {
               const Icon = service.category === "Boarding" ? Home : Scissors;
               const included = Array.isArray(service.free_services_json) ? service.free_services_json.map(String) : [];
               return (
@@ -144,6 +159,9 @@ export default async function LandingPage() {
                 </article>
               );
             })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
