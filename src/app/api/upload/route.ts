@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { saveGridFsUpload, saveLocalUpload, shouldUseGridFsUploads } from "@/lib/upload-storage";
+import { saveGridFsUpload, saveLocalUpload, shouldUseCloudinaryUploads, shouldUseGridFsUploads } from "@/lib/upload-storage";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, UPLOAD_SIZE_ERROR_MESSAGE } from "@/lib/upload-limits";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     const filename = safeFilename(file.name);
 
-    if (process.env.CLOUDINARY_CLOUD_NAME || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME) {
+    if (shouldUseCloudinaryUploads()) {
       try {
         const cloudinaryUrl = await uploadToCloudinary(buffer, filename, folder, file.type);
         const asset = await prisma.asset.create({

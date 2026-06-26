@@ -28,7 +28,13 @@ async function bucket() {
 }
 
 export function shouldUseGridFsUploads() {
-  return process.env.VERCEL === "1" || process.env.UPLOAD_STORAGE === "gridfs";
+  return process.env.UPLOAD_STORAGE
+    ? process.env.UPLOAD_STORAGE === "gridfs"
+    : process.env.VERCEL === "1";
+}
+
+export function shouldUseCloudinaryUploads() {
+  return process.env.UPLOAD_STORAGE === "cloudinary";
 }
 
 export async function saveLocalUpload(folder: string, filename: string, buffer: Buffer) {

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +17,7 @@ type Asset = {
 };
 
 const CATEGORIES = ["All", "Documents", "KYC", "Pets", "Bookings", "Services", "Hero", "General"];
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://pupparazziclub.in";
 
 export default function AdminAssetsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -29,13 +29,17 @@ export default function AdminAssetsPage() {
   const [loading, setLoading] = useState(true);
   const [viewer, setViewer] = useState<{ label: string; path: string } | null>(null);
   const [error, setError] = useState("");
+  const [brokenPreviews, setBrokenPreviews] = useState<Record<string, true>>({});
 
   async function fetchAssets() {
     setLoading(true);
     const params = new URLSearchParams();
     if (filter !== "All") params.set("category", filter);
     const res = await fetch(`/api/assets?${params.toString()}`);
-    if (res.ok) setAssets(await res.json());
+    if (res.ok) {
+      setAssets(await res.json());
+      setBrokenPreviews({});
+    }
     setLoading(false);
   }
 
@@ -74,7 +78,7 @@ export default function AdminAssetsPage() {
   }
 
   async function shareAsset(path: string) {
-    const url = new URL(path, window.location.origin).toString();
+    const url = assetUrl(path);
     if (navigator.share) {
       await navigator.share({ url }).catch(() => undefined);
       return;
@@ -83,8 +87,17 @@ export default function AdminAssetsPage() {
   }
 
   function printAsset(path: string) {
-    const win = window.open(path, "_blank");
+    const win = window.open(assetUrl(path), "_blank");
     win?.addEventListener("load", () => win.print());
+  }
+
+  function assetUrl(path: string) {
+    const origin = typeof window === "undefined" ? SITE_URL : window.location.origin;
+    return new URL(path, origin).toString();
+  }
+
+  function isImageAsset(asset: Asset) {
+    return /\.(png|jpe?g|webp|gif)$/i.test(asset.filename) || /\/image\/upload\//i.test(asset.path);
   }
 
   return (
@@ -139,20 +152,28 @@ export default function AdminAssetsPage() {
           {assets.map((asset) => (
             <div key={asset.id} className="overflow-hidden rounded-lg border bg-white">
               <div className="relative aspect-[4/3] bg-muted">
-                {/\.(png|jpe?g|webp|gif)$/i.test(asset.filename) ? (
-                  <Image src={asset.path} alt={asset.original_name} fill className="object-cover" />
+                {isImageAsset(asset) && !brokenPreviews[asset.id] ? (
+                  <img
+                    src={asset.path}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    onError={() => setBrokenPreviews((current) => ({ ...current, [asset.id]: true }))}
+                  />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">PDF</div>
+                  <div className="flex h-full flex-col items-center justify-center px-4 text-center text-sm font-semibold text-muted-foreground">
+                    <ImagePlus className="mb-2 h-8 w-8" />
+                    <span>{isImageAsset(asset) ? "Preview unavailable" : "PDF"}</span>
+                  </div>
                 )}
               </div>
               <div className="space-y-3 p-4">
                 <div>
-                  <p className="truncate text-sm font-bold">{asset.original_name}</p>
+                  <p className="line-clamp-2 min-h-10 text-sm font-bold leading-5">{asset.original_name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{asset.document_type || asset.category} - {new Date(asset.created_at).toLocaleDateString("en-IN")}</p>
                 </div>
-                <Input readOnly value={asset.path} className="h-9 text-xs" />
+                <Input readOnly value={assetUrl(asset.path)} className="h-9 text-xs" />
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="flex-1" onClick={() => navigator.clipboard.writeText(asset.path)}>
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => navigator.clipboard.writeText(assetUrl(asset.path))}>
                     <Copy className="mr-1 h-3.5 w-3.5" /> Copy
                   </Button>
                   <Button size="sm" variant="destructive" onClick={() => deleteAsset(asset.id)}>
@@ -160,8 +181,8 @@ export default function AdminAssetsPage() {
                   </Button>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setViewer({ label: asset.original_name, path: asset.path })}><Eye className="h-3.5 w-3.5" /></Button>
-                  <Button size="sm" variant="outline" asChild><a href={asset.path} download><Download className="h-3.5 w-3.5" /></a></Button>
+                  <Button size="sm" variant="outline" onClick={() => setViewer({ label: asset.original_name, path: assetUrl(asset.path) })}><Eye className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="outline" asChild><a href={assetUrl(asset.path)} download><Download className="h-3.5 w-3.5" /></a></Button>
                   <Button size="sm" variant="outline" onClick={() => shareAsset(asset.path)}><Share2 className="h-3.5 w-3.5" /></Button>
                   <Button size="sm" variant="outline" onClick={() => printAsset(asset.path)}><Printer className="h-3.5 w-3.5" /></Button>
                 </div>
@@ -178,7 +199,7 @@ export default function AdminAssetsPage() {
               <p className="font-bold">{viewer.label}</p>
               <Button size="sm" variant="outline" onClick={() => setViewer(null)}>Close</Button>
             </div>
-            {/\.(png|jpe?g|webp|gif)$/i.test(viewer.path) ? (
+            {/\.(png|jpe?g|webp|gif)$/i.test(viewer.path) || /\/image\/upload\//i.test(viewer.path) ? (
               <img src={viewer.path} alt={viewer.label} className="max-h-[75vh] w-full object-contain" />
             ) : (
               <iframe src={viewer.path} title={viewer.label} className="h-[75vh] w-full" />

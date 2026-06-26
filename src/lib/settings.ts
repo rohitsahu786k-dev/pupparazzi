@@ -34,7 +34,7 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
   shortName: "Pupparazzi",
   email: "pupparazzipetstore@gmail.com",
   phone: "+91 99999 99999",
-  website: process.env.NEXTAUTH_URL || "https://pupparazzi.iprixmedia.com",
+  website: process.env.NEXTAUTH_URL || "https://pupparazziclub.in",
   address: "Shop No 11,12, Shaligram Lakeview, Wind Park, Sardar Patel Ring Rd, opp. Balaji, near Vaishnodevi Circle, Ahmedabad, Gujarat 382501",
   gst: "24AAXFP9081F1ZN",
   logoUrl: "/pupparazzi-logo.png",
