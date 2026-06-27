@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FILE_COMPRESSOR_URL, isUploadTooLarge, MAX_UPLOAD_FILE_SIZE_MB, UPLOAD_SIZE_ERROR_MESSAGE } from "@/lib/upload-limits";
 import { boardingCalculatedAmount, boardingDurationHours, boardingSlabLabel, isBoardingPackageService } from "@/lib/pet-care-pricing";
+import { isTimeOptionalService, sortServiceCategories } from "@/lib/service-rules";
 
 type Service = {
   id: string;
@@ -239,6 +240,7 @@ function BookPageContent() {
   const submittingRef = useRef(false);
 
   const selectedService = services.find((service) => service.id === selectedServiceId) || null;
+  const timeOptionalService = isTimeOptionalService(selectedService);
   const selectedPet = pets.find((pet) => pet.id === selectedPetId) || null;
   const today = useMemo(() => new Date(), []);
   const selectedAddons = useMemo(() => selectedService?.addons?.filter((addon) => selectedAddonIds.includes(addon.id)) || [], [selectedAddonIds, selectedService]);
@@ -274,7 +276,7 @@ function BookPageContent() {
     });
   }, [serviceCategory, serviceSubGroup, services, groomingBreed, groomingCoat, groomingSessions]);
 
-  const serviceCategories = useMemo(() => Array.from(new Set(services.map((service) => service.category))), [services]);
+  const serviceCategories = useMemo(() => sortServiceCategories(Array.from(new Set(services.map((service) => service.category)))), [services]);
 
   const handleSubGroupChange = (subGroup: string) => {
     setServiceSubGroup(subGroup);
@@ -563,7 +565,8 @@ function BookPageContent() {
       setSaving(false);
       return;
     }
-    if (!selectedSlot && selectedService.category !== "Boarding") {
+    const selectedServiceNeedsSlot = selectedService.category !== "Boarding" && !isTimeOptionalService(selectedService);
+    if (!selectedSlot && selectedServiceNeedsSlot) {
       setError("Please select an available time slot.");
       submittingRef.current = false;
       setSaving(false);
@@ -597,7 +600,7 @@ function BookPageContent() {
           pet_id: petId,
           service_id: selectedService.id,
           slot_date: selectedService.category === "Boarding" ? boardingSchedule.check_in_date : toDateKey(selectedDate),
-          slot_time: selectedService.category === "Boarding" ? boardingSchedule.check_in_time : selectedSlot,
+          slot_time: selectedService.category === "Boarding" ? boardingSchedule.check_in_time : timeOptionalService ? "To be scheduled" : selectedSlot,
           check_in_date: selectedService.category === "Boarding" ? boardingSchedule.check_in_date : undefined,
           check_out_date: selectedService.category === "Boarding" ? boardingSchedule.check_out_date : undefined,
           check_in_time: selectedService.category === "Boarding" ? boardingSchedule.check_in_time : undefined,
@@ -1008,7 +1011,36 @@ function BookPageContent() {
               </div>
             )}
 
-            {selectedService?.category !== "Boarding" && (
+            {selectedService?.category !== "Boarding" && timeOptionalService && (
+              <div className="rounded-lg border bg-white p-4 shadow-sm sm:p-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5 text-primary" />
+                  <h2 className="font-bold">3. Consultation request date</h2>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[220px_1fr] sm:items-end">
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-muted-foreground">Preferred date</label>
+                    <Input
+                      type="date"
+                      min={toDateKey(today)}
+                      value={toDateKey(selectedDate)}
+                      onChange={(e) => {
+                        const next = new Date(`${e.target.value}T00:00:00`);
+                        if (!Number.isNaN(next.getTime())) {
+                          setSelectedDate(next);
+                          setVisibleMonth(startOfMonth(next));
+                        }
+                      }}
+                    />
+                  </div>
+                  <p className="rounded-lg border bg-muted/35 p-3 text-sm text-muted-foreground">
+                    Our team will call back and confirm the consultation timing. No time slot is required for this request.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {selectedService?.category !== "Boarding" && !timeOptionalService && (
               <div className="rounded-lg border bg-white p-4 shadow-sm sm:p-5">
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2">
@@ -1226,8 +1258,9 @@ function BookPageContent() {
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex justify-between gap-3"><span className="text-white/65">Service</span><span className="text-right font-bold">{selectedService?.name || "-"}</span></div>
                 <div className="flex justify-between gap-3"><span className="text-white/65">Pet</span><span className="text-right font-bold">{selectedPet?.name || newPet.name || "-"}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-white/65">Date</span><span className="text-right font-bold">{selectedService?.category === "Boarding" && boardingSchedule.check_in_date ? new Date(boardingSchedule.check_in_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : selectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-white/65">Slot</span><span className="text-right font-bold">{selectedService?.category === "Boarding" ? boardingSchedule.check_in_time || "-" : selectedSlot || "-"}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-white/65">{timeOptionalService ? "Requested date" : "Date"}</span><span className="text-right font-bold">{selectedService?.category === "Boarding" && boardingSchedule.check_in_date ? new Date(boardingSchedule.check_in_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : selectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
+                {!timeOptionalService && <div className="flex justify-between gap-3"><span className="text-white/65">Slot</span><span className="text-right font-bold">{selectedService?.category === "Boarding" ? boardingSchedule.check_in_time || "-" : selectedSlot || "-"}</span></div>}
+                {timeOptionalService && <div className="flex justify-between gap-3"><span className="text-white/65">Timing</span><span className="text-right font-bold">Team will confirm</span></div>}
                 <div className="flex justify-between gap-3"><span className="text-white/65">Service price</span><span className="text-right font-bold">{selectedService ? money(servicePrice) : "-"}</span></div>
                 {addonTotal > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Add-ons</span><span className="text-right font-bold">{money(addonTotal)}</span></div>}
                 {couponDiscount > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Coupon</span><span className="text-right font-bold">-{money(couponDiscount)}</span></div>}

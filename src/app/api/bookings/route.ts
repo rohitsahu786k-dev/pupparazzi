@@ -14,6 +14,7 @@ import {
 } from "@/lib/booking-lifecycle";
 import { collectCodPayment } from "@/lib/payment-invoices";
 import { bookingDetailFormUrl, detailFormService } from "@/lib/booking-detail-forms";
+import { isTimeOptionalService } from "@/lib/service-rules";
 
 function canManageBookings(role?: string | null) {
   return role === "ADMIN" || role === "STAFF";
@@ -214,6 +215,7 @@ export async function POST(req: Request) {
     if (!service || !service.is_active) {
       return NextResponse.json({ message: "Service is not available" }, { status: 404 });
     }
+    const timeOptionalService = isTimeOptionalService(service);
 
     const requestedAddonIds = Array.isArray(addons_json?.addons) ? addons_json.addons.map((addon: any) => String(addon.id)) : [];
     const selectedAddons = service.addons.filter((addon) => requestedAddonIds.includes(addon.id));
@@ -245,35 +247,37 @@ export async function POST(req: Request) {
     };
     const requestedDate = new Date(slot_date);
 
-    const duplicateUserBooking = await prisma.booking.findFirst({
-      where: {
-        client_id: clientId,
-        pet_id,
-        service_id,
-        slot_date: requestedDate,
-        slot_time,
-        status: { in: ACTIVE_BOOKING_STATUSES },
-      },
-      select: { id: true, booking_id: true },
-    });
-    if (duplicateUserBooking) {
-      return NextResponse.json(
-        { message: `This booking already exists as ${duplicateUserBooking.booking_id}.` },
-        { status: 409 }
-      );
-    }
+    if (!timeOptionalService) {
+      const duplicateUserBooking = await prisma.booking.findFirst({
+        where: {
+          client_id: clientId,
+          pet_id,
+          service_id,
+          slot_date: requestedDate,
+          slot_time,
+          status: { in: ACTIVE_BOOKING_STATUSES },
+        },
+        select: { id: true, booking_id: true },
+      });
+      if (duplicateUserBooking) {
+        return NextResponse.json(
+          { message: `This booking already exists as ${duplicateUserBooking.booking_id}.` },
+          { status: 409 }
+        );
+      }
 
-    const existingSlotCount = await prisma.booking.count({
-      where: {
-        service_id,
-        slot_date: requestedDate,
-        slot_time,
-        status: { in: ACTIVE_BOOKING_STATUSES },
-      },
-    });
-    const slotCapacity = service.max_slots_per_day || 1;
-    if (existingSlotCount >= slotCapacity) {
-      return NextResponse.json({ message: "This slot is no longer available" }, { status: 409 });
+      const existingSlotCount = await prisma.booking.count({
+        where: {
+          service_id,
+          slot_date: requestedDate,
+          slot_time,
+          status: { in: ACTIVE_BOOKING_STATUSES },
+        },
+      });
+      const slotCapacity = service.max_slots_per_day || 1;
+      if (existingSlotCount >= slotCapacity) {
+        return NextResponse.json({ message: "This slot is no longer available" }, { status: 409 });
+      }
     }
 
     if (!operationsUser && service.category === "Grooming") {

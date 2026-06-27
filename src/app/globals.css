@@ -1,9 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #fff9fc;
-  --foreground: #172334;
-  --surface: #fff5f9;
+  --background: #faf6f0; /* Warm cream background */
+  --foreground: #1a1715; /* Warm charcoal text */
+  --surface: #fffdfa;    /* Off-white ivory surface */
 
   /* Logo pink */
   --primary:            #EC7497;
@@ -13,22 +14,22 @@
   --accent:             #18B9C9;
   --accent-foreground:  #ffffff;
 
-  --secondary:          #496272;
+  --secondary:          #5c534e; /* Warm brown-grey */
   --secondary-foreground: #ffffff;
 
-  --muted:              #f5f8fb;
-  --muted-foreground:   #66788a;
+  --muted:              #f3ece5; /* Cozy muted beige */
+  --muted-foreground:   #7c716a;
 
   --card:               #ffffff;
-  --card-foreground:    #172334;
+  --card-foreground:    #1a1715;
 
-  --border:             #e7edf2;
-  --input:              #dfeaf0;
+  --border:             #eae0d5; /* Soft clay-beige borders */
+  --input:              #e0d2c5;
   --ring:               #18B9C9;
 
   --radius: 10px;
-  --shadow-premium: 0 24px 70px rgba(23,35,52,0.12);
-  --shadow-card: 0 12px 34px rgba(23,35,52,0.08);
+  --shadow-premium: 0 30px 60px rgba(30,24,20,0.07);
+  --shadow-card: 0 16px 40px rgba(30,24,20,0.04);
 }
 
 @theme inline {
@@ -49,6 +50,7 @@
   --color-ring:               var(--ring);
 
   --font-sans: var(--font-poppins), system-ui, sans-serif;
+  --font-serif: 'DM Serif Display', Georgia, serif;
 
   --radius-sm:   8px;
   --radius-md:   10px;
@@ -201,3 +203,37 @@ body { overflow-x: hidden; }
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }
+
+/* Washi tape effect */
+.washi-tape-pink {
+  background-color: rgba(236, 116, 151, 0.25);
+  backdrop-filter: blur(1px);
+  border-left: 2px dashed rgba(255, 255, 255, 0.4);
+  border-right: 2px dashed rgba(255, 255, 255, 0.4);
+  box-shadow: 0 1px 3px rgba(30, 24, 20, 0.05);
+  clip-path: polygon(4% 0%, 96% 0%, 100% 30%, 97% 55%, 100% 80%, 96% 100%, 4% 100%, 0% 75%, 3% 50%, 0% 25%);
+}
+
+.washi-tape-teal {
+  background-color: rgba(24, 185, 201, 0.25);
+  backdrop-filter: blur(1px);
+  border-left: 2px dashed rgba(255, 255, 255, 0.4);
+  border-right: 2px dashed rgba(255, 255, 255, 0.4);
+  box-shadow: 0 1px 3px rgba(30, 24, 20, 0.05);
+  clip-path: polygon(4% 0%, 96% 0%, 100% 30%, 97% 55%, 100% 80%, 96% 100%, 4% 100%, 0% 75%, 3% 50%, 0% 25%);
+}
+
+.washi-tape-beige {
+  background-color: rgba(238, 222, 207, 0.5);
+  backdrop-filter: blur(1px);
+  border-left: 2px dashed rgba(255, 255, 255, 0.4);
+  border-right: 2px dashed rgba(255, 255, 255, 0.4);
+  box-shadow: 0 1px 3px rgba(30, 24, 20, 0.05);
+  clip-path: polygon(4% 0%, 96% 0%, 100% 30%, 97% 55%, 100% 80%, 96% 100%, 4% 100%, 0% 75%, 3% 50%, 0% 25%);
+}
+
+/* Classical Arch Crop for images */
+.arch-clip {
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+}

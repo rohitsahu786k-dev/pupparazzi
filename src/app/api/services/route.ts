@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { isHiddenPublicService, serviceCategoryRank } from "@/lib/service-rules";
 
 function canManage(role?: string | null) {
   return role === "ADMIN";
@@ -48,7 +49,14 @@ export async function GET(req: Request) {
       include: { addons: includeInactive ? true : { where: { is_active: true } } },
       orderBy: [{ category: "asc" }, { display_order: "asc" }, { name: "asc" }],
     });
-    return NextResponse.json(services);
+    const visibleServices = includeInactive ? services : services
+      .filter((service) => !isHiddenPublicService(service))
+      .sort((a, b) => {
+        const rankDiff = serviceCategoryRank(a.category || "") - serviceCategoryRank(b.category || "");
+        if (rankDiff !== 0) return rankDiff;
+        return (a.display_order || 0) - (b.display_order || 0) || a.name.localeCompare(b.name);
+      });
+    return NextResponse.json(visibleServices);
   } catch (error) {
     return NextResponse.json({ message: "Failed to fetch services" }, { status: 500 });
   }
