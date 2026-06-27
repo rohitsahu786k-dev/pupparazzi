@@ -24,7 +24,7 @@ export function AdminLayoutShell({ sidebar, children, title = "Admin Portal", av
   }, [mobileOpen]);
 
   return (
-    <div className="flex min-h-dvh w-full overflow-hidden bg-muted/30">
+    <div className="flex min-h-dvh w-full overflow-hidden bg-[var(--surface)]">
       <div className="hidden shrink-0 lg:block">
         {sidebar}
       </div>
@@ -49,7 +49,7 @@ export function AdminLayoutShell({ sidebar, children, title = "Admin Portal", av
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b bg-background px-3 shadow-sm sm:px-4 lg:h-16 lg:px-6">
+        <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b bg-white/90 px-3 shadow-sm backdrop-blur sm:px-4 lg:h-16 lg:px-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileOpen(true)}
@@ -60,7 +60,7 @@ export function AdminLayoutShell({ sidebar, children, title = "Admin Portal", av
             </button>
             <h2 className="text-base font-semibold text-foreground sm:text-lg">{title}</h2>
           </div>
-          <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/12 text-sm font-semibold text-primary">
             {avatarLabel}
           </div>
         </header>

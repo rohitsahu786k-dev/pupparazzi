@@ -30,12 +30,12 @@ export type PaymentSettings = {
 };
 
 export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
-  name: "Pupparazzi Pet Store & Grooming Salon",
-  shortName: "Pupparazzi",
+  name: "Pupparazzi Club",
+  shortName: "Pupparazzi Club",
   email: "pupparazzipetstore@gmail.com",
-  phone: "+91 99999 99999",
+  phone: "063588 48177",
   website: process.env.NEXTAUTH_URL || "https://pupparazziclub.in",
-  address: "Shop No 11,12, Shaligram Lakeview, Wind Park, Sardar Patel Ring Rd, opp. Balaji, near Vaishnodevi Circle, Ahmedabad, Gujarat 382501",
+  address: "Next Crossroad to Bharat Petroleum, VIP Rd, opp. Stanza, South Bopal, Ahmedabad, Gujarat 380057",
   gst: "24AAXFP9081F1ZN",
   logoUrl: "/pupparazzi-logo.png",
 };

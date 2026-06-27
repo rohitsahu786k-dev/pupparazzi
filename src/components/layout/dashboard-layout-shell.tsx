@@ -24,7 +24,7 @@ export function DashboardLayoutShell({ sidebar, children }: DashboardLayoutShell
   }, [mobileOpen]);
 
   return (
-    <div className="flex min-h-dvh w-full overflow-hidden bg-muted/20">
+    <div className="flex min-h-dvh w-full overflow-hidden bg-[var(--surface)]">
       <div className="hidden shrink-0 lg:block">
         {sidebar}
       </div>
@@ -49,7 +49,7 @@ export function DashboardLayoutShell({ sidebar, children }: DashboardLayoutShell
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b bg-background px-3 shadow-sm sm:px-4 lg:hidden">
+        <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b bg-white/90 px-3 shadow-sm backdrop-blur sm:px-4 lg:hidden">
           <button
             onClick={() => setMobileOpen(true)}
             className="p-2 rounded-lg hover:bg-muted transition-colors"

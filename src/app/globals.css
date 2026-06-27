@@ -1,31 +1,34 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #1a2332;
+  --background: #fff9fc;
+  --foreground: #172334;
+  --surface: #fff5f9;
 
   /* Logo pink */
-  --primary:            #F080A0;
+  --primary:            #EC7497;
   --primary-foreground: #ffffff;
 
   /* Logo teal */
-  --accent:             #20C0D0;
+  --accent:             #18B9C9;
   --accent-foreground:  #ffffff;
 
-  --secondary:          #4a6170;
+  --secondary:          #496272;
   --secondary-foreground: #ffffff;
 
-  --muted:              #f4f8fa;
-  --muted-foreground:   #64748b;
+  --muted:              #f5f8fb;
+  --muted-foreground:   #66788a;
 
   --card:               #ffffff;
-  --card-foreground:    #1a2332;
+  --card-foreground:    #172334;
 
-  --border:             #e4eef2;
-  --input:              #dbeef2;
-  --ring:               #20C0D0;
+  --border:             #e7edf2;
+  --input:              #dfeaf0;
+  --ring:               #18B9C9;
 
   --radius: 10px;
+  --shadow-premium: 0 24px 70px rgba(23,35,52,0.12);
+  --shadow-card: 0 12px 34px rgba(23,35,52,0.08);
 }
 
 @theme inline {
@@ -60,10 +63,25 @@
 @layer base {
   * { border-color: var(--border); }
   * { min-width: 0; }
+  html {
+    background: var(--background);
+  }
   body {
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
+    font-weight: 500;
+    text-rendering: geometricPrecision;
+  }
+  h1, h2, h3, h4, h5, h6,
+  strong, b,
+  th,
+  button,
+  label {
+    font-weight: 600;
+  }
+  p, li, td, input, select, textarea, a, span {
+    font-weight: 500;
   }
   /* Enforce 10px radius on every button and button-like element */
   button:not([class*="rounded-full"]),
@@ -78,6 +96,64 @@
   }
   main h1 {
     overflow-wrap: anywhere;
+  }
+  ::selection {
+    background: rgba(236, 116, 151, 0.22);
+  }
+}
+
+@layer components {
+  .bg-white,
+  .bg-card {
+    background-color: rgba(255, 255, 255, 0.94);
+  }
+  .border {
+    border-color: var(--border);
+  }
+  input,
+  select,
+  textarea {
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 1px 0 rgba(23,35,52,0.02);
+  }
+  table {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  thead {
+    background: var(--surface);
+  }
+}
+
+@layer utilities {
+  .font-thin,
+  .font-extralight,
+  .font-light,
+  .font-normal,
+  .font-medium {
+    font-weight: 500 !important;
+  }
+  .font-semibold,
+  .font-bold,
+  .font-extrabold,
+  .font-black {
+    font-weight: 600 !important;
+  }
+  .shadow-premium {
+    box-shadow: var(--shadow-premium);
+  }
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }
 

@@ -8,12 +8,12 @@ import { SiteFooter } from "@/components/layout/site-footer";
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "Pupparazzi - Premium Pet Care at Your Doorstep",
-  description: "Premium dog grooming and boarding services.",
+  title: "Pupparazzi Club - Premium Pet Care in Ahmedabad",
+  description: "Premium boarding, grooming, swimming, training, and daycare for pets in South Bopal, Ahmedabad.",
   verification: {
     google: "G6YRjxmuLqMPtE436n9AzaogelpFBzSV4iimFrbhLe4",
   },
