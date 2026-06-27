@@ -1,6 +1,9 @@
 import { PawPrint, Heart, Users, MapPin } from "lucide-react";
+import { DEFAULT_BUSINESS_SETTINGS, getSetting } from "@/lib/settings";
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const business = await getSetting("business", DEFAULT_BUSINESS_SETTINGS);
+
   return (
     <main className="bg-white">
       <section className="py-16 sm:py-24">
@@ -44,7 +47,7 @@ export default function AboutPage() {
             <div className="rounded-xl border bg-muted/30 p-6">
               <h3 className="font-bold text-foreground">Our Address</h3>
               <p className="mt-2 text-sm">
-                Shop No 11, 12, Shaligram Lakeview, Wind Park, Sardar Patel Ring Rd, opp. Balaji, near Vaishnodevi Circle, Ahmedabad, Gujarat 382501
+                {business.address}
               </p>
             </div>
           </div>

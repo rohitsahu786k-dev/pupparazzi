@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { DEFAULT_SMTP_SETTINGS, getSetting } from "@/lib/settings";
+import { BUSINESS_ADDRESS } from "@/lib/homepage-content";
 import { SITE_URL } from "@/lib/booking-detail-forms";
 import { prisma } from "@/lib/prisma";
 import { CouponRule, defaultCoupons } from "@/lib/pet-care-pricing";
@@ -8,7 +9,7 @@ export const BUSINESS = {
   name: "Pupparazzi Pet Store & Grooming Salon",
   shortName: "Pupparazzi",
   email: "pupparazzipetstore@gmail.com",
-  address: "Shop No 11,12, Shaligram Lakeview, Wind Park, Sardar Patel Ring Rd, opp. Balaji, near Vaishnodevi Circle, Ahmedabad, Gujarat 382501",
+  address: BUSINESS_ADDRESS,
   gst: "24AAXFP9081F1ZN",
   website: SITE_URL,
   get logo() {

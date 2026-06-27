@@ -3,20 +3,54 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { Instagram, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { BUSINESS_ADDRESS } from "@/lib/homepage-content";
 
 const contact = {
-  address: "Next Crossroad to Bharat Petroleum, VIP Rd, opp. Stanza, South Bopal, Ahmedabad, Gujarat 380057",
+  address: BUSINESS_ADDRESS,
   phone: "063588 48177",
   phoneHref: "tel:+916358848177",
   whatsappHref: "https://wa.me/916358848177",
   email: "pupparazzipetstore@gmail.com",
 };
 
-export function SiteFooter() {
+type SiteFooterProps = {
+  business?: {
+    email?: string;
+    phone?: string;
+    whatsapp?: string;
+    address?: string;
+    instagramUrl?: string;
+    facebookUrl?: string;
+    copyrightText?: string;
+  };
+};
+
+function makeContactLinks(phone = contact.phone) {
+  const rawDigits = phone.replace(/\D/g, "");
+  const localDigits = rawDigits.length === 11 && rawDigits.startsWith("0") ? rawDigits.slice(1) : rawDigits;
+  const phoneDigits = localDigits.length === 10 ? `91${localDigits}` : localDigits || "916358848177";
+  return {
+    phone,
+    phoneHref: `tel:+${phoneDigits}`,
+    whatsappHref: `https://wa.me/${phoneDigits}`,
+  };
+}
+
+export function SiteFooter({ business }: SiteFooterProps) {
   const pathname = usePathname();
 
   if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) return null;
+
+  const contactInfo = {
+    ...makeContactLinks(business?.phone),
+    whatsappHref: makeContactLinks(business?.whatsapp || business?.phone).whatsappHref,
+    address: business?.address || contact.address,
+    email: business?.email || contact.email,
+    instagramUrl: business?.instagramUrl || "https://www.instagram.com/pupparazziclub/",
+    facebookUrl: business?.facebookUrl || "",
+    copyrightText: business?.copyrightText || "© 2026 Pupparazzi Club. All rights reserved.",
+  };
 
   return (
     <footer className="w-full border-t border-border bg-foreground text-white">
@@ -27,18 +61,23 @@ export function SiteFooter() {
               <Image src="/pupparazzi-logo.png" alt="Pupparazzi Club" width={180} height={36} className="h-10 w-auto" />
             </div>
             <p className="mt-5 max-w-sm text-sm leading-7 text-white/68">
-              Premium boarding, grooming, swimming, training, and daycare for pets in South Bopal, Ahmedabad.
+              Premium boarding, grooming, swimming, training, and daycare for pets in Ahmedabad.
             </p>
             <div className="mt-5 flex gap-2">
-              <Link href={contact.phoneHref} className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/8 text-white hover:bg-white/14" aria-label="Call Pupparazzi">
+              <Link href={contactInfo.phoneHref} className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/8 text-white hover:bg-white/14" aria-label="Call Pupparazzi">
                 <Phone className="h-4 w-4" />
               </Link>
-              <Link href={contact.whatsappHref} className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/8 text-white hover:bg-white/14" aria-label="WhatsApp Pupparazzi">
+              <Link href={contactInfo.whatsappHref} className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/8 text-white hover:bg-white/14" aria-label="WhatsApp Pupparazzi">
                 <MessageCircle className="h-4 w-4" />
               </Link>
-              <Link href={`mailto:${contact.email}`} className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/8 text-white hover:bg-white/14" aria-label="Email Pupparazzi">
+              <Link href={`mailto:${contactInfo.email}`} className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/8 text-white hover:bg-white/14" aria-label="Email Pupparazzi">
                 <Mail className="h-4 w-4" />
               </Link>
+              {contactInfo.instagramUrl ? (
+                <Link href={contactInfo.instagramUrl} className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/8 text-white hover:bg-white/14" aria-label="Instagram Pupparazzi" target="_blank" rel="noreferrer">
+                  <Instagram className="h-4 w-4" />
+                </Link>
+              ) : null}
             </div>
           </div>
 
@@ -66,19 +105,19 @@ export function SiteFooter() {
             <h4 className="text-xs font-semibold uppercase tracking-[0.22em] text-white/45">Visit The Club</h4>
             <p className="mt-5 flex items-start gap-2 text-sm leading-7 text-white/72">
               <MapPin className="mt-1 h-4 w-4 shrink-0 text-accent" />
-              {contact.address}
+              {contactInfo.address}
             </p>
             <p className="mt-4 text-sm text-white/72">
-              <Link href={contact.phoneHref} className="hover:text-white">{contact.phone}</Link>
+              <Link href={contactInfo.phoneHref} className="hover:text-white">{contactInfo.phone}</Link>
             </p>
             <p className="mt-2 text-sm text-white/72">
-              <Link href={`mailto:${contact.email}`} className="hover:text-white">{contact.email}</Link>
+              <Link href={`mailto:${contactInfo.email}`} className="hover:text-white">{contactInfo.email}</Link>
             </p>
           </div>
         </div>
 
         <div className="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 text-xs text-white/45 md:flex-row md:items-center md:justify-between">
-          <p>&copy; 2026 Pupparazzi Club. All rights reserved.</p>
+          <p>{contactInfo.copyrightText}</p>
           <p>Premium pet care, crafted with calm precision.</p>
         </div>
       </div>

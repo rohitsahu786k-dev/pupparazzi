@@ -21,6 +21,7 @@ import {
   Waves,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BUSINESS_ADDRESS, DEFAULT_HOMEPAGE_SETTINGS, type HomepageSettings } from "@/lib/homepage-content";
 import { sortServiceCategories } from "@/lib/service-rules";
 import type { HomeService } from "@/components/home/services-tabs";
 
@@ -40,65 +41,22 @@ type PremiumHomeProps = {
   bookingCount: number;
   clientCount: number;
   petCount: number;
+  business: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    whatsapp?: string;
+    address?: string;
+  };
+  homepage: HomepageSettings;
 };
 
 const contact = {
   phone: "063588 48177",
   phoneHref: "tel:+916358848177",
   whatsappHref: "https://wa.me/916358848177",
-  address: "Next Crossroad to Bharat Petroleum, VIP Rd, opp. Stanza, South Bopal, Ahmedabad, Gujarat 380057",
+  address: BUSINESS_ADDRESS,
 };
-
-const heroSlides = [
-  {
-    title: "Luxury pet care in South Bopal.",
-    subtitle: "Boarding, grooming, swimming, training, and daycare under one premium, hygienic roof.",
-    image: "/images/IMG_5623.JPG.jpeg",
-    mobileImage: "/images/IMG_5600.PNG",
-    cta: "Book Appointment",
-    href: "/book",
-    secondary: "Explore Services",
-    secondaryHref: "#services",
-  },
-  {
-    title: "Happy pets. Calm parents.",
-    subtitle: "A pet-first club experience with trained handlers, clean spaces, and regular updates.",
-    image: "/images/IMG_5627.JPG.jpeg",
-    mobileImage: "/images/IMG_5601.PNG",
-    cta: "Call Now",
-    href: contact.phoneHref,
-    secondary: "WhatsApp Us",
-    secondaryHref: contact.whatsappHref,
-  },
-  {
-    title: "Pool days, spa days, better days.",
-    subtitle: "Premium enrichment and care experiences designed around your pet's comfort.",
-    image: "/images/IMG_5600.PNG",
-    mobileImage: "/images/IMG_5606.PNG",
-    cta: "Book Swimming",
-    href: "/book?service=swimming",
-    secondary: "Visit Club",
-    secondaryHref: "/contact",
-  },
-];
-
-const whyItems = [
-  ["Passionate Pet Care Experts", "A trained team that understands body language, comfort, and daily care routines."],
-  ["Safe & Comfortable Environment", "Thoughtful spaces designed for calm stays, play, grooming, and supervised enrichment."],
-  ["Hygienic Facilities", "Clean handling, sanitized areas, and vaccination-aware workflows for safer care."],
-  ["Personalised Attention", "Care notes, food preferences, allergies, temperament, and special requests stay visible."],
-  ["Premium Services Under One Roof", "Boarding, grooming, swimming, training, walking, and daycare in one club ecosystem."],
-  ["Regular Updates", "Booking details, documents, invoices, and communication stay organized for every pet parent."],
-];
-
-const faqs = [
-  ["How do I book a service?", "Choose your service, date, pet details, address, and submit the booking. Our team confirms availability and next steps."],
-  ["What vaccinations are required for boarding?", "Rabies and core vaccinations are recommended. Boarding bookings can include vaccination certificate uploads for review."],
-  ["Can I visit before booking?", "Yes. You can call or WhatsApp us to schedule a visit to the club before confirming boarding or daycare."],
-  ["What should I bring with my pet?", "Food, medication if any, vaccination records, leash/collar, and comfort items your pet already knows."],
-  ["How long does grooming take?", "It depends on pet size, coat type, temperament, and selected package. Most sessions are confirmed by the team during booking."],
-  ["Do you offer training for puppies?", "Yes. Puppy training and behaviour guidance can be requested through the booking flow or by calling the club."],
-];
 
 function money(value?: number | null) {
   if (value == null) return "";
@@ -130,9 +88,45 @@ function scrollCarousel(id: string, direction: "left" | "right") {
   el.scrollBy({ left: direction === "left" ? -360 : 360, behavior: "smooth" });
 }
 
-export function PremiumHome({ services, testimonials, bookingCount, clientCount, petCount }: PremiumHomeProps) {
+function makePhoneLinks(phone = contact.phone) {
+  const rawDigits = phone.replace(/\D/g, "");
+  const localDigits = rawDigits.length === 11 && rawDigits.startsWith("0") ? rawDigits.slice(1) : rawDigits;
+  const phoneDigits = localDigits.length === 10 ? `91${localDigits}` : localDigits || "916358848177";
+  return {
+    phone,
+    phoneHref: `tel:+${phoneDigits}`,
+    whatsappHref: `https://wa.me/${phoneDigits}`,
+  };
+}
+
+export function PremiumHome({ services, testimonials, bookingCount, clientCount, petCount, business, homepage }: PremiumHomeProps) {
   const [slide, setSlide] = useState(0);
+  const [bottomSlide, setBottomSlide] = useState(0);
   const [activeFaq, setActiveFaq] = useState(0);
+  const homepageContent = useMemo(() => ({
+    ...DEFAULT_HOMEPAGE_SETTINGS,
+    ...homepage,
+    heroSlides: homepage?.heroSlides?.length ? homepage.heroSlides
+      .filter((item) => item.title && item.image && item.isActive !== false)
+      .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)) : DEFAULT_HOMEPAGE_SETTINGS.heroSlides,
+    features: homepage?.features?.length ? homepage.features.filter((item) => item.title) : DEFAULT_HOMEPAGE_SETTINGS.features,
+    faqs: homepage?.faqs?.length ? homepage.faqs.filter((item) => item.question) : DEFAULT_HOMEPAGE_SETTINGS.faqs,
+    bottomItems: homepage?.bottomItems?.length ? homepage.bottomItems
+      .filter((item) => item.title && item.image && item.isActive !== false)
+      .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)) : DEFAULT_HOMEPAGE_SETTINGS.bottomItems,
+  }), [homepage]);
+  const heroSlides = homepageContent.heroSlides.length ? homepageContent.heroSlides : DEFAULT_HOMEPAGE_SETTINGS.heroSlides;
+  const featureItems = homepageContent.features.length ? homepageContent.features : DEFAULT_HOMEPAGE_SETTINGS.features;
+  const faqItems = homepageContent.faqs.length ? homepageContent.faqs : DEFAULT_HOMEPAGE_SETTINGS.faqs;
+  const bottomItems = homepageContent.bottomItems.length ? homepageContent.bottomItems : DEFAULT_HOMEPAGE_SETTINGS.bottomItems;
+  const activeSlide = heroSlides[slide] || heroSlides[0];
+  const activeBottomItem = bottomItems[bottomSlide] || bottomItems[0];
+  const contactInfo = {
+    ...makePhoneLinks(business?.phone),
+    whatsappHref: makePhoneLinks(business?.whatsapp || business?.phone).whatsappHref,
+    email: business?.email || "pupparazzipetstore@gmail.com",
+    address: business?.address || BUSINESS_ADDRESS,
+  };
   const grouped = useMemo(() => {
     const map = new Map<string, HomeService[]>();
     services.forEach((service) => {
@@ -147,7 +141,15 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
   useEffect(() => {
     const timer = window.setInterval(() => setSlide((current) => (current + 1) % heroSlides.length), 6000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [heroSlides.length]);
+
+  useEffect(() => {
+    if (slide >= heroSlides.length) setSlide(0);
+  }, [heroSlides.length, slide]);
+
+  useEffect(() => {
+    if (bottomSlide >= bottomItems.length) setBottomSlide(0);
+  }, [bottomItems.length, bottomSlide]);
 
   useEffect(() => {
     if (!categories.includes(activeCategory) && categories[0]) setActiveCategory(categories[0]);
@@ -167,31 +169,42 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
         {heroSlides.map((item, index) => (
           <div key={item.title} className={`absolute inset-0 transition-opacity duration-700 ${index === slide ? "opacity-100" : "opacity-0"}`}>
             <Image src={item.image} alt={item.title} fill priority={index === 0} className="hidden object-cover md:block" sizes="100vw" />
-            <Image src={item.mobileImage} alt={item.title} fill priority={index === 0} className="object-cover md:hidden" sizes="100vw" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#09121f]/85 via-[#09121f]/45 to-[#09121f]/15" />
+            <Image src={item.mobileImage || item.image} alt={item.title} fill priority={index === 0} className="object-cover md:hidden" sizes="100vw" />
+            <div className="absolute inset-0 bg-[#09121f]" style={{ opacity: Math.min(90, Math.max(0, Number(item.overlayOpacity ?? 68))) / 100 }} />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#09121f]/55 via-[#09121f]/20 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#09121f]/70 via-transparent to-transparent" />
           </div>
         ))}
 
         <div className="relative z-10 mx-auto flex min-h-[calc(100svh-80px)] max-w-7xl items-end px-4 pb-10 pt-24 sm:px-6 lg:px-8 lg:pb-16">
-          <div className="max-w-3xl text-white">
+          <div className={`max-w-3xl text-white ${activeSlide.textPosition === "center" ? "mx-auto text-center" : activeSlide.textPosition === "right" ? "ml-auto text-right" : ""}`}>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur">
               <Sparkles className="h-4 w-4 text-accent" />
-              Premium pet care club in Ahmedabad
+              {homepageContent.heroEyebrow}
             </div>
             <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
-              {heroSlides[slide].title}
+              {activeSlide.title}
             </h1>
             <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-white/82 sm:text-lg">
-              {heroSlides[slide].subtitle}
+              {activeSlide.subtitle}
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className={`mt-8 flex flex-col gap-3 sm:flex-row ${activeSlide.textPosition === "center" ? "sm:justify-center" : activeSlide.textPosition === "right" ? "sm:justify-end" : ""}`}>
               <Button size="lg" asChild>
-                <Link href={heroSlides[slide].href}>{heroSlides[slide].cta}</Link>
+                <Link href={activeSlide.href}>{activeSlide.cta}</Link>
               </Button>
               <Button size="lg" variant="outline" className="border-white/35 bg-white/10 text-white hover:bg-white/20" asChild>
-                <Link href={heroSlides[slide].secondaryHref}>{heroSlides[slide].secondary}</Link>
+                <Link href={activeSlide.secondaryHref}>{activeSlide.secondary}</Link>
               </Button>
+            </div>
+            <div className={`mt-8 grid max-w-2xl gap-3 text-sm font-semibold text-white/80 sm:grid-cols-[auto_1fr] ${activeSlide.textPosition === "center" ? "mx-auto" : activeSlide.textPosition === "right" ? "ml-auto" : ""}`}>
+              <Link href={contactInfo.phoneHref} className="inline-flex items-center gap-2 rounded-lg border border-white/18 bg-white/10 px-4 py-3 backdrop-blur transition hover:bg-white/18">
+                <Phone className="h-4 w-4 text-accent" />
+                {contactInfo.phone}
+              </Link>
+              <Link href="/contact" className="inline-flex items-start gap-2 rounded-lg border border-white/18 bg-white/10 px-4 py-3 leading-6 backdrop-blur transition hover:bg-white/18">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                <span className="line-clamp-2">{contactInfo.address}</span>
+              </Link>
             </div>
           </div>
         </div>
@@ -222,24 +235,25 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
         </div>
       </section>
 
-      <section className="py-20 sm:py-24">
+      {homepageContent.eventActive !== false && <section className="py-20 sm:py-24">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:px-8">
           <div className="overflow-hidden rounded-2xl bg-foreground p-8 text-white shadow-[var(--shadow-premium)] sm:p-10">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-accent">Featured Event</p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">Club visit and temperament meet-up weekend.</h2>
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-accent">{homepageContent.eventEyebrow}</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">{homepageContent.eventTitle}</h2>
+            {homepageContent.eventDate ? <p className="mt-4 inline-flex rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-white/80">{homepageContent.eventDate}</p> : null}
             <p className="mt-4 max-w-2xl text-sm leading-7 text-white/72 sm:text-base">
-              Visit Pupparazzi Club, meet the team, explore boarding spaces, and discuss the right care plan for your pet.
+              {homepageContent.eventCopy}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button asChild><Link href="/contact">Plan a Visit</Link></Button>
-              <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" asChild><Link href={contact.whatsappHref}>WhatsApp Club</Link></Button>
+              <Button asChild><Link href={homepageContent.eventHref || "/contact"}>{homepageContent.eventCta || "Plan a Visit"}</Link></Button>
+              <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" asChild><Link href={contactInfo.whatsappHref}>WhatsApp Club</Link></Button>
             </div>
           </div>
           <div className="relative min-h-[320px] overflow-hidden rounded-2xl shadow-[var(--shadow-premium)]">
-            <Image src="/images/IMG_5623.JPG.jpeg" alt="Pupparazzi Club evening facility" fill className="object-cover" sizes="(min-width:1024px) 40vw, 100vw" />
+            <Image src={homepageContent.eventImage || "/images/IMG_5623.JPG.jpeg"} alt="Pupparazzi Club evening facility" fill className="object-cover" sizes="(min-width:1024px) 40vw, 100vw" />
           </div>
         </div>
-      </section>
+      </section>}
 
       <section id="services" className="border-y border-border/70 bg-white py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -302,16 +316,16 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
       <section className="py-20 sm:py-24">
         <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
           <div className="relative min-h-[520px] overflow-hidden rounded-2xl shadow-[var(--shadow-premium)]">
-            <Image src="/images/IMG_5627.JPG.jpeg" alt="Pet parent training and care session" fill className="object-cover" sizes="(min-width:1024px) 44vw, 100vw" />
+            <Image src={homepageContent.aboutImage || "/images/IMG_5627.JPG.jpeg"} alt="Pet parent training and care session" fill className="object-cover" sizes="(min-width:1024px) 44vw, 100vw" />
           </div>
           <div className="flex flex-col justify-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-accent">About Pupparazzi Club</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">A warm club experience, operated with serious care systems.</h2>
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-accent">{homepageContent.aboutEyebrow}</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">{homepageContent.aboutTitle}</h2>
             <p className="mt-5 text-base leading-8 text-muted-foreground">
-              Pupparazzi Club brings premium grooming, boarding, swimming, training, and daycare into a single pet-first environment. The team focuses on hygiene, calm handling, personalised attention, and a transparent booking experience for every parent.
+              {homepageContent.aboutCopy}
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              {["Experienced handlers", "Clean facility", "Backend-managed bookings", "South Bopal location"].map((item) => (
+              {["Experienced handlers", "Clean facility", "Backend-managed bookings", "Ahmedabad location"].map((item) => (
                 <div key={item} className="flex items-center gap-3 rounded-xl border bg-white p-4">
                   <ShieldCheck className="h-5 w-5 text-accent" />
                   <span className="text-sm font-semibold">{item}</span>
@@ -325,16 +339,16 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
 
       <section className="bg-foreground py-20 text-white sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-accent">Why Choose Us</p>
-          <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">Every detail is designed for trust, comfort, and repeat care.</h2>
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-accent">{homepageContent.featuresEyebrow}</p>
+          <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">{homepageContent.featuresTitle}</h2>
           <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {whyItems.map(([title, copy], index) => (
-              <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur transition hover:bg-white/[0.1]">
+            {featureItems.map((item, index) => (
+              <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur transition hover:bg-white/[0.1]">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-foreground">
                   {index % 2 === 0 ? <HeartHandshake className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
                 </div>
-                <h3 className="mt-5 text-lg font-semibold">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-white/65">{copy}</p>
+                <h3 className="mt-5 text-lg font-semibold">{item.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-white/65">{item.copy}</p>
               </div>
             ))}
           </div>
@@ -383,13 +397,13 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
             <p className="mt-4 text-sm leading-7 text-muted-foreground">Quick answers for boarding, grooming, visits, and training requests.</p>
           </div>
           <div className="space-y-3">
-            {faqs.map(([question, answer], index) => (
-              <button key={question} onClick={() => setActiveFaq(index)} className="w-full rounded-xl border bg-[var(--surface)] p-5 text-left transition hover:bg-white">
+            {faqItems.map((item, index) => (
+              <button key={item.question} onClick={() => setActiveFaq(index)} className="w-full rounded-xl border bg-[var(--surface)] p-5 text-left transition hover:bg-white">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="font-semibold">{question}</span>
+                  <span className="font-semibold">{item.question}</span>
                   <span className="text-primary">{activeFaq === index ? "-" : "+"}</span>
                 </div>
-                {activeFaq === index && <p className="mt-3 text-sm leading-7 text-muted-foreground">{answer}</p>}
+                {activeFaq === index && <p className="mt-3 text-sm leading-7 text-muted-foreground">{item.answer}</p>}
               </button>
             ))}
           </div>
@@ -409,12 +423,20 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
           </div>
           <div className="overflow-hidden rounded-2xl bg-foreground text-white shadow-[var(--shadow-premium)]">
             <div className="relative min-h-72">
-              <Image src="/images/IMG_5600.PNG" alt="Dog swimming at Pupparazzi Club" fill className="object-cover opacity-80" sizes="(min-width:1024px) 50vw, 100vw" />
+              <Image src={activeBottomItem.image} alt={activeBottomItem.title} fill className="object-cover opacity-80" sizes="(min-width:1024px) 50vw, 100vw" />
             </div>
             <div className="p-7">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-accent">Bottom Highlight</p>
-              <h3 className="mt-3 text-3xl font-semibold">Swimming, boarding, grooming, and more in one premium club.</h3>
-              <Button className="mt-6" asChild><Link href="/book">Book Appointment</Link></Button>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-accent">Highlights</p>
+              <h3 className="mt-3 text-3xl font-semibold">{activeBottomItem.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-white/70">{activeBottomItem.text}</p>
+              <div className="mt-6 flex items-center justify-between gap-3">
+                <Button asChild><Link href={activeBottomItem.href}>{activeBottomItem.cta}</Link></Button>
+                <div className="flex gap-2">
+                  {bottomItems.map((item, index) => (
+                    <button key={item.title} aria-label={`Go to highlight ${index + 1}`} onClick={() => setBottomSlide(index)} className={`h-2 rounded-full transition-all ${index === bottomSlide ? "w-7 bg-white" : "w-2 bg-white/40"}`} />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -425,17 +447,17 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
           <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-[#ee7fa1] to-accent p-8 text-white shadow-[var(--shadow-premium)] sm:p-12">
             <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/75">Ready to Give Your Pet the Best Care?</p>
-                <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">Book an appointment today and let your pet enjoy the Pupparazzi experience.</h2>
+                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/75">{homepageContent.ctaEyebrow}</p>
+                <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">{homepageContent.ctaTitle}</h2>
                 <p className="mt-4 flex items-start gap-2 text-sm leading-6 text-white/80">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-                  {contact.address}
+                  {contactInfo.address}
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
                 <Button className="bg-white text-foreground hover:bg-white/90" size="lg" asChild><Link href="/book">Book Appointment</Link></Button>
-                <Button className="border-white/30 bg-white/10 text-white hover:bg-white/20" variant="outline" size="lg" asChild><Link href={contact.phoneHref}><Phone className="mr-2 h-4 w-4" /> Call Now</Link></Button>
-                <Button className="border-white/30 bg-white/10 text-white hover:bg-white/20" variant="outline" size="lg" asChild><Link href={contact.whatsappHref}><MessageCircle className="mr-2 h-4 w-4" /> WhatsApp Us</Link></Button>
+                <Button className="border-white/30 bg-white/10 text-white hover:bg-white/20" variant="outline" size="lg" asChild><Link href={contactInfo.phoneHref}><Phone className="mr-2 h-4 w-4" /> Call Now</Link></Button>
+                <Button className="border-white/30 bg-white/10 text-white hover:bg-white/20" variant="outline" size="lg" asChild><Link href={contactInfo.whatsappHref}><MessageCircle className="mr-2 h-4 w-4" /> WhatsApp Us</Link></Button>
               </div>
             </div>
           </div>

@@ -1,15 +1,18 @@
 import { PremiumHome } from "@/components/home/premium-home";
+import { DEFAULT_BUSINESS_SETTINGS, DEFAULT_HOMEPAGE_SETTINGS, getSetting } from "@/lib/settings";
 import { prisma } from "@/lib/prisma";
 import { isHiddenPublicService, serviceCategoryRank } from "@/lib/service-rules";
 import type { HomeService } from "@/components/home/services-tabs";
 
 async function getHomepageData() {
-  const [testimonials, services, bookingCount, clientCount, petCount] = await Promise.all([
+  const [testimonials, services, bookingCount, clientCount, petCount, business, homepage] = await Promise.all([
     prisma.testimonial.findMany({ where: { is_active: true }, orderBy: [{ order: "asc" }, { created_at: "desc" }], take: 6 }),
     prisma.service.findMany({ where: { is_active: true, is_coming_soon: false }, orderBy: [{ category: "asc" }, { display_order: "asc" }, { name: "asc" }] }),
     prisma.booking.count(),
     prisma.user.count({ where: { role: "CLIENT", is_active: true } }),
     prisma.pet.count(),
+    getSetting("business", DEFAULT_BUSINESS_SETTINGS),
+    getSetting("homepage", DEFAULT_HOMEPAGE_SETTINGS),
   ]);
 
   const publicServices = services
@@ -31,7 +34,7 @@ async function getHomepageData() {
       images_json: service.images_json,
     }));
 
-  return { testimonials, services: publicServices, bookingCount, clientCount, petCount };
+  return { testimonials, services: publicServices, bookingCount, clientCount, petCount, business, homepage };
 }
 
 export default async function LandingPage() {

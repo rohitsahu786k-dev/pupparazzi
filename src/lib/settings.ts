@@ -1,12 +1,19 @@
 import { prisma } from "@/lib/prisma";
+import { BUSINESS_ADDRESS, DEFAULT_HOMEPAGE_SETTINGS, OUTDATED_ADDRESS_MARKERS } from "@/lib/homepage-content";
 
 export type BusinessSettings = {
   name: string;
   shortName: string;
   email: string;
   phone: string;
+  whatsapp: string;
   website: string;
   address: string;
+  workingHours: string;
+  mapEmbedUrl: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  copyrightText: string;
   gst: string;
   logoUrl: string;
 };
@@ -34,8 +41,14 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
   shortName: "Pupparazzi Club",
   email: "pupparazzipetstore@gmail.com",
   phone: "063588 48177",
+  whatsapp: "063588 48177",
   website: process.env.NEXTAUTH_URL || "https://pupparazziclub.in",
-  address: "Next Crossroad to Bharat Petroleum, VIP Rd, opp. Stanza, South Bopal, Ahmedabad, Gujarat 380057",
+  address: BUSINESS_ADDRESS,
+  workingHours: "Monday to Sunday, 9:00 AM to 8:00 PM",
+  mapEmbedUrl: "",
+  instagramUrl: "https://www.instagram.com/pupparazziclub/",
+  facebookUrl: "",
+  copyrightText: "© 2026 Pupparazzi Club. All rights reserved.",
   gst: "24AAXFP9081F1ZN",
   logoUrl: "/pupparazzi-logo.png",
 };
@@ -58,9 +71,17 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   enabled: Boolean(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
 };
 
+function normalizeSetting<T>(key: string, value: T): T {
+  if (key !== "business" || !value || typeof value !== "object") return value;
+  const business = value as unknown as BusinessSettings;
+  if (!OUTDATED_ADDRESS_MARKERS.some((marker) => business.address?.includes(marker))) return value;
+  return { ...business, address: BUSINESS_ADDRESS } as T;
+}
+
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const setting = await prisma.appSetting.findUnique({ where: { key } });
-  return setting ? ({ ...fallback, ...(setting.value as object) } as T) : fallback;
+  const value = setting ? ({ ...fallback, ...(setting.value as object) } as T) : fallback;
+  return normalizeSetting(key, value);
 }
 
 export async function setSetting<T>(key: string, value: T) {
@@ -70,3 +91,5 @@ export async function setSetting<T>(key: string, value: T) {
     create: { key, value: value as any },
   });
 }
+
+export { DEFAULT_HOMEPAGE_SETTINGS };

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import {
   DEFAULT_BUSINESS_SETTINGS,
+  DEFAULT_HOMEPAGE_SETTINGS,
   DEFAULT_PAYMENT_SETTINGS,
   DEFAULT_SMTP_SETTINGS,
   getSetting,
@@ -12,6 +13,7 @@ const defaults: Record<string, unknown> = {
   business: DEFAULT_BUSINESS_SETTINGS,
   smtp: DEFAULT_SMTP_SETTINGS,
   payment: DEFAULT_PAYMENT_SETTINGS,
+  homepage: DEFAULT_HOMEPAGE_SETTINGS,
   whatsapp: {
     bookingConfirmation: "Hello {{customerName}}, thank you for choosing us for your {{serviceName}} booking. Booking ID: {{bookingId}}. Pet Name: {{petName}}. Please complete your {{serviceName}} booking details here: {{detailedFormLink}}",
     paymentSuccess: "Hello {{customerName}}, your payment for booking #{{bookingId}} is completed. Invoice has been generated.",
@@ -33,13 +35,14 @@ export async function GET(req: Request) {
     return NextResponse.json(await getSetting(key, defaults[key]));
   }
 
-  const [business, smtp, payment, whatsapp] = await Promise.all([
+  const [business, smtp, payment, homepage, whatsapp] = await Promise.all([
     getSetting("business", DEFAULT_BUSINESS_SETTINGS),
     getSetting("smtp", DEFAULT_SMTP_SETTINGS),
     getSetting("payment", DEFAULT_PAYMENT_SETTINGS),
+    getSetting("homepage", DEFAULT_HOMEPAGE_SETTINGS),
     getSetting("whatsapp", defaults.whatsapp),
   ]);
-  return NextResponse.json({ business, smtp: { ...smtp, pass: smtp.pass ? "********" : "" }, payment: { ...payment, razorpayKeySecret: payment.razorpayKeySecret ? "********" : "" }, whatsapp });
+  return NextResponse.json({ business, smtp: { ...smtp, pass: smtp.pass ? "********" : "" }, payment: { ...payment, razorpayKeySecret: payment.razorpayKeySecret ? "********" : "" }, homepage, whatsapp });
 }
 
 export async function PUT(req: Request) {

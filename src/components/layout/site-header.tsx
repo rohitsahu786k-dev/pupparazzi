@@ -15,7 +15,25 @@ const publicLinks = [
   { label: "Contact", href: "/contact", icon: Phone },
 ];
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  business?: {
+    phone?: string;
+    whatsapp?: string;
+  };
+};
+
+function makeContactLinks(phone = "063588 48177") {
+  const rawDigits = phone.replace(/\D/g, "");
+  const localDigits = rawDigits.length === 11 && rawDigits.startsWith("0") ? rawDigits.slice(1) : rawDigits;
+  const phoneDigits = localDigits.length === 10 ? `91${localDigits}` : localDigits || "916358848177";
+  return {
+    phone,
+    phoneHref: `tel:+${phoneDigits}`,
+    whatsappHref: `https://wa.me/${phoneDigits}`,
+  };
+}
+
+export function SiteHeader({ business }: SiteHeaderProps) {
   const { data: session, status } = useSession();
   const [openMenu, setOpenMenu] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -44,6 +62,11 @@ export function SiteHeader() {
   }, []);
 
   if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) return null;
+
+  const contact = {
+    ...makeContactLinks(business?.phone),
+    whatsappHref: makeContactLinks(business?.whatsapp || business?.phone).whatsappHref,
+  };
 
   const userName = session?.user?.name || "My Account";
   const userEmail = session?.user?.email || "";
@@ -78,11 +101,11 @@ export function SiteHeader() {
               </Link>
             );
           })}
-          <Link href="tel:+916358848177" className="hidden items-center gap-1.5 transition-colors hover:text-primary xl:flex">
+          <Link href={contact.phoneHref} className="hidden items-center gap-1.5 transition-colors hover:text-primary xl:flex">
             <Phone className="h-4 w-4" />
-            063588 48177
+            {contact.phone}
           </Link>
-          <Link href="https://wa.me/916358848177" className="hidden items-center gap-1.5 transition-colors hover:text-primary xl:flex">
+          <Link href={contact.whatsappHref} className="hidden items-center gap-1.5 transition-colors hover:text-primary xl:flex">
             <MessageCircle className="h-4 w-4" />
             WhatsApp
           </Link>
@@ -159,7 +182,7 @@ export function SiteHeader() {
                 <Link href="/book" onClick={() => setMobileOpen(false)}>Book Appointment</Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link href="https://wa.me/916358848177">WhatsApp Us</Link>
+                <Link href={contact.whatsappHref}>WhatsApp Us</Link>
               </Button>
             </div>
           </div>
