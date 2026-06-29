@@ -2,6 +2,7 @@ import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
 const DEFAULT_SITE_ORIGIN = "https://pupparazziclub.in";
+const STAFF_ADMIN_PATHS = ["/admin", "/admin/bookings", "/admin/clients", "/admin/pets", "/admin/services", "/admin/assets"];
 
 function appOrigin(req: { headers: Headers }) {
   const configuredOrigin = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL;
@@ -25,7 +26,7 @@ export default withAuth(
 
     // Authenticated users visiting /login get redirected away (prevents refresh loop)
     if (pathname === "/login" && token) {
-      const portal = token.role === "ADMIN" ? "/admin" : token.role === "STAFF" ? "/staff" : "/dashboard";
+      const portal = token.role === "ADMIN" || token.role === "STAFF" ? "/admin" : "/dashboard";
       const raw = (token.role === "ADMIN" || token.role === "STAFF") ? portal : req.nextUrl.searchParams.get("callbackUrl") || "/dashboard";
       const safeUrl = raw.startsWith("/") ? raw : portal;
       return NextResponse.redirect(new URL(safeUrl, origin));
@@ -37,10 +38,13 @@ export default withAuth(
     }
 
     if (pathname.startsWith("/admin") && token?.role === "STAFF") {
-      return NextResponse.redirect(new URL("/staff", origin));
+      const allowed = STAFF_ADMIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+      if (!allowed) {
+        return NextResponse.redirect(new URL("/admin", origin));
+      }
     }
 
-    if (pathname.startsWith("/admin") && token?.role !== "ADMIN") {
+    if (pathname.startsWith("/admin") && token?.role !== "ADMIN" && token?.role !== "STAFF") {
       return NextResponse.redirect(new URL("/dashboard", origin));
     }
 

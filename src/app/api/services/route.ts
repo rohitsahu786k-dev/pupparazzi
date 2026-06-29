@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { isHiddenPublicService, serviceCategoryRank } from "@/lib/service-rules";
 
 function canManage(role?: string | null) {
-  return role === "ADMIN";
+  return role === "ADMIN" || role === "STAFF";
 }
 
 function cleanList(value: unknown) {

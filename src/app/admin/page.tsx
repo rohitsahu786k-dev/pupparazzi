@@ -3,6 +3,8 @@ import { Calendar, DollarSign, PawPrint, Scissors, TicketPercent, Users } from "
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,8 @@ function money(value: number) {
 }
 
 export default async function AdminDashboard() {
+  const session = await getServerSession(authOptions);
+  const isStaff = session?.user?.role === "STAFF";
   const today = new Date();
   const todayRange = indiaDayRange(today);
   const [todayBookings, activeClients, pets, activeServices, paidPayments, paidBookingsWithoutPayment, upcomingBookings, couponSetting] = await Promise.all([
@@ -60,11 +64,11 @@ export default async function AdminDashboard() {
 
   const stats = [
     { title: "Bookings Today", value: String(todayBookings), icon: Calendar, href: "/admin/bookings" },
-    { title: "Revenue Today", value: money(revenueToday), icon: DollarSign, href: "/admin/payments" },
+    ...(!isStaff ? [{ title: "Revenue Today", value: money(revenueToday), icon: DollarSign, href: "/admin/payments" }] : []),
     { title: "Active Clients", value: String(activeClients), icon: Users, href: "/admin/clients" },
     { title: "Registered Pets", value: String(pets), icon: PawPrint, href: "/admin/pets" },
     { title: "Active Services", value: String(activeServices), icon: Scissors, href: "/admin/services" },
-    { title: "Active Coupons", value: String(activeCoupons), icon: TicketPercent, href: "/admin/coupons" },
+    ...(!isStaff ? [{ title: "Active Coupons", value: String(activeCoupons), icon: TicketPercent, href: "/admin/coupons" }] : []),
   ];
 
   return (
@@ -72,7 +76,7 @@ export default async function AdminDashboard() {
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Live business snapshot for bookings, customers, pets, services, payments, and offers.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Live business snapshot for bookings, customers, pets, services, documents, and daily operations.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline"><Link href="/admin/services">Manage Services</Link></Button>

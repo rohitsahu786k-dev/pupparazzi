@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Calendar, Users, PawPrint,
   Settings, Scissors, Banknote, FileText, MapPin, TicketPercent, MessageSquareQuote
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 const navItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -24,8 +24,14 @@ const navItems = [
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
+const staffNavNames = new Set(["Dashboard", "Bookings", "Clients", "Pets", "Services", "Client Documents"]);
+
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const visibleNavItems = session?.user?.role === "STAFF"
+    ? navItems.filter((item) => staffNavNames.has(item.name))
+    : navItems;
 
   return (
     <div className="flex h-full w-full flex-col border-r bg-white text-foreground shadow-sm lg:w-72">
@@ -35,7 +41,7 @@ export function AdminSidebar() {
         </Link>
       </div>
       <div className="flex-1 space-y-1 overflow-y-auto px-3 py-3 lg:px-4">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/admin');
           return (

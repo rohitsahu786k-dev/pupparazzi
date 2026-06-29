@@ -3,8 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-function isAdmin(role?: string | null) {
-  return role === "ADMIN";
+function isOperations(role?: string | null) {
+  return role === "ADMIN" || role === "STAFF";
 }
 
 // Create a new pet
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     if (!owner_id || !name || !type) {
       return NextResponse.json({ message: "owner_id, name and type are required" }, { status: 400 });
     }
-    if (!isAdmin(session.user.role) && owner_id !== session.user.id) {
+    if (!isOperations(session.user.role) && owner_id !== session.user.id) {
       return NextResponse.json({ message: "You can only create pets for your own account" }, { status: 403 });
     }
 
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !isAdmin(session.user.role)) {
+    if (!session?.user?.id || !isOperations(session.user.role)) {
       return NextResponse.json({ message: "Admin access required" }, { status: 403 });
     }
 
@@ -117,7 +117,7 @@ export async function PUT(req: Request) {
 
     const existing = await prisma.pet.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ message: "Pet not found" }, { status: 404 });
-    if (!isAdmin(session.user.role) && existing.owner_id !== session.user.id) {
+    if (!isOperations(session.user.role) && existing.owner_id !== session.user.id) {
       return NextResponse.json({ message: "You can only update your own pet" }, { status: 403 });
     }
 
@@ -153,7 +153,7 @@ export async function DELETE(req: Request) {
 
     const pet = await prisma.pet.findUnique({ where: { id } });
     if (!pet) return NextResponse.json({ message: "Pet not found" }, { status: 404 });
-    if (!isAdmin(session.user.role) && pet.owner_id !== session.user.id) {
+    if (!isOperations(session.user.role) && pet.owner_id !== session.user.id) {
       return NextResponse.json({ message: "You can only delete your own pet" }, { status: 403 });
     }
 

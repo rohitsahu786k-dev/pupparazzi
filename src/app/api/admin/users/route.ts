@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdmin, requireOperations } from "@/lib/admin";
 import { sendWelcomeEmail } from "@/lib/mailer";
 import { deleteUserCascade } from "@/lib/delete-records";
 import { buildClientDataExport } from "@/lib/client-data-export";
@@ -89,11 +89,12 @@ async function syncStaffProfile(userId: string, role: string) {
 }
 
 export async function GET(req: Request) {
-  const session = await requireAdmin();
+  const session = await requireOperations();
   if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const role = searchParams.get("role");
+  const effectiveRole = session.user.role === "STAFF" ? "CLIENT" : role;
   const q = searchParams.get("q")?.trim();
   const pet = searchParams.get("pet")?.trim();
   const phone = searchParams.get("phone")?.trim();
@@ -104,7 +105,7 @@ export async function GET(req: Request) {
   const and: any[] = [];
   const qOr: any[] = [];
 
-  if (role && role !== "All") and.push({ role: role as any });
+  if (effectiveRole && effectiveRole !== "All") and.push({ role: effectiveRole as any });
   if (phone) and.push({ phone: { contains: phone } });
   if (email) and.push({ email: { contains: email } });
   if (pet) {
@@ -210,7 +211,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await requireAdmin();
+  const session = await requireOperations();
   if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
 
   const body = await req.json();
@@ -222,6 +223,9 @@ export async function POST(req: Request) {
   const isClient = role === "CLIENT";
   if (!role) {
     return NextResponse.json({ message: "Invalid role" }, { status: 400 });
+  }
+  if (session.user.role === "STAFF" && role !== "CLIENT") {
+    return NextResponse.json({ message: "Staff can create client accounts only" }, { status: 403 });
   }
   if (!name || (!isClient && (!realEmail || !password))) {
     return NextResponse.json({ message: isClient ? "Name and phone/email are required" : "Name, email, and password are required" }, { status: 400 });
@@ -265,7 +269,7 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const session = await requireAdmin();
+  const session = await requireOperations();
   if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
 
   const body = await req.json();
@@ -274,6 +278,9 @@ export async function PATCH(req: Request) {
   if (!existing) return NextResponse.json({ message: "User not found" }, { status: 404 });
   const nextRole = body.role !== undefined ? cleanRole(body.role) : undefined;
   if (body.role !== undefined && !nextRole) return NextResponse.json({ message: "Invalid role" }, { status: 400 });
+  if (session.user.role === "STAFF" && (existing.role !== "CLIENT" || (nextRole && nextRole !== "CLIENT"))) {
+    return NextResponse.json({ message: "Staff can update client accounts only" }, { status: 403 });
+  }
   if (body.id === session.user.id && (body.is_active === false || (nextRole && nextRole !== "ADMIN"))) {
     return NextResponse.json({ message: "You cannot remove admin access from your own account" }, { status: 400 });
   }
@@ -317,7 +324,7 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const session = await requireAdmin();
+    const session = await requireOperations();
     if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
@@ -327,6 +334,9 @@ export async function DELETE(req: Request) {
 
     const user = await prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
+    if (session.user.role === "STAFF" && user.role !== "CLIENT") {
+      return NextResponse.json({ message: "Staff can delete client accounts only" }, { status: 403 });
+    }
 
     const exportData = await buildClientDataExport(id);
     if (!exportData) return NextResponse.json({ message: "Unable to export user data before deletion" }, { status: 500 });

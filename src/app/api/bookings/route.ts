@@ -132,9 +132,8 @@ export async function GET(req: Request) {
     await expirePastBookings();
 
     const requestedUserId = searchParams.get("userId");
-    const fullAdmin = isFullAdmin(session.user.role);
-    const staffUser = isStaff(session.user.role);
-    const userId = fullAdmin ? requestedUserId : staffUser ? undefined : session.user.id;
+    const operationsUser = canManageBookings(session.user.role);
+    const userId = operationsUser ? requestedUserId : session.user.id;
     const status = searchParams.get("status");
     const paymentStatus = searchParams.get("paymentStatus");
     const dateFrom = searchParams.get("dateFrom");
@@ -149,7 +148,6 @@ export async function GET(req: Request) {
       where: {
         ...(bookingId ? { id: bookingId } : {}),
         ...(userId ? { client_id: userId } : {}),
-        ...(staffUser ? { OR: [{ staff_id: session.user.id }, { staff_id: null }] } : {}),
         ...(status && status !== "All" ? { status } : {}),
         ...(paymentStatus && paymentStatus !== "All" ? { payment_status: paymentStatus } : {}),
         ...(serviceCategory && serviceCategory !== "All" ? { service: { category: serviceCategory } } : {}),
@@ -200,7 +198,7 @@ export async function POST(req: Request) {
       address_id, address, notes, addons_json,
     } = body;
     const operationsUser = canManageBookings(session.user.role);
-    const fullAdmin = isFullAdmin(session.user.role);
+    const fullAdmin = operationsUser;
     const clientId = operationsUser && client_id ? client_id : session.user.id;
 
     if (!clientId || !pet_id || !service_id || !slot_date || !slot_time) {
@@ -372,8 +370,7 @@ export async function PATCH(req: Request) {
     }
 
     const operationsUser = canManageBookings(session.user.role);
-    const admin = isFullAdmin(session.user.role);
-    const staff = isStaff(session.user.role);
+    const admin = operationsUser;
     const userSavingOwnDetails = !operationsUser
       && existingBooking.client_id === session.user.id
       && status === undefined
@@ -428,17 +425,6 @@ export async function PATCH(req: Request) {
       const missing = missingDetailFields(existingBooking.service?.category || "", { ...body, slot_date: slot_date || existingBooking.slot_date, slot_time: slot_time || existingBooking.slot_time });
       if (missing.length > 0) {
         return NextResponse.json({ message: `Missing required detail fields: ${missing.join(", ")}` }, { status: 400 });
-      }
-    }
-
-    if (staff) {
-      const allowedStaffKeys = new Set(["id", "status", "internal_notes", "after_photos_json"]);
-      const blocked = Object.keys(body).filter((key) => !allowedStaffKeys.has(key));
-      if (blocked.length > 0) {
-        return NextResponse.json({ message: `Staff cannot modify: ${blocked.join(", ")}` }, { status: 403 });
-      }
-      if (status && !["Confirmed", "In Progress", "Completed"].includes(status)) {
-        return NextResponse.json({ message: "Staff can only move bookings through confirmed, in-progress, and completed states" }, { status: 403 });
       }
     }
 
@@ -675,7 +661,7 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !isFullAdmin(session.user.role)) {
+    if (!session?.user?.id || !canManageBookings(session.user.role)) {
       return NextResponse.json({ message: "Admin access required" }, { status: 403 });
     }
 
