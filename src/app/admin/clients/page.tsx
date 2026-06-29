@@ -97,6 +97,22 @@ function publicEmail(value?: string | null) {
   return value;
 }
 
+function safeFilenamePart(value?: string | null) {
+  return String(value || "client").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "client";
+}
+
+function downloadJsonFile(data: unknown, filename: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function Stat({ label, value }: { label: string; value: unknown }) {
   return (
     <div className="rounded-lg border bg-white px-3 py-2 text-black">
@@ -187,6 +203,11 @@ export default function AdminClientsPage() {
   const [petError, setPetError] = useState("");
   const [showAddPet, setShowAddPet] = useState(false);
 
+  function showProblem(message: string) {
+    setError(message);
+    alert(`Problem: ${message}`);
+  }
+
   async function fetchUsers() {
     setLoading(true);
     setError("");
@@ -236,12 +257,12 @@ export default function AdminClientsPage() {
 
     if (form.role === "CLIENT") {
       if (!form.petName.trim()) {
-        setError("Pet Name is required for creating a client profile.");
+        showProblem("Pet Name is required for creating a client profile.");
         setCreating(false);
         return;
       }
       if (!form.petType.trim()) {
-        setError("Pet Type is required.");
+        showProblem("Pet Type is required.");
         setCreating(false);
         return;
       }
@@ -261,7 +282,7 @@ export default function AdminClientsPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.message || "Unable to create user");
+      showProblem(data.message || "Unable to create user");
       setCreating(false);
       return;
     }
@@ -284,7 +305,7 @@ export default function AdminClientsPage() {
 
       if (!petRes.ok) {
         const petError = await petRes.json().catch(() => ({}));
-        setError(`Client created successfully, but pet registration failed: ${petError.message || "Unknown error"}`);
+        showProblem(`Client created successfully, but pet registration failed: ${petError.message || "Unknown error"}`);
         await fetchUsers();
         setCreating(false);
         return;
@@ -308,7 +329,7 @@ export default function AdminClientsPage() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.message || "Unable to update user");
+      showProblem(data.message || "Unable to update user");
     } else {
       setMessage("User updated.");
     }
@@ -319,7 +340,7 @@ export default function AdminClientsPage() {
   async function resetPassword(id: string) {
     const password = passwords[id]?.trim();
     if (!password) {
-      setError("Enter a new password first.");
+      showProblem("Enter a new password first.");
       return;
     }
     await updateUser(id, { password });
@@ -327,17 +348,30 @@ export default function AdminClientsPage() {
   }
 
   async function deleteUser(id: string) {
-    if (!confirm("Delete this user permanently?")) return;
+    const user = users.find((item) => item.id === id);
+    if (!confirm("This will export the client's full data first, then permanently delete the client and related records. Continue?")) return;
     setSavingId(id);
     setError("");
     setMessage("");
-    const res = await fetch(`/api/admin/users?id=${id}`, { method: "DELETE" });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) setError(data.message || "Unable to delete user");
-    else if (data.message?.includes("disabled")) setError(data.message);
-    else setMessage("User deleted.");
-    await fetchUsers();
-    setSavingId("");
+    try {
+      const res = await fetch(`/api/admin/users?id=${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || data.error || "Unable to delete user");
+      }
+      if (data.export) {
+        const exportedAt = new Date().toISOString().slice(0, 10);
+        downloadJsonFile(data.export, `${safeFilenamePart(user?.name || data.export.user?.name)}-${id.slice(-6)}-delete-backup-${exportedAt}.json`);
+      }
+      setMessage(`User deleted. Export downloaded. Bookings: ${data.bookingsDeleted || 0}, assets: ${data.assetsDeleted || 0}.`);
+    } catch (err: any) {
+      const problem = err?.message || "Unable to delete user";
+      setError(problem);
+      alert(`Delete failed: ${problem}`);
+    } finally {
+      await fetchUsers();
+      setSavingId("");
+    }
   }
 
   async function openProfile(user: AdminUser) {

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { sendWelcomeEmail } from "@/lib/mailer";
 import { deleteUserCascade } from "@/lib/delete-records";
+import { buildClientDataExport } from "@/lib/client-data-export";
 
 const roles = ["CLIENT", "STAFF", "ADMIN"];
 
@@ -315,21 +316,35 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const session = await requireAdmin();
-  if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
+  try {
+    const session = await requireAdmin();
+    if (!session) return NextResponse.json({ message: "Admin access required" }, { status: 403 });
 
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-  if (!id) return NextResponse.json({ message: "User ID is required" }, { status: 400 });
-  if (id === session.user.id) return NextResponse.json({ message: "You cannot delete your own admin account" }, { status: 400 });
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ message: "User ID is required" }, { status: 400 });
+    if (id === session.user.id) return NextResponse.json({ message: "You cannot delete your own admin account" }, { status: 400 });
 
-  const user = await prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
-  if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
+    const user = await prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
+    if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-  const result = await deleteUserCascade(id);
-  return NextResponse.json({
-    message: "User deleted",
-    bookingsDeleted: result.bookingsDeleted,
-    assetsDeleted: result.assetsDeleted,
-  });
+    const exportData = await buildClientDataExport(id);
+    if (!exportData) return NextResponse.json({ message: "Unable to export user data before deletion" }, { status: 500 });
+
+    const result = await deleteUserCascade(id);
+    return NextResponse.json({
+      message: "User deleted",
+      export: exportData,
+      bookingsDeleted: result.bookingsDeleted,
+      assetsDeleted: result.assetsDeleted,
+      oldHistoriesDeleted: result.oldHistoriesDeleted,
+      clientRecordsDeleted: result.clientRecordsDeleted,
+    });
+  } catch (error) {
+    console.error("DELETE user error:", error);
+    return NextResponse.json(
+      { message: "Failed to delete user. No confirmation was completed because a related delete task failed.", error: String(error) },
+      { status: 500 },
+    );
+  }
 }
