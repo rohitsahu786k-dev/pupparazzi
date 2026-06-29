@@ -667,24 +667,24 @@ export default function AdminClientsPage() {
       </div>
 
       <div className="rounded-lg border bg-white p-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.4fr_150px_170px_180px_130px_170px_130px_auto]">
-          <div className="relative">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="relative min-w-[240px] flex-[2_1_320px]">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fetchUsers()} placeholder="Search name, phone, email, address..." className="pl-9" />
           </div>
-          <Input value={phoneQuery} onChange={(e) => setPhoneQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fetchUsers()} placeholder="Phone" />
-          <Input value={emailQuery} onChange={(e) => setEmailQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fetchUsers()} placeholder="Email" />
-          <Input value={petQuery} onChange={(e) => setPetQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fetchUsers()} placeholder="Pet or breed" />
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
+          <Input value={phoneQuery} onChange={(e) => setPhoneQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fetchUsers()} placeholder="Phone" className="min-w-[130px] flex-1" />
+          <Input value={emailQuery} onChange={(e) => setEmailQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fetchUsers()} placeholder="Email" className="min-w-[170px] flex-1" />
+          <Input value={petQuery} onChange={(e) => setPetQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fetchUsers()} placeholder="Pet or breed" className="min-w-[150px] flex-1" />
+          <select value={role} onChange={(e) => setRole(e.target.value)} className="h-11 min-w-[130px] flex-1 rounded-lg border bg-white px-3 text-sm">
             {roles.map((item) => <option key={item}>{item}</option>)}
           </select>
-          <select value={historyFilter} onChange={(e) => setHistoryFilter(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
+          <select value={historyFilter} onChange={(e) => setHistoryFilter(e.target.value)} className="h-11 min-w-[170px] flex-1 rounded-lg border bg-white px-3 text-sm">
             {historyFilters.map((item) => <option key={item}>{item}</option>)}
           </select>
-          <select value={balanceFilter} onChange={(e) => setBalanceFilter(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
+          <select value={balanceFilter} onChange={(e) => setBalanceFilter(e.target.value)} className="h-11 min-w-[150px] flex-1 rounded-lg border bg-white px-3 text-sm">
             {balanceFilters.map((item) => <option key={item}>{item}</option>)}
           </select>
-          <Button variant="outline" onClick={fetchUsers}>Search</Button>
+          <Button variant="outline" className="h-11 min-w-[110px] flex-1 sm:flex-none" onClick={fetchUsers}>Search</Button>
         </div>
       </div>
 

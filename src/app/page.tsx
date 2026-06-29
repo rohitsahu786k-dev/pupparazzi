@@ -7,7 +7,7 @@ import type { HomeService } from "@/components/home/services-tabs";
 async function getHomepageData() {
   const [testimonials, services, bookingCount, clientCount, petCount, business, homepage] = await Promise.all([
     prisma.testimonial.findMany({ where: { is_active: true }, orderBy: [{ order: "asc" }, { created_at: "desc" }], take: 6 }),
-    prisma.service.findMany({ where: { is_active: true, is_coming_soon: false }, orderBy: [{ category: "asc" }, { display_order: "asc" }, { name: "asc" }] }),
+    prisma.service.findMany({ where: { is_active: true }, orderBy: [{ category: "asc" }, { display_order: "asc" }, { name: "asc" }] }),
     prisma.booking.count(),
     prisma.user.count({ where: { role: "CLIENT", is_active: true } }),
     prisma.pet.count(),
@@ -30,6 +30,7 @@ async function getHomepageData() {
       description_short: service.description_short,
       price: service.price,
       discounted_price: service.discounted_price,
+      is_coming_soon: service.is_coming_soon,
       free_services_json: service.free_services_json,
       images_json: service.images_json,
     }));

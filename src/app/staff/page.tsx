@@ -79,7 +79,7 @@ export default async function StaffDashboard() {
             <div className="rounded-lg border bg-muted/35 p-8 text-center text-sm text-muted-foreground">No upcoming active bookings.</div>
           ) : (
             <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full min-w-175 text-left text-sm">
+              <table className="w-full min-w-[700px] text-left text-sm">
                 <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Booking</th>

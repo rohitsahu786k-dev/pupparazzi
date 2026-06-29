@@ -38,7 +38,7 @@ export type CouponRule = {
   send_in_welcome_email?: boolean;
 };
 
-export const activeServiceCategories = ["Boarding", "Grooming"] as const;
+export const activeServiceCategories = ["Boarding", "Grooming", "Swimming", "Training", "Walking", "Veterinary"] as const;
 
 export const boardingPolicies = [
   "Dogs will only be checked in with prior booking specifying exact dates and checkout dates.",
@@ -202,6 +202,65 @@ export const individualGroomingServices: ServiceSeed[] = [
   ],
 }));
 
+export const extraCareServices: ServiceSeed[] = [
+  {
+    name: "Swimming Session",
+    category: "Swimming",
+    service_group: "Pool & Fitness",
+    display_order: 10,
+    description_short: "Supervised pool fun and low-impact exercise.",
+    description_long: "A supervised swimming session for exercise, confidence building, and safe water play.",
+    price: 699,
+    discounted_price: 499,
+    slot_duration_mins: 45,
+    max_slots_per_day: 6,
+    images_json: ["/service-swimming.png"],
+    free_services_json: ["Supervised pool time", "Exercise support", "Post-session drying"],
+  },
+  {
+    name: "Basic Training",
+    category: "Training",
+    service_group: "Behaviour & Obedience",
+    display_order: 10,
+    description_short: "Foundational obedience and command training.",
+    description_long: "A training request for basic obedience, command practice, and handler guidance. Our team confirms the final timing.",
+    price: 2499,
+    discounted_price: 1999,
+    slot_duration_mins: 60,
+    max_slots_per_day: 4,
+    images_json: ["/service-training.png"],
+    free_services_json: ["Command basics", "Handler guidance", "Progress notes"],
+  },
+  {
+    name: "Dog Walking",
+    category: "Walking",
+    service_group: "Daily Care",
+    display_order: 10,
+    description_short: "A 30-minute guided walk with safe handling.",
+    description_long: "A guided walk service for daily movement, enrichment, and routine support.",
+    price: 349,
+    discounted_price: 299,
+    slot_duration_mins: 30,
+    max_slots_per_day: 12,
+    images_json: ["/service-walking.png"],
+    free_services_json: ["30-minute walk", "Safe leash handling", "Route update"],
+  },
+  {
+    name: "Vet Consultation",
+    category: "Veterinary",
+    service_group: "Health Support",
+    display_order: 10,
+    description_short: "At-home vet consultation request.",
+    description_long: "A veterinary consultation request for health checks and guidance. Our team confirms the final appointment timing.",
+    price: 1999,
+    discounted_price: 1499,
+    slot_duration_mins: 60,
+    max_slots_per_day: 4,
+    images_json: ["/service-veterinary.png"],
+    free_services_json: ["Health check", "Care guidance", "Follow-up notes"],
+  },
+];
+
 const packagePrices = [
   { breed: "Small Breed", coat: "Long Coat", single: 1450, sessions: { 6: 7400, 12: 13900, 24: 26100 } },
   { breed: "Small Breed", coat: "Short Coat", single: 850, sessions: { 6: 4300, 12: 8150, 24: 15300 } },
@@ -345,6 +404,7 @@ export const petCareServices: ServiceSeed[] = [
   ...boardingServices,
   ...individualGroomingServices,
   ...specialGroomingServices,
+  ...extraCareServices,
 ];
 
 export const defaultCoupons: CouponRule[] = [

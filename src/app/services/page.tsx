@@ -26,7 +26,7 @@ export const metadata = {
 
 export default async function ServicesPage() {
   const services = (await prisma.service.findMany({
-    where: { is_active: true, is_coming_soon: false },
+    where: { is_active: true },
     orderBy: [{ category: "asc" }, { display_order: "asc" }, { name: "asc" }],
   })).filter((service) => !isHiddenPublicService(service));
 
@@ -56,7 +56,11 @@ export default async function ServicesPage() {
                   <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary">{category}</p>
                   <h2 className="mt-2 text-3xl font-semibold tracking-tight">{categoryServices.length} active services</h2>
                 </div>
-                <Button variant="outline" asChild><Link href={`/book?service=${category.toLowerCase()}`}>Book {category}</Link></Button>
+                {categoryServices.some((service) => !service.is_coming_soon) ? (
+                  <Button variant="outline" asChild><Link href={`/book?service=${category.toLowerCase()}`}>Book {category}</Link></Button>
+                ) : (
+                  <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700">Coming soon</span>
+                )}
               </div>
 
               <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -70,11 +74,22 @@ export default async function ServicesPage() {
                         <PawPrint className="h-3.5 w-3.5 text-primary" />
                         {service.service_group || service.category}
                       </div>
+                      {service.is_coming_soon && (
+                        <span className="mb-3 ml-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                          Coming soon
+                        </span>
+                      )}
                       <h3 className="text-xl font-semibold">{service.name}</h3>
                       <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">{service.description_short || "Premium care service by Pupparazzi Club."}</p>
-                      <div className="mt-5 flex items-center justify-between gap-4">
+                      <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-lg font-semibold">{service.discounted_price ? money(service.discounted_price) : money(service.price)}</p>
-                        <Button asChild><Link href={`/book?service=${service.category.toLowerCase()}`}>Book <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+                        {service.is_coming_soon ? (
+                          <span className="inline-flex min-h-10 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-4 text-sm font-bold text-amber-700">
+                            Coming soon
+                          </span>
+                        ) : (
+                          <Button asChild><Link href={`/book?service=${service.category.toLowerCase()}`}>Book <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+                        )}
                       </div>
                     </div>
                   </article>

@@ -490,12 +490,12 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
                   className={`inline-flex min-h-11 items-center gap-2 rounded-full px-6 text-xs font-bold transition-all duration-300 ${
                     activeCategory === category 
                       ? "bg-primary text-white shadow-md shadow-primary/15 scale-[1.02]" 
-                      : "text-slate-655 hover:bg-white/80 hover:text-slate-900"
+                      : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
                   }`}
                 >
                   <ServiceIcon category={category} />
                   <span>{category}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] ${activeCategory === category ? "bg-white/20 text-white" : "bg-slate-200/80 text-slate-650"}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] ${activeCategory === category ? "bg-white/20 text-white" : "bg-slate-200/80 text-slate-600"}`}>
                     {grouped.get(category)?.length || 0}
                   </span>
                 </button>
@@ -577,7 +577,7 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
                       {service.description_short || "Premium pet care experience with Pupparazzi's trained team."}
                     </p>
                     
-                    <div className="mt-auto flex items-center justify-between gap-4 pt-5 border-t border-slate-100/80">
+                    <div className="mt-auto flex flex-col gap-4 pt-5 border-t border-slate-100/80 sm:flex-row sm:items-center sm:justify-between">
                       <div className="text-left">
                         {service.discounted_price ? (
                           <div className="flex flex-col">
@@ -588,11 +588,17 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
                           <span className="text-lg font-extrabold text-slate-800">{money(service.price)}</span>
                         )}
                       </div>
-                      <Button className="rounded-full bg-slate-950 hover:bg-primary text-white hover:text-white transition-all duration-300 group/btn px-5" asChild>
-                        <Link href={`/book?service=${service.category.toLowerCase()}`}>
-                          Book <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-1" />
-                        </Link>
-                      </Button>
+                      {service.is_coming_soon ? (
+                        <span className="inline-flex min-h-10 w-full items-center justify-center rounded-full border border-amber-200 bg-amber-50 px-5 text-xs font-bold text-amber-700 sm:w-auto">
+                          Coming soon
+                        </span>
+                      ) : (
+                        <Button className="w-full rounded-full bg-slate-950 px-5 text-white transition-all duration-300 hover:bg-primary hover:text-white sm:w-auto group/btn" asChild>
+                          <Link href={`/book?service=${service.category.toLowerCase()}`}>
+                            Book <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-1" />
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </article>

@@ -8,10 +8,6 @@ const legacyDemoServices = [
   "Premium Grooming",
   "Flea & Tick Treatment",
   "Boarding (Per Day)",
-  "Dog Walking",
-  "Basic Training",
-  "Vet Consultation",
-  "Swimming Session",
 ];
 
 async function main() {

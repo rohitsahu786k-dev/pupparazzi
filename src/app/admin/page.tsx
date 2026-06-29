@@ -74,7 +74,7 @@ export default async function AdminDashboard() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
           <p className="mt-1 text-sm text-muted-foreground">Live business snapshot for bookings, customers, pets, services, payments, and offers.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline"><Link href="/admin/services">Manage Services</Link></Button>
           <Button asChild><Link href="/admin/bookings">Review Bookings</Link></Button>
         </div>
@@ -126,7 +126,7 @@ export default async function AdminDashboard() {
               ))}
             </div>
             <div className="hidden overflow-x-auto rounded-lg border lg:block">
-              <table className="w-full min-w-175 text-left text-sm">
+              <table className="w-full min-w-[700px] text-left text-sm">
                 <thead className="border-b bg-muted/60 text-xs uppercase text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Booking</th>

@@ -15,6 +15,7 @@ export type HomeService = {
   description_short?: string | null;
   price: number;
   discounted_price?: number | null;
+  is_coming_soon?: boolean;
   free_services_json?: unknown;
   images_json?: unknown;
 };
@@ -139,11 +140,17 @@ export function ServicesTabs({ services }: { services: HomeService[] }) {
                       money(service.price)
                     )}
                   </p>
-                  <Button asChild>
-                    <Link href={`/book?service=${service.category.toLowerCase()}`}>
-                      Book Now <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
+                  {service.is_coming_soon ? (
+                    <span className="inline-flex min-h-10 items-center rounded-lg border border-amber-200 bg-amber-50 px-3 text-xs font-bold text-amber-700">
+                      Coming soon
+                    </span>
+                  ) : (
+                    <Button asChild>
+                      <Link href={`/book?service=${service.category.toLowerCase()}`}>
+                        Book Now <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             </article>

@@ -353,30 +353,30 @@ export default function AdminBookingsPage() {
       </div>
 
       <div className="rounded-lg border bg-white p-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.3fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
-          <div className="relative">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="relative min-w-[240px] flex-[2_1_320px]">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search booking, client, pet, email..." className="pl-9" />
           </div>
-          <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm" aria-label="Filter booking history by client">
+          <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="h-11 min-w-[170px] flex-1 rounded-lg border bg-white px-3 text-sm" aria-label="Filter booking history by client">
             <option value="">All clients</option>
             {clients.map((client) => <option key={client.id} value={client.id}>{client.name || client.phone || client.email || "Client"}</option>)}
           </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 min-w-[140px] flex-1 rounded-lg border bg-white px-3 text-sm">
             {STATUSES.map((item) => <option key={item}>{item}</option>)}
           </select>
-          <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
+          <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className="h-11 min-w-[150px] flex-1 rounded-lg border bg-white px-3 text-sm">
             {PAYMENT_STATUSES.map((item) => <option key={item}>{item}</option>)}
           </select>
-          <select value={serviceCategory} onChange={(e) => setServiceCategory(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
+          <select value={serviceCategory} onChange={(e) => setServiceCategory(e.target.value)} className="h-11 min-w-[130px] flex-1 rounded-lg border bg-white px-3 text-sm">
             {SERVICE_FILTERS.map((item) => <option key={item}>{item}</option>)}
           </select>
-          <select value={period} onChange={(e) => setPeriod(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
+          <select value={period} onChange={(e) => setPeriod(e.target.value)} className="h-11 min-w-[140px] flex-1 rounded-lg border bg-white px-3 text-sm">
             {PERIODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
-          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          <Button variant="outline" onClick={fetchBookings}>Refresh</Button>
+          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="min-w-[150px] flex-1" />
+          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="min-w-[150px] flex-1" />
+          <Button variant="outline" className="h-11 min-w-[110px] flex-1 sm:flex-none" onClick={fetchBookings}>Refresh</Button>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" variant={viewMode === "list" ? "default" : "outline"} onClick={() => setViewMode("list")}><List className="mr-1 h-3.5 w-3.5" /> List</Button>

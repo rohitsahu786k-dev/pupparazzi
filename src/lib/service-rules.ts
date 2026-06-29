@@ -1,11 +1,7 @@
-const CATEGORY_ORDER = ["Boarding", "Grooming"] as const;
+const CATEGORY_ORDER = ["Boarding", "Grooming", "Swimming", "Training", "Walking", "Veterinary"] as const;
 
 const hiddenServicePatterns = [
-  "dog walking",
-  "walking",
   "hospital",
-  "veterinary",
-  "vet consultation",
 ];
 
 export function isHiddenPublicService(service: { name?: string | null; category?: string | null }) {

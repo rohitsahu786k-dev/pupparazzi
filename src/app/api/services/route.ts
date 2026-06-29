@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 
     const services = await prisma.service.findMany({
       where: {
-        ...(includeInactive ? {} : { is_active: true }),
+        ...(includeInactive ? {} : { is_active: true, is_coming_soon: false }),
       },
       include: { addons: includeInactive ? true : { where: { is_active: true } } },
       orderBy: [{ category: "asc" }, { display_order: "asc" }, { name: "asc" }],
