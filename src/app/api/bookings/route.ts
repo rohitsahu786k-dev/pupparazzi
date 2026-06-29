@@ -15,6 +15,7 @@ import {
 import { collectCodPayment } from "@/lib/payment-invoices";
 import { bookingDetailFormUrl, detailFormService } from "@/lib/booking-detail-forms";
 import { isTimeOptionalService } from "@/lib/service-rules";
+import { deleteBookingCascade } from "@/lib/delete-records";
 
 function canManageBookings(role?: string | null) {
   return role === "ADMIN" || role === "STAFF";
@@ -685,14 +686,11 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ message: "Booking ID is required" }, { status: 400 });
     }
 
-    const paymentCount = await prisma.payment.count({ where: { booking_id: id } });
-    const invoiceCount = await prisma.invoice.count({ where: { booking_id: id } });
-    if (paymentCount > 0 || invoiceCount > 0) {
-      await prisma.booking.update({ where: { id }, data: { status: "Cancelled" } });
-      return NextResponse.json({ message: "Booking has payments/invoices, so it was cancelled instead of deleted" });
+    const result = await deleteBookingCascade(id);
+    if (!result.deleted) {
+      return NextResponse.json({ message: "Booking not found" }, { status: 404 });
     }
-    await prisma.booking.delete({ where: { id } });
-    return NextResponse.json({ message: "Booking deleted successfully" });
+    return NextResponse.json({ message: "Booking deleted successfully", assetsDeleted: result.assetsDeleted });
   } catch (error) {
     console.error("DELETE booking error:", error);
     return NextResponse.json({ message: "Failed to delete booking", error: String(error) }, { status: 500 });

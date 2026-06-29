@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { sendWelcomeEmail } from "@/lib/mailer";
-import { deleteStoredUpload } from "@/lib/upload-storage";
+import { deleteUserCascade } from "@/lib/delete-records";
 
 const roles = ["CLIENT", "STAFF", "ADMIN"];
 
@@ -326,45 +326,10 @@ export async function DELETE(req: Request) {
   const user = await prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
   if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-  const [clientBookings, assignedBookings, payments, invoices] = await Promise.all([
-    prisma.booking.count({ where: { client_id: id } }),
-    prisma.booking.count({ where: { staff_id: id } }),
-    prisma.payment.count({ where: { client_id: id } }),
-    prisma.invoice.count({ where: { client_id: id } }),
-  ]);
-  if (clientBookings > 0 || payments > 0 || invoices > 0) {
-    await prisma.user.update({ where: { id }, data: { is_active: false } });
-    return NextResponse.json({ message: "User has bookings/payments, so the account was disabled instead of deleted" });
-  }
-
-  if (assignedBookings > 0) {
-    await prisma.booking.updateMany({ where: { staff_id: id }, data: { staff_id: null } });
-  }
-
-  const pets = await prisma.pet.findMany({ where: { owner_id: id }, select: { id: true } });
-  const petIds = pets.map((pet) => pet.id);
-  const assetsToDelete = await prisma.asset.findMany({
-    where: {
-      OR: [
-        { client_id: id },
-        ...(petIds.length ? [{ pet_id: { in: petIds } }] : []),
-      ],
-    },
-    select: { id: true, path: true },
+  const result = await deleteUserCascade(id);
+  return NextResponse.json({
+    message: "User deleted",
+    bookingsDeleted: result.bookingsDeleted,
+    assetsDeleted: result.assetsDeleted,
   });
-  await Promise.all(assetsToDelete.map((asset) => deleteStoredUpload(asset.path, asset.id).catch(() => undefined)));
-  if (petIds.length) {
-    await prisma.petMedical.deleteMany({ where: { pet_id: { in: petIds } } });
-    await prisma.asset.deleteMany({ where: { pet_id: { in: petIds } } });
-  }
-  await prisma.asset.deleteMany({ where: { client_id: id } });
-  await prisma.notification.deleteMany({ where: { user_id: id } });
-  await prisma.staff.deleteMany({ where: { user_id: id } });
-  await prisma.session.deleteMany({ where: { userId: id } });
-  await prisma.account.deleteMany({ where: { userId: id } });
-  await prisma.address.deleteMany({ where: { user_id: id } });
-  await prisma.pet.deleteMany({ where: { owner_id: id } });
-  await prisma.oldClientHistory.updateMany({ where: { client_id: id }, data: { client_id: null } });
-  await prisma.user.delete({ where: { id } });
-  return NextResponse.json({ message: "User deleted" });
 }
