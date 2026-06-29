@@ -10,6 +10,11 @@ const legacyDemoServices = [
   "Boarding (Per Day)",
 ];
 
+const staffAccounts = [
+  { email: "krishnaacharya182@gmail.com", name: "Krishna Acharya" },
+  { email: "chauhnranjitsingh2409@gmail.com", name: "Chauhn Ranjit Singh" },
+];
+
 async function main() {
   // Keep historical booking relations intact while removing old demo entries from public booking.
   await prisma.service.updateMany({
@@ -64,6 +69,35 @@ async function main() {
     },
   });
   console.log(`Admin user ready — email: ${adminEmail} | password: ${adminPassword}`);
+
+  const staffPassword = "Staff@Pupparazzi2026";
+  const staffPasswordHash = await bcrypt.hash(staffPassword, 12);
+  for (const staff of staffAccounts) {
+    const user = await prisma.user.upsert({
+      where: { email: staff.email },
+      update: {
+        name: staff.name,
+        role: "STAFF",
+        password_hash: staffPasswordHash,
+        emailVerified: new Date(),
+        is_active: true,
+      },
+      create: {
+        email: staff.email,
+        name: staff.name,
+        role: "STAFF",
+        password_hash: staffPasswordHash,
+        emailVerified: new Date(),
+        is_active: true,
+      },
+    });
+    await prisma.staff.upsert({
+      where: { user_id: user.id },
+      update: { role: "Staff" },
+      create: { user_id: user.id, role: "Staff" },
+    });
+  }
+  console.log(`Staff accounts ready (${staffAccounts.length}) | password: ${staffPassword}`);
 
   // Enable "Allow All Pincodes" globally
   await prisma.serviceArea.upsert({

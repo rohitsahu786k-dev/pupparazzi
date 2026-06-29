@@ -25,15 +25,23 @@ export async function deleteUserCascade(id: string) {
   const user = await prisma.user.findUnique({ where: { id }, select: { id: true } });
   if (!user) return { deleted: false, bookingsDeleted: 0, assetsDeleted: 0 };
 
-  const [clientBookings, assignedBookings, pets] = await Promise.all([
-    prisma.booking.findMany({ where: { client_id: id }, select: { id: true } }),
+  const [assignedBookings, pets] = await Promise.all([
     prisma.booking.findMany({ where: { staff_id: id }, select: { id: true } }),
     prisma.pet.findMany({ where: { owner_id: id }, select: { id: true } }),
   ]);
   const petIds = pets.map((pet) => pet.id);
+  const bookingsToDelete = await prisma.booking.findMany({
+    where: {
+      OR: [
+        { client_id: id },
+        ...(petIds.length ? [{ pet_id: { in: petIds } }] : []),
+      ],
+    },
+    select: { id: true },
+  });
 
   let bookingAssetsDeleted = 0;
-  for (const booking of clientBookings) {
+  for (const booking of bookingsToDelete) {
     const result = await deleteBookingCascade(booking.id);
     bookingAssetsDeleted += result.assetsDeleted;
   }
@@ -65,7 +73,7 @@ export async function deleteUserCascade(id: string) {
 
   return {
     deleted: true,
-    bookingsDeleted: clientBookings.length,
+    bookingsDeleted: bookingsToDelete.length,
     assetsDeleted: bookingAssetsDeleted + profileAssetsDeleted,
   };
 }
