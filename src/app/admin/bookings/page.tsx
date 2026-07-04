@@ -238,16 +238,15 @@ export default function AdminBookingsPage() {
     await updateBooking(id, { collect_cod: true });
   }
 
-  // Dog store pe aa jaye tab hi booking confirm karni hai — explicit arrival gate.
+  // Confirm the booking once the pet has arrived at the store.
   async function confirmArrival(booking: Booking) {
     if (booking.status === "Confirmed") {
-      if (!confirm(`Booking #${booking.booking_id} already confirmed hai. Phir se confirm karein?`)) return;
+      if (!confirm(`Booking #${booking.booking_id} is already confirmed. Confirm again?`)) return;
     } else if (["Completed", "Cancelled", "Expired"].includes(booking.status)) {
-      setError(`Booking already ${booking.status.toLowerCase()} hai — confirm nahi kar sakte.`);
+      setError(`Booking is already ${booking.status.toLowerCase()} — it cannot be confirmed.`);
       return;
     }
-    const petName = booking.pet?.name || "Dog";
-    if (!confirm(`${petName} store pe aa gaya? Booking #${booking.booking_id} confirm karein?`)) return;
+    if (!confirm(`Confirm booking #${booking.booking_id}?`)) return;
     await updateBooking(booking.id, { status: "Confirmed" });
   }
 
@@ -574,7 +573,7 @@ export default function AdminBookingsPage() {
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => confirmArrival(booking)}>
-                          {booking.status === "Confirmed" ? "Confirmed" : "Confirm (Dog Aaya)"}
+                          {booking.status === "Confirmed" ? "Confirmed" : "Confirm Booking"}
                         </Button>
                         <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { payment_status: "Paid", payment_method: "Admin" })}>Paid</Button>
                         {(booking.payment_status === "Advance Paid" || booking.payment_status === "Partially Paid") && (
@@ -780,7 +779,7 @@ export default function AdminBookingsPage() {
                             <div className="mt-4 flex flex-wrap items-center justify-between border-t pt-3 gap-2" onClick={(e) => e.stopPropagation()}>
                               <div className="flex flex-wrap gap-2">
                                 <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => confirmArrival(booking)}>
-                                  <UserCheck className="mr-1 h-3.5 w-3.5" /> {booking.status === "Confirmed" ? "Confirmed" : "Confirm (Dog Aaya)"}
+                                  <UserCheck className="mr-1 h-3.5 w-3.5" /> {booking.status === "Confirmed" ? "Confirmed" : "Confirm Booking"}
                                 </Button>
                                 <Button size="sm" variant="outline" disabled={savingId === booking.id} onClick={() => updateBooking(booking.id, { payment_status: "Paid", payment_method: "Admin" })}>
                                   <CreditCard className="mr-1 h-3.5 w-3.5" /> Paid
