@@ -28,7 +28,7 @@ export default withAuth(
     if (pathname === "/login" && token) {
       const portal = token.role === "ADMIN" || token.role === "STAFF" ? "/admin" : "/dashboard";
       const raw = (token.role === "ADMIN" || token.role === "STAFF") ? portal : req.nextUrl.searchParams.get("callbackUrl") || "/dashboard";
-      const safeUrl = raw.startsWith("/") ? raw : portal;
+      const safeUrl = raw.startsWith("/") && !raw.startsWith("//") ? raw : portal;
       return NextResponse.redirect(new URL(safeUrl, origin));
     }
 
