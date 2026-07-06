@@ -77,7 +77,7 @@ function nullableDate(value: unknown) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function bookingDetailData(body: any) {
+function bookingDetailData(body: any, admin: boolean) {
   return {
     ...(body.boarding_type !== undefined ? { boarding_type: nullableString(body.boarding_type) } : {}),
     ...(body.check_in_date !== undefined ? { check_in_date: nullableDate(body.check_in_date) } : {}),
@@ -87,20 +87,21 @@ function bookingDetailData(body: any) {
     ...(body.check_in_slot !== undefined ? { check_in_slot: nullableString(body.check_in_slot) } : {}),
     ...(body.check_out_slot !== undefined ? { check_out_slot: nullableString(body.check_out_slot) } : {}),
     ...(body.weight !== undefined ? { weight: nullableNumber(body.weight) } : {}),
-    ...(body.check_out_weight !== undefined ? { check_out_weight: nullableNumber(body.check_out_weight) } : {}),
     ...(body.meal_type !== undefined ? { meal_type: nullableString(body.meal_type) } : {}),
-    ...(body.kennel !== undefined ? { kennel: nullableString(body.kennel) } : {}),
-    ...(body.final_amount !== undefined ? { final_amount: nullableNumber(body.final_amount) } : {}),
-    ...(body.late_checkout_fees !== undefined ? { late_checkout_fees: nullableNumber(body.late_checkout_fees) } : {}),
-    ...(body.refund_amount !== undefined ? { refund_amount: nullableNumber(body.refund_amount) } : {}),
-    ...(body.refund_reason !== undefined ? { refund_reason: nullableString(body.refund_reason) } : {}),
     ...(body.companion_name !== undefined ? { companion_name: nullableString(body.companion_name) } : {}),
     ...(body.companion_phone !== undefined ? { companion_phone: nullableString(body.companion_phone) } : {}),
-    ...(body.end_time !== undefined ? { end_time: nullableString(body.end_time) } : {}),
-    ...(body.staff_name !== undefined ? { staff_name: nullableString(body.staff_name) } : {}),
-    ...(body.services_json !== undefined ? { services_json: body.services_json || null } : {}),
     ...(body.documents_json !== undefined ? { documents_json: body.documents_json || null } : {}),
     ...(body.details_completed !== undefined ? { details_completed: Boolean(body.details_completed) } : {}),
+    // Staff/admin-only fields: a client saving their own booking details must never be able to set these.
+    ...(admin && body.check_out_weight !== undefined ? { check_out_weight: nullableNumber(body.check_out_weight) } : {}),
+    ...(admin && body.kennel !== undefined ? { kennel: nullableString(body.kennel) } : {}),
+    ...(admin && body.final_amount !== undefined ? { final_amount: nullableNumber(body.final_amount) } : {}),
+    ...(admin && body.late_checkout_fees !== undefined ? { late_checkout_fees: nullableNumber(body.late_checkout_fees) } : {}),
+    ...(admin && body.refund_amount !== undefined ? { refund_amount: nullableNumber(body.refund_amount) } : {}),
+    ...(admin && body.refund_reason !== undefined ? { refund_reason: nullableString(body.refund_reason) } : {}),
+    ...(admin && body.end_time !== undefined ? { end_time: nullableString(body.end_time) } : {}),
+    ...(admin && body.staff_name !== undefined ? { staff_name: nullableString(body.staff_name) } : {}),
+    ...(admin && body.services_json !== undefined ? { services_json: body.services_json || null } : {}),
   };
 }
 
@@ -322,7 +323,7 @@ export async function POST(req: Request) {
         slot_time,
         notes: notes || null,
         addons_json: finalAddonsJson,
-        ...bookingDetailData(body),
+        ...bookingDetailData(body, fullAdmin),
         status: "Pending",
         payment_status: "Pending",
       },
@@ -519,7 +520,7 @@ export async function PATCH(req: Request) {
         ...(slot_time && { slot_time }),
         ...(after_photos_json !== undefined && { after_photos_json }),
         ...(nextAddonsJson ? { addons_json: nextAddonsJson } : {}),
-        ...bookingDetailData(body),
+        ...bookingDetailData(body, admin),
       },
       include: { pet: true, service: true, address: true, client: true, payments: true, invoices: true },
     });

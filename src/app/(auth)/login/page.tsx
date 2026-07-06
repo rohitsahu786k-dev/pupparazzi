@@ -9,9 +9,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 
+function safeCallbackUrl(raw: string | null | undefined) {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
+
 function LoginContent() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
+  const callbackUrl = safeCallbackUrl(searchParams?.get("callbackUrl"));
   const { status } = useSession();
 
   const [formData, setFormData] = useState({ email: "", password: "" });

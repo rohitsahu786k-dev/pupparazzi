@@ -9,10 +9,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 
+function safeCallbackUrl(raw: string | null | undefined) {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
+
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
+  const callbackUrl = safeCallbackUrl(searchParams?.get("callbackUrl"));
   const verifyEmail = searchParams?.get("verifyEmail") || "";
   const [step, setStep] = useState(verifyEmail ? 2 : 1);
   const [formData, setFormData] = useState({

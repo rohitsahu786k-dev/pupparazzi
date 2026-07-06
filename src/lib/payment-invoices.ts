@@ -22,6 +22,10 @@ export function bookingPaymentPlan(booking: any): PaymentPlan {
   return data.payment?.plan === "COD_ADVANCE" ? "COD_ADVANCE" : "FULL_ONLINE";
 }
 
+export function expectedPaymentAmount(booking: any, paymentType: "full" | "advance") {
+  return paymentType === "advance" ? COD_ADVANCE_AMOUNT : bookingTotal(booking);
+}
+
 function invoiceDate() {
   return new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }

@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 function authorized(req: Request) {
   const secret = process.env.GOKWIK_WEBHOOK_SECRET;
-  if (!secret) return true;
+  if (!secret) return false;
   return req.headers.get("x-gokwik-secret") === secret;
 }
 

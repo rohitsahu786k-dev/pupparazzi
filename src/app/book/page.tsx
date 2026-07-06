@@ -631,7 +631,6 @@ function BookPageContent() {
         router.push(`/dashboard/bookings/${booking.id}/details`);
         return;
       }
-      const paymentAmount = paymentPlan === "COD_ADVANCE" ? COD_ADVANCE_AMOUNT : total;
       const loaded = await loadRazorpay();
       if (!loaded) throw new Error("Payment gateway could not be loaded. Please try again.");
 
@@ -639,9 +638,9 @@ function BookPageContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: paymentAmount,
+          bookingId: booking.id,
+          paymentType: paymentPlan === "COD_ADVANCE" ? "advance" : "full",
           receipt: booking.booking_id,
-          notes: { bookingId: booking.id, paymentPlan },
         }),
       });
       const order = await orderRes.json();
@@ -666,7 +665,6 @@ function BookPageContent() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 bookingId: booking.id,
-                amount: paymentAmount,
                 paymentType: paymentPlan === "COD_ADVANCE" ? "advance" : "full",
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
