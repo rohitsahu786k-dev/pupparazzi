@@ -37,9 +37,13 @@ export const metadata: Metadata = {
     google: "UlASTcFKtKMjMo9NcMEKw5VczGkJZOseVZA51HmJVjM",
   },
   icons: {
-    icon: [{ url: "/favicon.ico", sizes: "any" }],
-    shortcut: ["/favicon.ico"],
-    apple: [{ url: "/favicon.ico", sizes: "180x180" }],
+    icon: [
+      { url: "/favicon.ico?v=3", sizes: "any" },
+      { url: "/favicon-32x32.png?v=3", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png?v=3", sizes: "16x16", type: "image/png" },
+    ],
+    shortcut: ["/favicon.ico?v=3"],
+    apple: [{ url: "/apple-touch-icon.png?v=3", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/site.webmanifest",
   openGraph: {
