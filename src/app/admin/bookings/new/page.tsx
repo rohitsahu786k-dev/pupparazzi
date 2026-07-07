@@ -287,9 +287,6 @@ export default function NewAdminBookingPage() {
       setError("Client, pet, and service are required.");
       return;
     }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     if (isBoarding) {
       if (!boardingSchedule.check_in_date || !boardingSchedule.check_out_date || !boardingSchedule.check_in_time || !boardingSchedule.check_out_time) {
         setError("Check-in date, check-out date, check-in time, and check-out time are required for boarding.");
@@ -299,10 +296,6 @@ export default function NewAdminBookingPage() {
       const checkInD = new Date(boardingSchedule.check_in_date);
       const checkOutD = new Date(boardingSchedule.check_out_date);
 
-      if (checkInD < today) {
-        setError("Check-in date cannot be in the past.");
-        return;
-      }
       if (checkOutD < checkInD) {
         setError("Check-out date must be on or after the check-in date.");
         return;
@@ -310,11 +303,6 @@ export default function NewAdminBookingPage() {
     } else {
       if (!slotDate || !slotTime) {
         setError("Date and slot time are required.");
-        return;
-      }
-      const slotD = new Date(slotDate);
-      if (slotD < today) {
-        setError("Booking date cannot be in the past.");
         return;
       }
     }
@@ -560,7 +548,6 @@ export default function NewAdminBookingPage() {
                 <label className="space-y-1 text-sm font-bold">Check-in date
                   <Input 
                     type="date" 
-                    min={dateKey(new Date())}
                     value={boardingSchedule.check_in_date} 
                     onChange={(e) => {
                       setError("");
@@ -571,7 +558,7 @@ export default function NewAdminBookingPage() {
                 <label className="space-y-1 text-sm font-bold">Check-out date
                   <Input 
                     type="date" 
-                    min={boardingSchedule.check_in_date || dateKey(new Date())}
+                    min={boardingSchedule.check_in_date || undefined}
                     value={boardingSchedule.check_out_date} 
                     onChange={(e) => {
                       setError("");
@@ -597,7 +584,7 @@ export default function NewAdminBookingPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="font-bold">Advanced calendar</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">Past dates are blocked for new service bookings.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Past dates are available for entering historical bookings.</p>
                 </div>
                 <label className="space-y-1 text-sm font-bold">Slot time
                   <Input type="time" value={slotTime} onChange={(e) => setSlotTime(e.target.value)} />
@@ -617,17 +604,14 @@ export default function NewAdminBookingPage() {
                   {WEEK_DAYS.map((day) => <div key={day} className="py-1 text-[10px] font-bold text-muted-foreground sm:py-2 sm:text-[11px]">{day}</div>)}
                   {monthDays.map((day) => {
                     const value = dateKey(day);
-                    const today = new Date();
-                    const past = day < new Date(today.getFullYear(), today.getMonth(), today.getDate());
                     const outMonth = day.getMonth() !== visibleMonth.getMonth();
                     const selected = value === slotDate;
                     return (
                       <button
                         key={value}
                         type="button"
-                        disabled={past}
                         onClick={() => setSlotDate(value)}
-                        className={`min-h-12 rounded-lg border p-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-16 sm:p-1.5 ${selected ? "border-primary bg-primary text-white shadow-sm" : "bg-white hover:border-primary/50"} ${outMonth ? "text-muted-foreground" : ""}`}
+                        className={`min-h-12 rounded-lg border p-1 text-xs transition sm:min-h-16 sm:p-1.5 ${selected ? "border-primary bg-primary text-white shadow-sm" : "bg-white hover:border-primary/50"} ${outMonth ? "text-muted-foreground" : ""}`}
                       >
                         <span className="block text-left font-bold">{day.getDate()}</span>
                         <span className="mx-auto mt-1 block h-1.5 w-1.5 rounded-full bg-green-400" />
