@@ -1,4 +1,11 @@
 import { Handshake, Mail, CheckCircle2 } from "lucide-react";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "Partner With Us",
+  description: "Partner with Pupparazzi Club to grow your pet grooming, boarding, or pet care business in Ahmedabad.",
+  path: "/partner",
+});
 
 export default function PartnerPage() {
   return (

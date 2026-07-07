@@ -1,5 +1,12 @@
 import { PawPrint, Heart, Users, MapPin } from "lucide-react";
 import { DEFAULT_BUSINESS_SETTINGS, getSetting } from "@/lib/settings";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "About",
+  description: "Learn about Pupparazzi Club, Ahmedabad's premium pet care platform for grooming, boarding, swimming, training, and daycare.",
+  path: "/about",
+});
 
 export default async function AboutPage() {
   const business = await getSetting("business", DEFAULT_BUSINESS_SETTINGS);

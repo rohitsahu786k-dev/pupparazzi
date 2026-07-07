@@ -3,6 +3,7 @@ import { Clock, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BUSINESS_ADDRESS } from "@/lib/homepage-content";
 import { DEFAULT_BUSINESS_SETTINGS, getSetting } from "@/lib/settings";
+import { pageMetadata } from "@/lib/seo";
 
 const contact = {
   phone: "063588 48177",
@@ -12,10 +13,11 @@ const contact = {
   address: BUSINESS_ADDRESS,
 };
 
-export const metadata = {
-  title: "Contact - Pupparazzi Club",
-  description: "Contact Pupparazzi Club in Ahmedabad for pet boarding, grooming, swimming, training, and daycare.",
-};
+export const metadata = pageMetadata({
+  title: "Contact",
+  description: "Contact Pupparazzi Club in Ahmedabad for pet boarding, grooming, swimming, training, daycare, and booking support.",
+  path: "/contact",
+});
 
 function makeContactLinks(phone = contact.phone) {
   const rawDigits = phone.replace(/\D/g, "");

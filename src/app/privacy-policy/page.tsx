@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Shield, Lock, MapPin, Database, Mail, ChevronRight } from "lucide-react";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy – Pupparazzi",
-  description: "Learn how Pupparazzi collects, uses, and protects your personal data.",
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Privacy Policy",
+  description: "Learn how Pupparazzi Club collects, uses, and protects your personal data.",
+  path: "/privacy-policy",
+});
 
 const SECTIONS = [
   {

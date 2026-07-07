@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FileText, Users, Calendar, CreditCard, AlertTriangle, Scale, ChevronRight } from "lucide-react";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Terms of Service – Pupparazzi",
-  description: "Read the terms and conditions governing your use of Pupparazzi's pet care platform.",
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Terms of Service",
+  description: "Read the terms and conditions governing your use of Pupparazzi Club's pet care platform.",
+  path: "/terms-of-service",
+});
 
 const SECTIONS = [
   {

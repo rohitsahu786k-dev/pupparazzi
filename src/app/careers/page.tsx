@@ -1,4 +1,11 @@
 import { Briefcase, Heart, Mail } from "lucide-react";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "Careers",
+  description: "Join Pupparazzi Club's pet care team in Ahmedabad as a groomer, boarding caregiver, or customer support professional.",
+  path: "/careers",
+});
 
 export default function CareersPage() {
   return (

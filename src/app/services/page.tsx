@@ -4,6 +4,7 @@ import { ArrowRight, PawPrint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { isHiddenPublicService, sortServiceCategories } from "@/lib/service-rules";
+import { pageMetadata } from "@/lib/seo";
 
 function money(value?: number | null) {
   if (value == null) return "";
@@ -19,10 +20,12 @@ function serviceImage(service: { category: string; images_json?: unknown }) {
   return "/service-grooming-premium.png";
 }
 
-export const metadata = {
-  title: "Services - Pupparazzi Club",
-  description: "Explore premium pet boarding, grooming, swimming, training, and daycare services at Pupparazzi Club.",
-};
+export const metadata = pageMetadata({
+  title: "Pet Care Services",
+  description: "Explore Pupparazzi Club pet boarding, grooming, swimming, training, daycare, and premium pet care services in Ahmedabad.",
+  path: "/services",
+  image: "/service-grooming-premium.png",
+});
 
 export default async function ServicesPage() {
   const services = (await prisma.service.findMany({

@@ -3,6 +3,13 @@ import { DEFAULT_BUSINESS_SETTINGS, DEFAULT_HOMEPAGE_SETTINGS, getSetting } from
 import { prisma } from "@/lib/prisma";
 import { isHiddenPublicService, serviceCategoryRank } from "@/lib/service-rules";
 import type { HomeService } from "@/components/home/services-tabs";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "Premium Pet Care in Ahmedabad",
+  description: "Book premium pet grooming, boarding, swimming, training, daycare, and pet care services at Pupparazzi Club in Ahmedabad.",
+  path: "/",
+});
 
 async function getHomepageData() {
   const [testimonials, services, bookingCount, clientCount, petCount, business, homepage] = await Promise.all([

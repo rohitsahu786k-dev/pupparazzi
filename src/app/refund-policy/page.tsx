@@ -1,3 +1,11 @@
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "Refund Policy",
+  description: "Read Pupparazzi Club's cancellation and refund policy for pet care bookings, packages, and prepaid services.",
+  path: "/refund-policy",
+});
+
 export default function RefundPolicyPage() {
   return (
     <main className="bg-white">

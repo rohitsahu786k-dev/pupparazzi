@@ -4,6 +4,7 @@ import { Gift, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { defaultCoupons, type CouponRule } from "@/lib/pet-care-pricing";
+import { pageMetadata } from "@/lib/seo";
 
 async function getActiveOffers() {
   const setting = await prisma.appSetting.findUnique({ where: { key: "coupons" } });
@@ -16,10 +17,12 @@ function offerValue(coupon: CouponRule) {
   return coupon.discount_type === "FLAT" ? `Rs ${coupon.discount_value} off` : `${coupon.discount_value}% off`;
 }
 
-export const metadata = {
-  title: "Offers - Pupparazzi Club",
-  description: "Active Pupparazzi Club offers and pet care coupons.",
-};
+export const metadata = pageMetadata({
+  title: "Pet Care Offers",
+  description: "Find active Pupparazzi Club offers, pet care coupons, grooming discounts, and boarding packages in Ahmedabad.",
+  path: "/offers",
+  image: "/images/IMG_5600.PNG",
+});
 
 export default async function OffersPage() {
   const offers = await getActiveOffers();
