@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, CalendarPlus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
@@ -94,6 +95,7 @@ type BoardingSchedule = {
 
 export default function NewAdminBookingPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [bookingMode, setBookingMode] = useState<"existing" | "new">("existing");
@@ -335,7 +337,7 @@ export default function NewAdminBookingPage() {
         boarding_type: isBoarding ? selectedService?.name : undefined,
         final_amount: calculatedAmount,
         address: address.line1 && address.city && address.pincode ? address : undefined,
-        notes: notes || "Created by admin",
+        notes: notes || `Created by ${session?.user?.role === "STAFF" ? "staff" : "admin"}${session?.user?.name ? ` (${session.user.name})` : ""}`,
       }),
     });
     const data = await res.json().catch(() => ({}));
