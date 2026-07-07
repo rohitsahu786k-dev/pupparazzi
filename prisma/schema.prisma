@@ -236,6 +236,7 @@ model Booking {
   documents_json   Json?
   details_completed Boolean  @default(false)
   google_event_id  String?
+  expiry_locked    Boolean   @default(false) // true once an admin/staff manually sets status; blocks auto-expiry from overwriting it
   created_at       DateTime  @default(now())
   updated_at       DateTime  @updatedAt
 

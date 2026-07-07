@@ -20,6 +20,7 @@ export async function GET(req: Request) {
         phone: true,
         image: true,
         role: true,
+        is_active: true,
         wallet_balance: true,
         outstanding_balance: true,
         created_at: true,

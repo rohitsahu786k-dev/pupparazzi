@@ -162,7 +162,6 @@ function serviceImage(service?: Service | null) {
 }
 
 function paymentPlanFromMode(mode: string) {
-  if (mode === "Cash on Delivery (Testing)") return "COD_TEST";
   return mode === "Cash on Delivery + ₹100 advance" ? "COD_ADVANCE" : "FULL_ONLINE";
 }
 
@@ -228,9 +227,8 @@ function BookPageContent() {
   const [selectedSlot, setSelectedSlot] = useState("");
   const [calendarView, setCalendarView] = useState<"month" | "week">("month");
   const [staffMode, setStaffMode] = useState("Any available specialist");
-  const [recurrence, setRecurrence] = useState("No repeat");
   const [notes, setNotes] = useState("");
-  const [paymentMode, setPaymentMode] = useState("Cash on Delivery (Testing)");
+  const [paymentMode, setPaymentMode] = useState("Full Online Payment");
   const [availability, setAvailability] = useState<Availability>({});
   const [pincodeState, setPincodeState] = useState<"idle" | "checking" | "ok" | "invalid">("idle");
   const [loading, setLoading] = useState(true);
@@ -430,7 +428,6 @@ function BookPageContent() {
   const summaryNotes = [
     notes.trim() ? `Customer notes: ${notes.trim()}` : "",
     staffMode !== "Any available specialist" ? `Preferred staff: ${staffMode}` : "",
-    recurrence !== "No repeat" ? `Recurring request: ${recurrence}` : "",
     paymentMode ? `Payment preference: ${paymentMode}` : "",
     selectedAddons.length ? `Add-ons: ${selectedAddons.map((addon) => addon.name).join(", ")}` : "",
     coupon ? `Coupon: ${coupon.code} (-${money(coupon.discount)})` : "",
@@ -627,10 +624,6 @@ function BookPageContent() {
       if (!bookingRes.ok) throw new Error(booking.message || "Booking could not be created.");
 
       const paymentPlan = paymentPlanFromMode(paymentMode);
-      if (paymentPlan === "COD_TEST") {
-        router.push(`/dashboard/bookings/${booking.id}/details`);
-        return;
-      }
       const loaded = await loadRazorpay();
       if (!loaded) throw new Error("Payment gateway could not be loaded. Please try again.");
 
@@ -1229,16 +1222,8 @@ function BookPageContent() {
                   <option>Boarding attendant</option>
                   <option>Same handler as last visit</option>
                 </select>
-                <label className="block text-xs font-bold text-muted-foreground">Recurring booking</label>
-                <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)} className="h-11 w-full rounded-lg border bg-white px-3 text-sm">
-                  <option>No repeat</option>
-                  <option>Repeat weekly</option>
-                  <option>Repeat monthly</option>
-                  <option>Custom recurrence requested</option>
-                </select>
                 <label className="block text-xs font-bold text-muted-foreground">Payment</label>
                 <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} className="h-11 w-full rounded-lg border bg-white px-3 text-sm">
-                  <option>Cash on Delivery (Testing)</option>
                   <option>Full Online Payment</option>
                   <option>Cash on Delivery + ₹100 advance</option>
                 </select>
@@ -1264,8 +1249,6 @@ function BookPageContent() {
                 {couponDiscount > 0 && <div className="flex justify-between gap-3"><span className="text-white/65">Coupon</span><span className="text-right font-bold">-{money(couponDiscount)}</span></div>}
                 {paymentPlanFromMode(paymentMode) === "COD_ADVANCE" && <div className="flex justify-between gap-3"><span className="text-white/65">Pay now</span><span className="text-right font-bold">{money(COD_ADVANCE_AMOUNT)}</span></div>}
                 {paymentPlanFromMode(paymentMode) === "COD_ADVANCE" && <div className="flex justify-between gap-3"><span className="text-white/65">Remaining COD</span><span className="text-right font-bold">{money(Math.max(0, total - COD_ADVANCE_AMOUNT))}</span></div>}
-                {paymentPlanFromMode(paymentMode) === "COD_TEST" && <div className="flex justify-between gap-3"><span className="text-white/65">Pay now</span><span className="text-right font-bold">₹0</span></div>}
-                {paymentPlanFromMode(paymentMode) === "COD_TEST" && <div className="flex justify-between gap-3"><span className="text-white/65">Cash on delivery</span><span className="text-right font-bold">{money(total)}</span></div>}
                 <div className="border-t border-white/15 pt-3">
                   <div className="flex justify-between gap-3 text-base"><span className="text-white/80">Total</span><span className="text-right font-extrabold">{selectedService ? money(total) : "-"}</span></div>
                 </div>

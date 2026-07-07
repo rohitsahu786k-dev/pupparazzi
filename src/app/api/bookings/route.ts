@@ -508,7 +508,7 @@ export async function PATCH(req: Request) {
     const booking = await prisma.booking.update({
       where: { id },
       data: {
-        ...(status && { status }),
+        ...(status && { status, expiry_locked: true }),
         ...(payment_status && { payment_status }),
         ...(notes !== undefined && { notes }),
         ...(internal_notes !== undefined && { internal_notes }),
@@ -639,7 +639,7 @@ export async function PATCH(req: Request) {
         detailFormLink,
         detailFormService: detailFormService(booking.service),
       }).catch(console.error);
-    } else if (statusChanged && status && !["Cancelled", "Confirmed", "In Progress"].includes(status) && clientEmail) {
+    } else if (statusChanged && status && !["Cancelled", "Confirmed"].includes(status) && clientEmail) {
       sendBookingStatusEmail(clientEmail, {
         userName: booking.client?.name || "Valued Customer",
         bookingId: booking.booking_id,

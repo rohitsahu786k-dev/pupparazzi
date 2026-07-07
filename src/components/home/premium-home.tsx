@@ -741,10 +741,7 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
 
           <div className="mt-16 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] items-stretch">
             <div className="grid gap-8 sm:grid-cols-2">
-              {(testimonials.length ? testimonials.slice(0, 4) : [
-                { id: "1", name: "Pupparazzi Parent", rating: 5, text: "Clean, warm, and very professional care. The team made the whole experience smooth." },
-                { id: "2", name: "Happy Pet Parent", rating: 5, text: "Loved the updates and the calm handling. Great grooming and boarding experience." },
-              ]).map((review, i) => {
+              {testimonials.slice(0, 4).map((review, i) => {
                 const rotation = ["rotate-1", "-rotate-1", "-rotate-2", "rotate-2"][i % 4];
                 const washiColor = i % 3 === 0 ? "washi-tape-pink" : i % 3 === 1 ? "washi-tape-teal" : "washi-tape-beige";
                 return (
