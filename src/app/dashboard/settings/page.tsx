@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,14 @@ import { Loader2, Settings, User } from "lucide-react";
 
 export default function DashboardSettingsPage() {
   const { data: session, status } = useSession();
+  const [isActive, setIsActive] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetch("/api/users")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setIsActive(data ? Boolean(data.is_active) : null));
+  }, [session?.user?.id]);
 
   if (status === "loading") {
     return (
@@ -43,7 +52,9 @@ export default function DashboardSettingsPage() {
           </div>
           <div className="rounded-lg border p-3">
             <p className="text-xs font-medium text-muted-foreground">Account Status</p>
-            <p className="text-sm font-bold text-green-600">Active</p>
+            <p className={`text-sm font-bold ${isActive === false ? "text-red-600" : "text-green-600"}`}>
+              {isActive === null ? "Loading..." : isActive ? "Active" : "Inactive"}
+            </p>
           </div>
         </div>
       </div>

@@ -29,7 +29,6 @@ type ProfileDetail = ProfileListItem & {
   raw_sources_json?: Record<string, any[]> | null;
 };
 
-const ROOT = "D:/webapps/bulk_export_2026-04-30/old data";
 const FILTERS = ["All history", "Bookings", "Boarding", "Grooming", "Invoices", "Payments", "Paid", "Unpaid", "Due"];
 
 function money(value: unknown) {
@@ -109,6 +108,7 @@ export default function OldDataImportPage() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [root, setRoot] = useState("");
 
   async function fetchProfiles() {
     setLoading(true);
@@ -127,13 +127,17 @@ export default function OldDataImportPage() {
   }, []);
 
   async function preview() {
+    if (!root.trim()) {
+      setError("Enter the old-data export folder path first.");
+      return;
+    }
     setWorking(true);
     setError("");
     setMessage("");
     const res = await fetch("/api/admin/old-data-import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "preview", root: ROOT }),
+      body: JSON.stringify({ mode: "preview", root: root.trim() }),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
@@ -150,14 +154,14 @@ export default function OldDataImportPage() {
       setError("Preview first, then confirm import.");
       return;
     }
-    if (!confirm("Final import MongoDB me save hoga. Existing data overwrite nahi hoga. Continue?")) return;
+    if (!confirm("This will save the final import to MongoDB. Existing data will not be overwritten. Continue?")) return;
     setWorking(true);
     setError("");
     setMessage("");
     const res = await fetch("/api/admin/old-data-import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "import", root: ROOT, importPdfs: true }),
+      body: JSON.stringify({ mode: "import", root: root.trim(), importPdfs: true }),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
@@ -217,7 +221,16 @@ export default function OldDataImportPage() {
           <h1 className="text-3xl font-bold tracking-tight">Old Data Import</h1>
           <p className="mt-1 text-sm text-muted-foreground">Preview, import, and review complete old client-wise history from MongoDB.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-end gap-2">
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground">Export folder path</label>
+            <Input
+              value={root}
+              onChange={(e) => setRoot(e.target.value)}
+              placeholder="e.g. D:/exports/old-data"
+              className="h-9 w-64"
+            />
+          </div>
           <Button variant="outline" onClick={preview} disabled={working}>
             {working ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
             Preview Old Data

@@ -1,8 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import {
-  sendBookingReminderEmail,
-  sendBookingStatusEmail,
-} from "@/lib/mailer";
+import { sendBookingReminderEmail } from "@/lib/mailer";
 
 export const BOOKING_STATUSES = ["Pending", "Confirmed", "In Progress", "Completed", "Cancelled", "Expired"];
 export const ACTIVE_BOOKING_STATUSES = ["Pending", "Confirmed", "In Progress"];
@@ -77,6 +74,7 @@ export async function expirePastBookings() {
     where: {
       status: { in: ACTIVE_BOOKING_STATUSES },
       slot_date: { lte: new Date() },
+      expiry_locked: { not: true },
     },
     include: { client: true, pet: true, service: true },
   });
@@ -90,35 +88,11 @@ export async function expirePastBookings() {
       where: { id: booking.id },
       data: { status: "Expired" },
     });
-    await sendExpiredEmailOnce(booking);
+    // Automatic (system) expiry is silent by design — no email is sent here.
+    // Emails only go out when an admin/staff member explicitly changes a booking's status.
   }
 
   return { expired: expired.length };
-}
-
-export async function sendExpiredEmailOnce(booking: BookingForLifecycle) {
-  const to = booking.client?.email;
-  if (!to) return;
-  const type = `BookingExpired:${booking.id}`;
-  if (await notificationAlreadyCreated(booking.client_id, type)) return;
-
-  const result = await sendBookingStatusEmail(to, {
-    userName: booking.client?.name || "Valued Customer",
-    bookingId: booking.booking_id,
-    serviceName: booking.service?.name || "Pet Service",
-    petName: booking.pet?.name || "Pet",
-    status: "Expired",
-    slotDate: formatBookingDate(booking.slot_date),
-    slotTime: booking.slot_time || "",
-  });
-
-  await recordNotification(
-    booking.client_id,
-    type,
-    `Booking expired - ${booking.booking_id}`,
-    `Booking ${booking.booking_id} has expired.`,
-    result.success ? "Sent" : "Failed",
-  );
 }
 
 export async function sendReminderEmailOnce(booking: BookingForLifecycle, label: "24h" | "2h") {
