@@ -115,6 +115,9 @@ export default function NewAdminBookingPage() {
     check_out_slot: "",
   });
   const [notes, setNotes] = useState("");
+  const [discountType, setDiscountType] = useState<"" | "PERCENT" | "FLAT">("");
+  const [discountValue, setDiscountValue] = useState("");
+  const [discountReason, setDiscountReason] = useState("");
   const [address, setAddress] = useState({ line1: "", city: "", state: "Gujarat", pincode: "", phone: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -179,6 +182,15 @@ export default function NewAdminBookingPage() {
     if (!isBoarding) return priceOf(selectedService);
     return boardingCalculatedAmount(hours, selectedService);
   }, [hours, isBoarding, selectedService]);
+
+  // Preview only — the server recomputes the discount and remains authoritative.
+  const discountAmount = useMemo(() => {
+    const value = Number(discountValue || 0);
+    if (!discountType || value <= 0 || calculatedAmount <= 0) return 0;
+    if (discountType === "PERCENT") return Math.round((calculatedAmount * Math.min(100, value)) / 100 * 100) / 100;
+    return Math.min(calculatedAmount, value);
+  }, [calculatedAmount, discountType, discountValue]);
+  const payableAmount = Math.max(0, calculatedAmount - discountAmount);
   const bookingHistory = useMemo(() => {
     return [...(selectedUser?.clientBookings || [])].sort((a, b) => {
       const byDate = new Date(b.slot_date).getTime() - new Date(a.slot_date).getTime();
@@ -306,6 +318,14 @@ export default function NewAdminBookingPage() {
         return;
       }
     }
+    if (discountType === "PERCENT" && Number(discountValue || 0) > 100) {
+      setError("Percentage discount cannot be more than 100%.");
+      return;
+    }
+    if (discountType === "FLAT" && Number(discountValue || 0) > calculatedAmount) {
+      setError("Flat discount cannot be more than the booking amount.");
+      return;
+    }
     setSaving(true);
     const res = await fetch("/api/bookings", {
       method: "POST",
@@ -324,6 +344,9 @@ export default function NewAdminBookingPage() {
         check_out_slot: isBoarding ? boardingSchedule.check_out_slot : undefined,
         boarding_type: isBoarding ? selectedService?.name : undefined,
         final_amount: calculatedAmount,
+        discount_type: discountType || null,
+        discount_value: discountType ? Number(discountValue || 0) : 0,
+        discount_reason: discountReason,
         address: address.line1 && address.city && address.pincode ? address : undefined,
         notes: notes || `Created by ${session?.user?.role === "STAFF" ? "staff" : "admin"}${session?.user?.name ? ` (${session.user.name})` : ""}`,
       }),
@@ -630,6 +653,38 @@ export default function NewAdminBookingPage() {
             <Input placeholder="Pincode" value={address.pincode} onChange={(e) => setAddress({ ...address, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })} />
             <Input placeholder="Phone" value={address.phone} onChange={(e) => setAddress({ ...address, phone: e.target.value.replace(/[^\d+]/g, "").slice(0, 14) })} />
           </div>
+          <div className="rounded-lg border border-dashed bg-muted/20 p-3">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Discount (optional)</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <select
+                value={discountType}
+                onChange={(e) => setDiscountType(e.target.value as "" | "PERCENT" | "FLAT")}
+                className="h-11 rounded-lg border bg-white px-3 text-sm"
+                aria-label="Discount type"
+              >
+                <option value="">No discount</option>
+                <option value="PERCENT">Percent (%)</option>
+                <option value="FLAT">Amount (Rs.)</option>
+              </select>
+              <Input
+                type="number"
+                min="0"
+                max={discountType === "PERCENT" ? 100 : undefined}
+                value={discountValue}
+                disabled={!discountType}
+                onChange={(e) => setDiscountValue(e.target.value)}
+                placeholder={discountType === "PERCENT" ? "e.g. 10" : "e.g. 250"}
+                aria-label="Discount value"
+              />
+              <Input
+                value={discountReason}
+                disabled={!discountType}
+                onChange={(e) => setDiscountReason(e.target.value)}
+                placeholder="Reason (optional)"
+                aria-label="Discount reason"
+              />
+            </div>
+          </div>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Internal/customer notes" className="min-h-24 w-full rounded-lg border bg-white p-3 text-sm outline-none focus:ring-1 focus:ring-ring" />
         </section>
 
@@ -641,8 +696,17 @@ export default function NewAdminBookingPage() {
             <div className="flex justify-between gap-3"><span className="text-white/65">Service</span><span className="text-right font-bold">{summary}</span></div>
             <div className="flex justify-between gap-3"><span className="text-white/65">Schedule</span><span className="text-right font-bold">{isBoarding ? `${boardingSchedule.check_in_date || "-"} · ${boardingSchedule.check_in_time || "-"}` : `${slotDate} · ${slotTime}`}</span></div>
             {isBoarding && <div className="flex justify-between gap-3"><span className="text-white/65">Checkout</span><span className="text-right font-bold">{boardingSchedule.check_out_date || "-"} · {boardingSchedule.check_out_time || "-"}</span></div>}
-            <div className="border-t border-white/15 pt-3">
-              <div className="flex justify-between gap-3 text-base"><span className="text-white/80">Amount</span><span className="text-right font-extrabold">{selectedService ? money(calculatedAmount) : "-"}</span></div>
+            <div className="border-t border-white/15 pt-3 space-y-2">
+              {discountAmount > 0 && (
+                <>
+                  <div className="flex justify-between gap-3"><span className="text-white/65">Subtotal</span><span className="text-right font-bold">{money(calculatedAmount)}</span></div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-white/65">Discount{discountType === "PERCENT" ? ` (${Number(discountValue || 0)}%)` : ""}</span>
+                    <span className="text-right font-bold text-emerald-300">- {money(discountAmount)}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between gap-3 text-base"><span className="text-white/80">Amount</span><span className="text-right font-extrabold">{selectedService ? money(payableAmount) : "-"}</span></div>
             </div>
           </div>
           <Button className="mt-5 w-full bg-white text-foreground hover:bg-white/90" onClick={createBooking} disabled={saving || pets.length === 0}>

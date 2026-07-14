@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { sendPasswordUpdatedEmail } from "@/lib/mailer";
 
 function normalizeEmail(value: unknown) {
   return String(value || "").trim().toLowerCase();
@@ -44,6 +45,15 @@ export async function POST(req: Request) {
     });
     await prisma.verificationToken.deleteMany({ where: { identifier: identifierFor(normalizedEmail) } });
     await prisma.session.deleteMany({ where: { userId: user.id } });
+
+    // The user chose this password themselves, so we confirm the change and remind
+    // them of their login ID without echoing the password back into their inbox.
+    sendPasswordUpdatedEmail(normalizedEmail, {
+      userName: user.name || "there",
+      email: normalizedEmail,
+      role: (user.role || "CLIENT") as "CLIENT" | "STAFF" | "ADMIN",
+      changedByAdmin: false,
+    }).catch(console.error);
 
     return NextResponse.json({ message: "Password reset successfully" });
   } catch (error) {

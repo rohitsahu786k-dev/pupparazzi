@@ -6,11 +6,18 @@ import { sendBookingConfirmation, sendPaymentConfirmation, sendCancellationEmail
 import { generateInvoicePdf } from "@/lib/invoice";
 import { calculateCouponDiscount, CouponRule, defaultCoupons, serviceBookablePrice } from "@/lib/pet-care-pricing";
 import {
+  computeBookingPricing,
+  discountLabel,
+  isDiscountType,
+  pricingSnapshot,
+} from "@/lib/booking-pricing";
+import {
   ACTIVE_BOOKING_STATUSES,
   BOOKING_STATUSES,
   PAYMENT_STATUSES,
   expirePastBookings,
   formatBookingDate,
+  periodWhere,
 } from "@/lib/booking-lifecycle";
 import { collectCodPayment } from "@/lib/payment-invoices";
 import { bookingDetailFormUrl, detailFormService } from "@/lib/booking-detail-forms";
@@ -29,21 +36,33 @@ function isStaff(role?: string | null) {
   return role === "STAFF";
 }
 
-function bookingPricing(service: { price?: number | null; discounted_price?: number | null }, addonsJson: unknown) {
-  const base = serviceBookablePrice(service);
-  const data = addonsJson && typeof addonsJson === "object" ? addonsJson as any : {};
-  const addonTotal = Array.isArray(data.addons)
-    ? data.addons.reduce((sum: number, addon: any) => sum + Number(addon.price || 0), 0)
-    : 0;
-  const couponDiscount = Number(data.coupon?.discount || 0);
-  const subtotal = base + addonTotal;
+/**
+ * Read a discount off the request body. Only admin/staff may set one; a client
+ * sending these fields is ignored rather than rejected, matching how the other
+ * privileged fields behave in bookingDetailData.
+ *
+ * Returns undefined when the caller did not touch the discount at all, so an
+ * unrelated PATCH never clears an existing discount.
+ */
+function discountInput(body: any, admin: boolean) {
+  if (!admin) return undefined;
+  if (body.discount_type === undefined && body.discount_value === undefined && body.discount_reason === undefined) {
+    return undefined;
+  }
+  const rawType = body.discount_type;
+  const rawValue = Number(body.discount_value ?? 0);
+
+  // An empty type, or a zero/blank value, means "remove the discount".
+  if (!rawType || !isDiscountType(rawType) || !Number.isFinite(rawValue) || rawValue <= 0) {
+    return { type: null, value: 0, reason: null };
+  }
+  if (rawType === "PERCENT" && rawValue > 100) {
+    throw new Error("Percentage discount cannot be more than 100%");
+  }
   return {
-    base,
-    addonTotal,
-    couponDiscount,
-    subtotal,
-    total: Math.max(0, subtotal - couponDiscount),
-    couponCode: data.coupon?.code,
+    type: rawType,
+    value: rawValue,
+    reason: nullableString(body.discount_reason),
   };
 }
 
@@ -142,27 +161,27 @@ export async function GET(req: Request) {
     const bookingId = searchParams.get("bookingId");
     const serviceCategory = searchParams.get("serviceCategory");
     const period = searchParams.get("period");
-    const now = new Date();
-    const today = dayRange(now);
 
+    // AND-composed so a period tab and an explicit date range narrow each other,
+    // instead of one silently overwriting the other's slot_date constraint.
     const bookings = await prisma.booking.findMany({
       where: {
-        ...(bookingId ? { id: bookingId } : {}),
-        ...(userId ? { client_id: userId } : {}),
-        ...(status && status !== "All" ? { status } : {}),
-        ...(paymentStatus && paymentStatus !== "All" ? { payment_status: paymentStatus } : {}),
-        ...(serviceCategory && serviceCategory !== "All" ? { service: { category: serviceCategory } } : {}),
-        ...(period === "upcoming" ? { slot_date: { gt: today.end } } : {}),
-        ...(period === "current" ? { slot_date: { gte: today.start, lte: today.end } } : {}),
-        ...(period === "past" ? { slot_date: { lt: today.start } } : {}),
-        ...((dateFrom || dateTo)
-          ? {
-              slot_date: {
-                ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-                ...(dateTo ? { lte: dayRange(new Date(dateTo)).end } : {}),
-              },
-            }
-          : {}),
+        AND: [
+          ...(bookingId ? [{ id: bookingId }] : []),
+          ...(userId ? [{ client_id: userId }] : []),
+          ...(status && status !== "All" ? [{ status }] : []),
+          ...(paymentStatus && paymentStatus !== "All" ? [{ payment_status: paymentStatus }] : []),
+          ...(serviceCategory && serviceCategory !== "All" ? [{ service: { category: serviceCategory } }] : []),
+          ...(period && period !== "all" ? [periodWhere(period)] : []),
+          ...((dateFrom || dateTo)
+            ? [{
+                slot_date: {
+                  ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+                  ...(dateTo ? { lte: dayRange(new Date(dateTo)).end } : {}),
+                },
+              }]
+            : []),
+        ],
       },
       include: { pet: true, service: true, address: true, client: true, staff: true, payments: true, invoices: true },
       orderBy: [{ created_at: "desc" }, { slot_date: "desc" }],
@@ -233,18 +252,29 @@ export async function POST(req: Request) {
       if (subtotal < coupon.minimum_order_amount) return NextResponse.json({ message: `Minimum order amount is ₹${coupon.minimum_order_amount}` }, { status: 400 });
       couponPayload = { code: coupon.code, discount: calculateCouponDiscount(coupon, subtotal), terms: coupon.terms };
     }
-    const finalAddonsJson = {
+    let discount;
+    try {
+      discount = discountInput(body, fullAdmin);
+    } catch (error) {
+      return NextResponse.json({ message: String((error as Error).message) }, { status: 400 });
+    }
+
+    const baseAddonsJson = {
       addons: selectedAddons.map((addon) => ({ id: addon.id, name: addon.name, price: addon.price })),
       coupon: couponPayload,
       payment: addons_json?.payment && typeof addons_json.payment === "object" ? addons_json.payment : null,
-      pricing: {
-        servicePrice: basePrice,
-        addonTotal,
-        subtotal: adminTotalOverride ?? subtotal,
-        couponDiscount: couponPayload?.discount || 0,
-        total: Math.max(0, (adminTotalOverride ?? subtotal) - (couponPayload?.discount || 0)),
-      },
+      discount: discount?.type ? { type: discount.type, value: discount.value, reason: discount.reason } : null,
     };
+
+    // The total is always derived server-side — a client-supplied total is never trusted.
+    const pricing = computeBookingPricing({
+      service,
+      addons_json: { ...baseAddonsJson, pricing: { subtotal: adminTotalOverride ?? subtotal } },
+      final_amount: adminTotalOverride,
+      discount_type: discount?.type ?? null,
+      discount_value: discount?.value ?? null,
+    });
+    const finalAddonsJson = { ...baseAddonsJson, pricing: pricingSnapshot(pricing) };
     const requestedDate = new Date(slot_date);
 
     if (!timeOptionalService) {
@@ -323,6 +353,15 @@ export async function POST(req: Request) {
         slot_time,
         notes: notes || null,
         addons_json: finalAddonsJson,
+        ...(discount
+          ? {
+              discount_type: discount.type,
+              discount_value: discount.type ? discount.value : null,
+              discount_amount: pricing.manualDiscount,
+              discount_reason: discount.type ? discount.reason : null,
+              discount_by: discount.type ? session.user.id : null,
+            }
+          : {}),
         ...bookingDetailData(body, fullAdmin),
         status: "Pending",
         payment_status: "Pending",
@@ -494,16 +533,49 @@ export async function PATCH(req: Request) {
     }
 
     const adminTotalOverride = admin ? nullableNumber(body.final_amount ?? body.admin_total) : null;
-    const nextAddonsJson = adminTotalOverride !== null
-      ? {
-          ...((existingBooking.addons_json && typeof existingBooking.addons_json === "object") ? existingBooking.addons_json as any : {}),
-          pricing: {
-            ...(((existingBooking.addons_json as any)?.pricing && typeof (existingBooking.addons_json as any).pricing === "object") ? (existingBooking.addons_json as any).pricing : {}),
-            subtotal: adminTotalOverride,
-            total: adminTotalOverride,
-          },
-        }
-      : undefined;
+
+    let discount;
+    try {
+      discount = discountInput(body, admin);
+    } catch (error) {
+      return NextResponse.json({ message: String((error as Error).message) }, { status: 400 });
+    }
+
+    // Whenever the amount or the discount moves, recompute and re-store the whole
+    // pricing snapshot so the list, the invoice and the emails cannot drift apart.
+    const pricingChanged = adminTotalOverride !== null || discount !== undefined;
+    const existingAddons = (existingBooking.addons_json && typeof existingBooking.addons_json === "object")
+      ? existingBooking.addons_json as any
+      : {};
+
+    let nextAddonsJson;
+    let nextPricing;
+    if (pricingChanged) {
+      const effectiveDiscount = discount !== undefined
+        ? discount
+        : { type: existingBooking.discount_type, value: existingBooking.discount_value, reason: existingBooking.discount_reason };
+
+      nextPricing = computeBookingPricing({
+        service: existingBooking.service,
+        addons_json: {
+          ...existingAddons,
+          ...(adminTotalOverride !== null
+            ? { pricing: { ...(existingAddons.pricing || {}), subtotal: adminTotalOverride } }
+            : {}),
+        },
+        final_amount: adminTotalOverride ?? existingBooking.final_amount,
+        discount_type: effectiveDiscount.type,
+        discount_value: effectiveDiscount.value,
+      });
+
+      nextAddonsJson = {
+        ...existingAddons,
+        ...(discount !== undefined
+          ? { discount: discount.type ? { type: discount.type, value: discount.value, reason: discount.reason } : null }
+          : {}),
+        pricing: pricingSnapshot(nextPricing),
+      };
+    }
 
     const booking = await prisma.booking.update({
       where: { id },
@@ -520,6 +592,15 @@ export async function PATCH(req: Request) {
         ...(slot_time && { slot_time }),
         ...(after_photos_json !== undefined && { after_photos_json }),
         ...(nextAddonsJson ? { addons_json: nextAddonsJson } : {}),
+        ...(discount
+          ? {
+              discount_type: discount.type,
+              discount_value: discount.type ? discount.value : null,
+              discount_amount: nextPricing?.manualDiscount ?? 0,
+              discount_reason: discount.type ? discount.reason : null,
+              discount_by: discount.type ? session.user.id : null,
+            }
+          : {}),
         ...bookingDetailData(body, admin),
       },
       include: { pet: true, service: true, address: true, client: true, payments: true, invoices: true },
@@ -531,7 +612,7 @@ export async function PATCH(req: Request) {
     // Payment confirmed → generate and send GST invoice
     if (payment_status === "Paid" && clientEmail) {
       const invoiceNumber = `INV-${booking.booking_id}`;
-      const pricing = bookingPricing(booking.service, booking.addons_json);
+      const pricing = computeBookingPricing(booking);
       const unitPrice = pricing.total;
       const gstRate = 18;
       const gstAmount = parseFloat(((unitPrice * gstRate) / 100).toFixed(2));
@@ -564,11 +645,27 @@ export async function PATCH(req: Request) {
             client_id: booking.client_id,
             line_items_json: [
               {
-                desc: pricing.couponCode ? `${booking.service?.name || "Pet Service"} (${pricing.couponCode} applied)` : booking.service?.name || "Pet Service",
+                desc: booking.service?.name || "Pet Service",
                 qty: 1,
-                rate: unitPrice,
-                amount: unitPrice,
+                rate: pricing.subtotal,
+                amount: pricing.subtotal,
               },
+              ...(pricing.couponDiscount > 0
+                ? [{
+                    desc: `Coupon discount${pricing.couponCode ? ` (${pricing.couponCode})` : ""}`,
+                    qty: 1,
+                    rate: -pricing.couponDiscount,
+                    amount: -pricing.couponDiscount,
+                  }]
+                : []),
+              ...(pricing.manualDiscount > 0
+                ? [{
+                    desc: `Discount${discountLabel(pricing) ? ` (${discountLabel(pricing)})` : ""}${pricing.discountReason ? ` - ${pricing.discountReason}` : ""}`,
+                    qty: 1,
+                    rate: -pricing.manualDiscount,
+                    amount: -pricing.manualDiscount,
+                  }]
+                : []),
             ],
             subtotal: unitPrice,
             tax: gstAmount,
@@ -634,7 +731,7 @@ export async function PATCH(req: Request) {
         petName: booking.pet?.name || "Your Pet",
         slotDate: slotDateStr,
         slotTime: booking.slot_time || "",
-        price: String(bookingPricing(booking.service, booking.addons_json).total),
+        price: String(computeBookingPricing(booking).total),
         address: booking.address ? `${booking.address.line1}, ${booking.address.city}` : undefined,
         detailFormLink,
         detailFormService: detailFormService(booking.service),

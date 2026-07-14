@@ -504,6 +504,65 @@ export function emailVerificationOtpHtml(data: { userName: string; otp: string }
   return baseLayout(body, `Your ${BUSINESS.shortName} verification OTP is ${data.otp}`);
 }
 
+/**
+ * Sent whenever an account's password actually changes.
+ *
+ * When an admin or staff member sets the password on someone's behalf the new
+ * password is included, because the account holder has no other way to learn it.
+ * When the user changed it themselves (forgot-password flow) they already know
+ * it, so we send the login ID and a heads-up only — putting a password the user
+ * already has into their inbox would be a needless standing risk.
+ */
+export function passwordUpdatedEmailHtml(data: {
+  userName: string;
+  email: string;
+  password?: string;
+  role?: "CLIENT" | "STAFF" | "ADMIN";
+  changedByAdmin?: boolean;
+}) {
+  const role = data.role || "CLIENT";
+  const portalUrl = role === "ADMIN" ? `${BUSINESS.website}/admin` : role === "STAFF" ? `${BUSINESS.website}/staff` : `${BUSINESS.website}/dashboard`;
+  const byAdmin = Boolean(data.changedByAdmin);
+  const body = `
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:40px 48px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:30px;font-weight:800;color:#FFFFFF;line-height:1.2;">${byAdmin ? "Your password has been updated" : "Your password was changed"}</h1>
+      <p style="margin:0;font-size:16px;color:#94A3B8;">${byAdmin ? "Our team set a new password for your account." : "This is a confirmation of the change you just made."}</p>
+    </div>
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong>,</p>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        <tr>
+          <td style="background:#F8FAFC;border-left:4px solid #EC4899;border-radius:0 12px 12px 0;padding:16px 20px;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#0F172A;">Your Login Credentials</p>
+            <p style="margin:0 0 ${data.password ? "4px" : "12px"};font-size:13px;color:#475569;">Login ID (Email/Username): <strong style="color:#0F172A;">${data.email}</strong></p>
+            ${data.password ? `
+            <p style="margin:0 0 12px;font-size:13px;color:#475569;">New Password: <strong style="color:#0F172A;">${data.password}</strong></p>
+            <p style="margin:0;font-size:12px;color:#64748B;line-height:1.5;">Please sign in with these credentials. For your security, change this password after you log in.</p>
+            ` : `
+            <p style="margin:0;font-size:12px;color:#64748B;line-height:1.5;">Your new password has been saved. For your security we do not include passwords in email — please sign in with the password you just chose.</p>
+            `}
+          </td>
+        </tr>
+      </table>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        <tr>
+          <td style="background:#FFF7ED;border-left:4px solid #F97316;border-radius:0 12px 12px 0;padding:16px 20px;">
+            <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#92400E;">Didn&rsquo;t expect this?</p>
+            <p style="margin:0;font-size:13px;color:#B45309;line-height:1.6;">If you did not request this change, contact us immediately at <a href="mailto:${BUSINESS.email}" style="color:#B45309;">${BUSINESS.email}</a>.</p>
+          </td>
+        </tr>
+      </table>
+
+      ${primaryButton("Sign In", `${BUSINESS.website}/login`)}
+
+      <p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">Portal: <a href="${portalUrl}" style="color:#EC4899;text-decoration:none;">${portalUrl}</a></p>
+    </div>`;
+
+  return baseLayout(body, byAdmin ? `Your ${BUSINESS.shortName} password has been updated` : `Your ${BUSINESS.shortName} password was changed`);
+}
+
 export function passwordResetEmailHtml(data: { userName: string; resetUrl: string }) {
   const body = `
     <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:40px 48px;text-align:center;">
@@ -651,6 +710,122 @@ export function bookingReminderEmailHtml(data: {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// TEMPLATE 5 – BOARDING STAY EXTENSION
+// ═══════════════════════════════════════════════════════════════
+
+export function extensionRequestedEmailHtml(data: {
+  userName: string;
+  bookingId: string;
+  serviceName: string;
+  petName: string;
+  newCheckOut: string;
+  extraAmount: string;
+}) {
+  const body = `
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:36px 48px 32px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:28px;font-weight:800;color:#FFFFFF;line-height:1.2;">Extension requested</h1>
+      <p style="margin:0;font-size:15px;color:#94A3B8;line-height:1.6;">We&rsquo;ve received your request to extend ${data.petName}&rsquo;s stay.</p>
+    </div>
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Our team will review your request and confirm shortly. Nothing has changed on your booking yet.</p>
+      ${sectionTitle("Requested Change")}
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        ${infoRow("Booking ID", data.bookingId)}
+        ${infoRow("Service", data.serviceName)}
+        ${infoRow("Pet", data.petName)}
+        ${infoRow("New Check-out", data.newCheckOut)}
+        ${infoRow("Additional Charge", `₹${data.extraAmount}`)}
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        <tr>
+          <td style="background:#FFF7ED;border-left:4px solid #F97316;border-radius:0 12px 12px 0;padding:16px 20px;">
+            <p style="margin:0;font-size:13px;color:#B45309;line-height:1.6;">This extension is subject to availability and is not confirmed until our team approves it.</p>
+          </td>
+        </tr>
+      </table>
+      ${primaryButton("View My Booking", `${BUSINESS.website}/dashboard/bookings`)}
+    </div>`;
+
+  return baseLayout(body, `Extension requested for booking ${data.bookingId}`);
+}
+
+export function extensionApprovedEmailHtml(data: {
+  userName: string;
+  bookingId: string;
+  serviceName: string;
+  petName: string;
+  newCheckOut: string;
+  extraAmount: string;
+  newTotal: string;
+}) {
+  const body = `
+    <div style="background:linear-gradient(135deg,#064E3B 0%,#065F46 100%);padding:36px 48px 32px;text-align:center;">
+      <div style="display:inline-block;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:100px;padding:6px 18px;margin-bottom:20px;">
+        <span style="color:#10B981;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">Stay Extended</span>
+      </div>
+      <h1 style="margin:0 0 10px;font-size:28px;font-weight:800;color:#FFFFFF;line-height:1.2;">${data.petName}&rsquo;s stay has been extended</h1>
+      <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.75);line-height:1.6;">Your new check-out is confirmed.</p>
+    </div>
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong>,</p>
+      ${sectionTitle("Updated Booking")}
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:8px;">
+        ${infoRow("Booking ID", data.bookingId)}
+        ${infoRow("Service", data.serviceName)}
+        ${infoRow("Pet", data.petName)}
+        ${infoRow("New Check-out", data.newCheckOut)}
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#F8FAFC;border-radius:14px;overflow:hidden;margin:24px 0;">
+        <tr>
+          <td style="padding:20px 24px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="font-size:13px;color:#64748B;padding-bottom:16px;">Additional charge for the extension</td>
+                <td style="font-size:13px;color:#0F172A;font-weight:600;text-align:right;padding-bottom:16px;">₹${data.extraAmount}</td>
+              </tr>
+              <tr style="border-top:2px solid #E2E8F0;">
+                <td style="font-size:16px;font-weight:800;color:#0F172A;padding-top:16px;">Updated Total</td>
+                <td style="font-size:20px;font-weight:800;color:#EC4899;text-align:right;padding-top:16px;">₹${data.newTotal}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:0 0 8px;font-size:13px;color:#64748B;line-height:1.6;">Any balance for the extension will be collected as per your existing payment arrangement.</p>
+      ${primaryButton("View My Booking", `${BUSINESS.website}/dashboard/bookings`)}
+    </div>`;
+
+  return baseLayout(body, `Booking ${data.bookingId} extended – new check-out ${data.newCheckOut}`);
+}
+
+export function extensionRejectedEmailHtml(data: {
+  userName: string;
+  bookingId: string;
+  serviceName: string;
+  petName: string;
+}) {
+  const body = `
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:36px 48px 32px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:28px;font-weight:800;color:#FFFFFF;line-height:1.2;">Extension not available</h1>
+      <p style="margin:0;font-size:15px;color:#94A3B8;line-height:1.6;">We could not extend ${data.petName}&rsquo;s stay.</p>
+    </div>
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong>,</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Unfortunately we are unable to extend this stay, usually because we are fully booked for those dates. Your original booking is unchanged and still confirmed.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+        ${infoRow("Booking ID", data.bookingId)}
+        ${infoRow("Service", data.serviceName)}
+        ${infoRow("Pet", data.petName)}
+      </table>
+      <p style="margin:0 0 8px;font-size:15px;color:#475569;line-height:1.7;">Please reply to this email or call us and we will do our best to find an alternative.</p>
+      ${primaryButton("View My Booking", `${BUSINESS.website}/dashboard/bookings`)}
+    </div>`;
+
+  return baseLayout(body, `Extension request for booking ${data.bookingId} could not be approved`);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SEND FUNCTIONS
 // ═══════════════════════════════════════════════════════════════
 
@@ -756,6 +931,16 @@ export async function sendPasswordResetEmail(to: string, data: Parameters<typeof
   });
 }
 
+export async function sendPasswordUpdatedEmail(to: string, data: Parameters<typeof passwordUpdatedEmailHtml>[0]) {
+  return sendMail({
+    to,
+    subject: data.changedByAdmin
+      ? `Your ${BUSINESS.shortName} login details have been updated`
+      : `Your ${BUSINESS.shortName} password was changed`,
+    html: passwordUpdatedEmailHtml(data),
+  });
+}
+
 export async function sendCancellationEmail(to: string, data: Parameters<typeof cancellationEmailHtml>[0]) {
   return sendMail({
     to,
@@ -777,5 +962,29 @@ export async function sendBookingReminderEmail(to: string, data: Parameters<type
     to,
     subject: `Reminder: ${data.bookingId} is coming up | ${BUSINESS.shortName}`,
     html: bookingReminderEmailHtml(data),
+  });
+}
+
+export async function sendExtensionRequestedEmail(to: string, data: Parameters<typeof extensionRequestedEmailHtml>[0]) {
+  return sendMail({
+    to,
+    subject: `Extension requested – ${data.bookingId} | ${BUSINESS.shortName}`,
+    html: extensionRequestedEmailHtml(data),
+  });
+}
+
+export async function sendExtensionApprovedEmail(to: string, data: Parameters<typeof extensionApprovedEmailHtml>[0]) {
+  return sendMail({
+    to,
+    subject: `Stay extended – ${data.bookingId} | ${BUSINESS.shortName}`,
+    html: extensionApprovedEmailHtml(data),
+  });
+}
+
+export async function sendExtensionRejectedEmail(to: string, data: Parameters<typeof extensionRejectedEmailHtml>[0]) {
+  return sendMail({
+    to,
+    subject: `Extension not available – ${data.bookingId} | ${BUSINESS.shortName}`,
+    html: extensionRejectedEmailHtml(data),
   });
 }

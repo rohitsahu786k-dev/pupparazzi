@@ -225,6 +225,21 @@ model Booking {
   meal_type        String?
   kennel           String?
   final_amount     Float?
+  discount_type    String?   // PERCENT or FLAT
+  discount_value   Float?    // 10 => 10% when PERCENT, or Rs. 10 when FLAT
+  discount_amount  Float?    // resolved rupee value of the discount, computed server-side
+  discount_reason  String?
+  discount_by      String?   @db.ObjectId // admin/staff user who applied it
+  // Boarding stay extension. A client's request parks here as "Requested" until an
+  // admin/staff approves it; admin/staff extensions are applied straight away.
+  extension_status         String?   // Requested, Approved, Rejected
+  extension_check_out_date DateTime?
+  extension_check_out_time String?
+  extension_extra_amount   Float?    // additional charge the extension adds
+  extension_note           String?
+  extension_requested_by   String?   @db.ObjectId
+  extension_requested_at   DateTime?
+  extension_decided_at     DateTime?
   late_checkout_fees Float?
   refund_amount    Float?
   refund_reason    String?

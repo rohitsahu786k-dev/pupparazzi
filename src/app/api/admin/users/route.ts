@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireOperations } from "@/lib/admin";
-import { sendWelcomeEmail } from "@/lib/mailer";
+import { sendWelcomeEmail, sendPasswordUpdatedEmail } from "@/lib/mailer";
 import { deleteUserCascade } from "@/lib/delete-records";
 import { buildClientDataExport } from "@/lib/client-data-export";
 
@@ -25,6 +25,15 @@ function cleanRole(value: unknown) {
 function syntheticClientEmail(seed: string) {
   const safeSeed = seed.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
   return `client-${safeSeed || Date.now()}-${Math.random().toString(36).slice(2, 8)}@client.local`;
+}
+
+/**
+ * Phone-only clients get a placeholder @client.local address so the unique email
+ * constraint holds. Those are not real mailboxes — never send to them.
+ */
+function isDeliverableEmail(email?: string | null) {
+  const value = String(email || "").trim().toLowerCase();
+  return Boolean(value) && value.includes("@") && !value.endsWith("@client.local");
 }
 
 function phoneKey(value?: string | null) {
@@ -319,6 +328,19 @@ export async function PATCH(req: Request) {
     select: publicUserSelect(),
   });
   if (nextRole) await syncStaffProfile(user.id, nextRole);
+
+  // An admin/staff member set this password, so the account holder has no other
+  // way to learn it — mail them their login ID and the new password.
+  if (body.password && isDeliverableEmail(user.email)) {
+    sendPasswordUpdatedEmail(user.email as string, {
+      userName: user.name || "there",
+      email: user.email as string,
+      password: String(body.password),
+      role: (user.role || "CLIENT") as "CLIENT" | "STAFF" | "ADMIN",
+      changedByAdmin: true,
+    }).catch(console.error);
+  }
+
   return NextResponse.json(user);
 }
 

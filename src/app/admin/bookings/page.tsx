@@ -3,7 +3,8 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, ChevronDown, ChevronUp, CreditCard, Download, Edit3, Eye, Grid2X2, List, Loader2, Mail, MapPin, MessageCircle, Phone, Printer, Save, Search, Share2, Trash2, UserCheck, UserPlus } from "lucide-react";
+import { Calendar, CalendarPlus, ChevronDown, ChevronUp, CreditCard, Download, Edit3, Eye, Grid2X2, List, Loader2, Mail, MapPin, MessageCircle, Phone, Printer, Save, Search, Share2, Trash2, UserCheck, UserPlus } from "lucide-react";
+import { canExtendBooking, quoteExtension } from "@/lib/booking-extension";
 
 type Booking = {
   id: string;
@@ -17,9 +18,10 @@ type Booking = {
   notes?: string | null;
   internal_notes?: string | null;
   addons_json?: {
-    pricing?: { total?: number; subtotal?: number; couponDiscount?: number; addonTotal?: number };
+    pricing?: { total?: number; subtotal?: number; couponDiscount?: number; manualDiscount?: number; discountTotal?: number; addonTotal?: number };
     payment?: { plan?: string; advanceAmount?: number; remainingCodAmount?: number; mode?: string };
     coupon?: { code?: string; discount?: number } | null;
+    discount?: { type?: string; value?: number; reason?: string | null } | null;
   } | null;
   client?: { name?: string | null; email?: string | null; phone?: string | null };
   pet?: { name?: string | null; type?: string | null; breed?: string | null };
@@ -29,6 +31,19 @@ type Booking = {
   payments?: { id: string; amount: number; mode: string; source?: string | null; status: string; transaction_id?: string | null; created_at: string }[];
   invoices?: { id: string; invoice_id: string; total: number; status: string; created_at: string }[];
   final_amount?: number | null;
+  discount_type?: string | null;
+  discount_value?: number | null;
+  discount_amount?: number | null;
+  discount_reason?: string | null;
+  check_in_date?: string | null;
+  check_out_date?: string | null;
+  check_in_time?: string | null;
+  check_out_time?: string | null;
+  extension_status?: string | null;
+  extension_check_out_date?: string | null;
+  extension_check_out_time?: string | null;
+  extension_extra_amount?: number | null;
+  extension_note?: string | null;
 };
 
 type ClientOption = { id: string; name?: string | null; phone?: string | null; email?: string | null };
@@ -36,6 +51,9 @@ type BookingEditDraft = {
   slot_date: string;
   slot_time: string;
   final_amount: string;
+  discount_type: "" | "PERCENT" | "FLAT";
+  discount_value: string;
+  discount_reason: string;
   client_name: string;
   client_phone: string;
   client_email: string;
@@ -49,12 +67,19 @@ type BookingEditDraft = {
 const STATUSES = ["All", "Pending", "Confirmed", "In Progress", "Completed", "Cancelled", "Expired"];
 const PAYMENT_STATUSES = ["All", "Pending", "Advance Paid", "Partially Paid", "Paid", "Failed", "Cancelled", "Refunded"];
 const SERVICE_FILTERS = ["All", "Grooming", "Boarding"];
-const PERIODS = [
-  { label: "All dates", value: "all" },
+// Tabs overlap by design: a confirmed booking scheduled today counts under both
+// Today and Active, so these badges are not expected to add up to "All".
+const PERIOD_TABS = [
+  { label: "All", value: "all" },
+  { label: "Today", value: "today" },
+  { label: "Active", value: "active" },
   { label: "Upcoming", value: "upcoming" },
-  { label: "Current", value: "current" },
   { label: "Past", value: "past" },
-];
+] as const;
+
+type PeriodCounts = { all: number; today: number; active: number; upcoming: number; past: number };
+
+const EMPTY_COUNTS: PeriodCounts = { all: 0, today: 0, active: 0, upcoming: 0, past: 0 };
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -74,8 +99,29 @@ function badgeClass(value: string) {
   return "bg-amber-50 text-amber-700 border-amber-200";
 }
 
+/** Price before discounts. final_amount is the admin's override of the subtotal, not the payable. */
+function bookingSubtotal(booking: Booking) {
+  return Number(
+    booking.final_amount
+    ?? booking.addons_json?.pricing?.subtotal
+    ?? booking.service?.discounted_price
+    ?? booking.service?.price
+    ?? 0,
+  );
+}
+
+function bookingDiscount(booking: Booking) {
+  const pricing = booking.addons_json?.pricing;
+  const coupon = Number(pricing?.couponDiscount ?? booking.addons_json?.coupon?.discount ?? 0);
+  const manual = Number(pricing?.manualDiscount ?? booking.discount_amount ?? 0);
+  return { coupon, manual, total: Math.min(bookingSubtotal(booking), coupon + manual) };
+}
+
+/** What the customer actually pays. The server keeps pricing.total authoritative. */
 function bookingAmount(booking: Booking) {
-  return Number(booking.final_amount ?? booking.addons_json?.pricing?.total ?? booking.service?.discounted_price ?? booking.service?.price ?? 0);
+  const stored = booking.addons_json?.pricing?.total;
+  if (stored != null) return Number(stored);
+  return Math.max(0, bookingSubtotal(booking) - bookingDiscount(booking).total);
 }
 
 function paymentSummary(booking: Booking) {
@@ -138,6 +184,162 @@ function paidAmount(booking: Booking) {
   return booking.payment_status === "Paid" ? bookingAmount(booking) : 0;
 }
 
+/**
+ * Percent or rupee discount with a live preview of what the customer will pay.
+ * The preview mirrors the server's rule (manual discount comes off what is left
+ * after the coupon) but the server always recomputes — this is display only.
+ */
+function DiscountEditor({
+  draft,
+  booking,
+  onChange,
+}: {
+  draft: BookingEditDraft;
+  booking: Booking;
+  onChange: (patch: Partial<BookingEditDraft>) => void;
+}) {
+  const subtotal = Number(draft.final_amount || 0);
+  const couponDiscount = bookingDiscount(booking).coupon;
+  const value = Number(draft.discount_value || 0);
+  const base = Math.max(0, subtotal - couponDiscount);
+  const manualDiscount = !draft.discount_type || value <= 0
+    ? 0
+    : draft.discount_type === "PERCENT"
+      ? Math.round((base * Math.min(100, value)) / 100 * 100) / 100
+      : Math.min(base, value);
+  const payable = Math.max(0, subtotal - couponDiscount - manualDiscount);
+  const invalidPercent = draft.discount_type === "PERCENT" && value > 100;
+
+  return (
+    <div className="mt-2 rounded-lg border border-dashed bg-muted/20 p-2">
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Discount</p>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <select
+          value={draft.discount_type}
+          onChange={(e) => onChange({ discount_type: e.target.value as BookingEditDraft["discount_type"] })}
+          className="h-9 rounded-lg border bg-white px-2 text-xs"
+          aria-label="Discount type"
+        >
+          <option value="">No discount</option>
+          <option value="PERCENT">Percent (%)</option>
+          <option value="FLAT">Amount (Rs.)</option>
+        </select>
+        <Input
+          type="number"
+          min="0"
+          max={draft.discount_type === "PERCENT" ? 100 : undefined}
+          value={draft.discount_value}
+          disabled={!draft.discount_type}
+          onChange={(e) => onChange({ discount_value: e.target.value })}
+          placeholder={draft.discount_type === "PERCENT" ? "e.g. 10" : "e.g. 250"}
+          className="h-9 text-xs"
+          aria-label="Discount value"
+        />
+        <Input
+          value={draft.discount_reason}
+          disabled={!draft.discount_type}
+          onChange={(e) => onChange({ discount_reason: e.target.value })}
+          placeholder="Reason (optional)"
+          className="h-9 text-xs"
+          aria-label="Discount reason"
+        />
+      </div>
+      {invalidPercent && <p className="mt-1 text-[11px] font-medium text-red-600">Percentage cannot be more than 100%.</p>}
+      <div className="mt-2 space-y-0.5 text-[11px]">
+        <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{money(subtotal)}</span></div>
+        {couponDiscount > 0 && (
+          <div className="flex justify-between text-muted-foreground">
+            <span>Coupon{booking.addons_json?.coupon?.code ? ` (${booking.addons_json.coupon.code})` : ""}</span>
+            <span>- {money(couponDiscount)}</span>
+          </div>
+        )}
+        {manualDiscount > 0 && (
+          <div className="flex justify-between text-emerald-700">
+            <span>Discount{draft.discount_type === "PERCENT" ? ` (${value}%)` : ""}</span>
+            <span>- {money(manualDiscount)}</span>
+          </div>
+        )}
+        <div className="flex justify-between border-t pt-1 font-bold text-foreground"><span>Payable</span><span>{money(payable)}</span></div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Extend a boarding stay, and review a client's pending extension request.
+ * Only rendered for boarding bookings that are still active — quoteExtension is
+ * the same function the server prices with, so the preview cannot disagree.
+ */
+function ExtendPanel({
+  booking,
+  busy,
+  onExtend,
+  onDecide,
+}: {
+  booking: Booking;
+  busy: boolean;
+  onExtend: (checkOutDate: string, checkOutTime: string, note: string) => void;
+  onDecide: (action: "approve" | "reject") => void;
+}) {
+  const [checkOutDate, setCheckOutDate] = useState(() => (booking.check_out_date ? dateKey(booking.check_out_date) : ""));
+  const [checkOutTime, setCheckOutTime] = useState(booking.check_out_time || "");
+  const [note, setNote] = useState("");
+
+  if (!canExtendBooking(booking as any)) return null;
+
+  const pending = booking.extension_status === "Requested";
+  const quote = quoteExtension(booking as any, checkOutDate || null, checkOutTime || null);
+
+  return (
+    <div className="mt-2 rounded-lg border bg-white p-3">
+      <p className="mb-2 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+        <CalendarPlus className="h-3 w-3" /> Extend stay
+      </p>
+
+      {pending && (
+        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs">
+          <p className="font-bold text-amber-900">Client requested an extension</p>
+          <p className="mt-0.5 text-amber-800">
+            New check-out: {booking.extension_check_out_date ? formatDate(booking.extension_check_out_date) : "-"} {booking.extension_check_out_time || ""}
+            {booking.extension_extra_amount ? ` · Extra ${money(booking.extension_extra_amount)}` : ""}
+          </p>
+          {booking.extension_note && <p className="mt-0.5 italic text-amber-800">&ldquo;{booking.extension_note}&rdquo;</p>}
+          <div className="mt-2 flex gap-2">
+            <Button size="sm" disabled={busy} onClick={() => onDecide("approve")}>Approve</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => onDecide("reject")}>Reject</Button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Input type="date" value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} className="h-9 text-xs" aria-label="New check-out date" />
+        <Input value={checkOutTime} onChange={(e) => setCheckOutTime(e.target.value)} placeholder="Check-out time" className="h-9 text-xs" aria-label="New check-out time" />
+        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="h-9 text-xs" aria-label="Extension note" />
+      </div>
+
+      {quote.ok ? (
+        <div className="mt-2 space-y-0.5 text-[11px]">
+          <div className="flex justify-between text-muted-foreground"><span>{quote.currentSlab} &rarr; {quote.newSlab}</span><span>{quote.currentHours}h &rarr; {quote.newHours}h</span></div>
+          <div className="flex justify-between text-muted-foreground"><span>Extra charge</span><span>+ {money(quote.extraAmount)}</span></div>
+          <div className="flex justify-between border-t pt-1 font-bold"><span>New payable</span><span>{money(quote.newTotal)}</span></div>
+        </div>
+      ) : (
+        quote.error && (checkOutDate || checkOutTime) && <p className="mt-1 text-[11px] font-medium text-red-600">{quote.error}</p>
+      )}
+
+      <Button
+        size="sm"
+        className="mt-2 w-full"
+        disabled={busy || !quote.ok}
+        onClick={() => onExtend(checkOutDate, checkOutTime, note)}
+      >
+        {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CalendarPlus className="mr-1 h-3.5 w-3.5" />}
+        Extend stay
+      </Button>
+    </div>
+  );
+}
+
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
@@ -156,19 +358,27 @@ export default function AdminBookingsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [editDrafts, setEditDrafts] = useState<Record<string, BookingEditDraft>>({});
+  const [counts, setCounts] = useState<PeriodCounts>(EMPTY_COUNTS);
   const [error, setError] = useState("");
 
-  async function fetchBookings() {
-    setLoading(true);
-    setError("");
+  // The filters every request shares. The counts endpoint gets the same ones (minus
+  // the period itself) so each badge matches what its tab will actually show.
+  function baseParams() {
     const params = new URLSearchParams();
     if (status !== "All") params.set("status", status);
     if (paymentStatus !== "All") params.set("paymentStatus", paymentStatus);
     if (serviceCategory !== "All") params.set("serviceCategory", serviceCategory);
+    if (clientId) params.set("userId", clientId);
+    return params;
+  }
+
+  async function fetchBookings() {
+    setLoading(true);
+    setError("");
+    const params = baseParams();
     if (period !== "all") params.set("period", period);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
-    if (clientId) params.set("userId", clientId);
     const res = await fetch(`/api/bookings?${params.toString()}`);
     if (res.ok) {
       setBookings(await res.json());
@@ -178,9 +388,21 @@ export default function AdminBookingsPage() {
     setLoading(false);
   }
 
+  async function fetchCounts() {
+    const res = await fetch(`/api/bookings/counts?${baseParams().toString()}`);
+    if (!res.ok) return setCounts(EMPTY_COUNTS);
+    const data = await res.json().catch(() => null);
+    setCounts(data && typeof data === "object" ? { ...EMPTY_COUNTS, ...data } : EMPTY_COUNTS);
+  }
+
   useEffect(() => {
     fetchBookings();
   }, [status, paymentStatus, serviceCategory, period, dateFrom, dateTo, clientId]);
+
+  // Counts do not depend on the selected tab, so they are not refetched when it changes.
+  useEffect(() => {
+    fetchCounts();
+  }, [status, paymentStatus, serviceCategory, clientId]);
 
   useEffect(() => {
     fetch("/api/admin/users?role=CLIENT")
@@ -218,7 +440,7 @@ export default function AdminBookingsPage() {
       const data = await res.json().catch(() => ({}));
       setError(data.message || "Unable to update booking");
     }
-    await fetchBookings();
+    await Promise.all([fetchBookings(), fetchCounts()]);
     setSavingId("");
   }
 
@@ -229,7 +451,40 @@ export default function AdminBookingsPage() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) setError(data.message || "Unable to delete booking");
     else if (data.message?.includes("cancelled")) setError(data.message);
-    await fetchBookings();
+    await Promise.all([fetchBookings(), fetchCounts()]);
+    setSavingId("");
+  }
+
+  async function extendBooking(id: string, checkOutDate: string, checkOutTime: string, note: string) {
+    setSavingId(id);
+    setError("");
+    const res = await fetch("/api/bookings/extend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, check_out_date: checkOutDate, check_out_time: checkOutTime, note }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.message || "Unable to extend booking");
+    }
+    await Promise.all([fetchBookings(), fetchCounts()]);
+    setSavingId("");
+  }
+
+  async function decideExtension(id: string, action: "approve" | "reject") {
+    if (!confirm(action === "approve" ? "Approve this extension request?" : "Reject this extension request?")) return;
+    setSavingId(id);
+    setError("");
+    const res = await fetch("/api/bookings/extend", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.message || "Unable to update the extension request");
+    }
+    await Promise.all([fetchBookings(), fetchCounts()]);
     setSavingId("");
   }
 
@@ -254,7 +509,11 @@ export default function AdminBookingsPage() {
     return editDrafts[booking.id] || {
       slot_date: dateKey(booking.slot_date),
       slot_time: booking.slot_time || "",
-      final_amount: String(bookingAmount(booking) || ""),
+      // The editable amount is the pre-discount subtotal; the discount is applied on top of it.
+      final_amount: String(bookingSubtotal(booking) || ""),
+      discount_type: (booking.discount_type === "PERCENT" || booking.discount_type === "FLAT" ? booking.discount_type : "") as "" | "PERCENT" | "FLAT",
+      discount_value: booking.discount_value ? String(booking.discount_value) : "",
+      discount_reason: booking.discount_reason || "",
       client_name: booking.client?.name || "",
       client_phone: booking.client?.phone || "",
       client_email: booking.client?.email || "",
@@ -276,6 +535,10 @@ export default function AdminBookingsPage() {
       slot_date: draft.slot_date,
       slot_time: draft.slot_time,
       final_amount: draft.final_amount === "" ? undefined : Number(draft.final_amount),
+      // Always sent, so clearing the type removes an existing discount.
+      discount_type: draft.discount_type || null,
+      discount_value: draft.discount_type ? Number(draft.discount_value || 0) : 0,
+      discount_reason: draft.discount_reason,
       client: {
         name: draft.client_name,
         phone: draft.client_phone,
@@ -365,6 +628,38 @@ export default function AdminBookingsPage() {
       </div>
 
       <div className="rounded-lg border bg-white p-4">
+        <div
+          role="tablist"
+          aria-label="Filter bookings by period"
+          className="mb-4 flex w-full flex-wrap gap-1 rounded-xl border bg-muted/40 p-1"
+        >
+          {PERIOD_TABS.map((tab) => {
+            const selected = period === tab.value;
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setPeriod(tab.value)}
+                className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  selected
+                    ? "bg-white text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+                <span
+                  className={`inline-flex min-w-[1.5rem] items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums ${
+                    selected ? "bg-foreground text-background" : "bg-muted-foreground/15 text-muted-foreground"
+                  }`}
+                >
+                  {counts[tab.value]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="relative min-w-[240px] flex-[2_1_320px]">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -382,9 +677,6 @@ export default function AdminBookingsPage() {
           </select>
           <select value={serviceCategory} onChange={(e) => setServiceCategory(e.target.value)} className="h-11 min-w-[130px] flex-1 rounded-lg border bg-white px-3 text-sm">
             {SERVICE_FILTERS.map((item) => <option key={item}>{item}</option>)}
-          </select>
-          <select value={period} onChange={(e) => setPeriod(e.target.value)} className="h-11 min-w-[140px] flex-1 rounded-lg border bg-white px-3 text-sm">
-            {PERIODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
           <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="min-w-[150px] flex-1" />
           <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="min-w-[150px] flex-1" />
@@ -522,6 +814,13 @@ export default function AdminBookingsPage() {
                           <Input value={draft.slot_time} onChange={(e) => setBookingEditDraft(booking, { slot_time: e.target.value })} placeholder="Time" className="h-9 text-xs" />
                           <Input type="number" value={draft.final_amount} onChange={(e) => setBookingEditDraft(booking, { final_amount: e.target.value })} placeholder="Amount" className="h-9 text-xs" />
                         </div>
+                        <DiscountEditor draft={draft} booking={booking} onChange={(patch) => setBookingEditDraft(booking, patch)} />
+                        <ExtendPanel
+                          booking={booking}
+                          busy={savingId === booking.id}
+                          onExtend={(date, time, note) => extendBooking(booking.id, date, time, note)}
+                          onDecide={(action) => decideExtension(booking.id, action)}
+                        />
                         <div className="mt-2 grid gap-2 sm:grid-cols-3">
                           <Input value={draft.client_name} onChange={(e) => setBookingEditDraft(booking, { client_name: e.target.value })} placeholder="Client name" className="h-9 text-xs" />
                           <Input value={draft.client_phone} onChange={(e) => setBookingEditDraft(booking, { client_phone: e.target.value.replace(/[^\d+]/g, "").slice(0, 14) })} placeholder="Client phone" className="h-9 text-xs" />
@@ -720,6 +1019,13 @@ export default function AdminBookingsPage() {
                                       <Input value={draft.slot_time} onChange={(e) => setBookingEditDraft(booking, { slot_time: e.target.value })} placeholder="Time" className="h-9 text-xs" />
                                       <Input type="number" value={draft.final_amount} onChange={(e) => setBookingEditDraft(booking, { final_amount: e.target.value })} placeholder="Amount" className="h-9 text-xs" />
                                     </div>
+                                    <DiscountEditor draft={draft} booking={booking} onChange={(patch) => setBookingEditDraft(booking, patch)} />
+                                    <ExtendPanel
+                                      booking={booking}
+                                      busy={savingId === booking.id}
+                                      onExtend={(date, time, note) => extendBooking(booking.id, date, time, note)}
+                                      onDecide={(action) => decideExtension(booking.id, action)}
+                                    />
                                     <div className="mt-2 grid gap-2">
                                       <Input value={draft.client_name} onChange={(e) => setBookingEditDraft(booking, { client_name: e.target.value })} placeholder="Client name" className="h-9 text-xs" />
                                       <Input value={draft.client_phone} onChange={(e) => setBookingEditDraft(booking, { client_phone: e.target.value.replace(/[^\d+]/g, "").slice(0, 14) })} placeholder="Client phone" className="h-9 text-xs" />
