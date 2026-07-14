@@ -1,21 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { generateInvoicePdf } from "@/lib/invoice";
 import { sendBookingConfirmation, sendPaymentConfirmation } from "@/lib/mailer";
-import { serviceBookablePrice } from "@/lib/pet-care-pricing";
 import { formatBookingDate } from "@/lib/booking-lifecycle";
 import { bookingDetailFormUrl, detailFormService } from "@/lib/booking-detail-forms";
+
+// Totals come from the shared calculator so a manual discount, a coupon and an
+// admin override all reach the payment and the invoice.
+export { bookingTotal } from "@/lib/booking-pricing";
+import { bookingTotal, computeBookingPricing, discountLabel } from "@/lib/booking-pricing";
 
 export const COD_ADVANCE_AMOUNT = 100;
 
 export type PaymentPlan = "FULL_ONLINE" | "COD_ADVANCE";
-
-export function bookingTotal(booking: any) {
-  const data = booking?.addons_json && typeof booking.addons_json === "object" ? booking.addons_json : {};
-  if (data.pricing?.total !== undefined) return Number(data.pricing.total || 0);
-  const addonTotal = Array.isArray(data.addons) ? data.addons.reduce((sum: number, addon: any) => sum + Number(addon.price || 0), 0) : 0;
-  const discount = Number(data.coupon?.discount || 0);
-  return Math.max(0, serviceBookablePrice(booking.service) + addonTotal - discount);
-}
 
 export function bookingPaymentPlan(booking: any): PaymentPlan {
   const data = booking?.addons_json && typeof booking.addons_json === "object" ? booking.addons_json : {};
@@ -28,6 +24,33 @@ export function expectedPaymentAmount(booking: any, paymentType: "full" | "advan
 
 function invoiceDate() {
   return new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+/**
+ * Service, then each discount as its own negative line, so the customer can see
+ * exactly what came off. Ends at the payable total.
+ */
+function serviceLineItems(booking: any) {
+  const pricing = computeBookingPricing(booking);
+  return [
+    { desc: booking.service?.name || "Pet Service", qty: 1, rate: pricing.subtotal, amount: pricing.subtotal },
+    ...(pricing.couponDiscount > 0
+      ? [{
+          desc: `Coupon discount${pricing.couponCode ? ` (${pricing.couponCode})` : ""}`,
+          qty: 1,
+          rate: -pricing.couponDiscount,
+          amount: -pricing.couponDiscount,
+        }]
+      : []),
+    ...(pricing.manualDiscount > 0
+      ? [{
+          desc: `Discount${discountLabel(pricing) ? ` (${discountLabel(pricing)})` : ""}${pricing.discountReason ? ` - ${pricing.discountReason}` : ""}`,
+          qty: 1,
+          rate: -pricing.manualDiscount,
+          amount: -pricing.manualDiscount,
+        }]
+      : []),
+  ];
 }
 
 function invoicePdf(booking: any, invoiceNumber: string, amount: number) {
@@ -136,7 +159,7 @@ export async function recordSuccessfulOnlinePayment(params: {
     total: isAdvance ? paid : total,
     status: isAdvance ? "Partially Paid" : "Paid",
     lineItems: [
-      { desc: booking.service?.name || "Pet Service", qty: 1, rate: total, amount: total },
+      ...serviceLineItems(booking),
       ...(isAdvance ? [
         { desc: "Advance paid online", qty: 1, rate: paid, amount: paid },
         { desc: "Remaining COD amount", qty: 1, rate: remaining, amount: remaining },
@@ -220,7 +243,7 @@ export async function collectCodPayment(params: {
     total,
     status: "Paid",
     lineItems: [
-      { desc: booking.service?.name || "Pet Service", qty: 1, rate: total, amount: total },
+      ...serviceLineItems(booking),
       { desc: "Advance paid online", qty: 1, rate: alreadyPaid, amount: alreadyPaid },
       { desc: "COD collected", qty: 1, rate: codAmount, amount: codAmount },
     ],

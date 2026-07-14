@@ -3,7 +3,54 @@ import { sendBookingReminderEmail } from "@/lib/mailer";
 
 export const BOOKING_STATUSES = ["Pending", "Confirmed", "In Progress", "Completed", "Cancelled", "Expired"];
 export const ACTIVE_BOOKING_STATUSES = ["Pending", "Confirmed", "In Progress"];
+/** A booking that will not happen again — it belongs in Past whatever its date. */
+export const FINISHED_BOOKING_STATUSES = ["Completed", "Cancelled", "Expired"];
 export const PAYMENT_STATUSES = ["Pending", "Advance Paid", "Partially Paid", "Paid", "Failed", "Cancelled", "Refunded"];
+
+/** Tabs shown in the admin/staff booking lists. "current" is the old alias for "today". */
+export const PERIOD_FILTERS = ["today", "active", "upcoming", "past", "current"] as const;
+export type PeriodFilter = (typeof PERIOD_FILTERS)[number];
+
+const IST_OFFSET_MINUTES = 330;
+
+/**
+ * slot_date is persisted as UTC midnight of the intended calendar day, so a day
+ * window has to be built from the *IST* calendar date rather than the server's
+ * local date — otherwise a UTC-hosted server shows the wrong "Today" for the
+ * five and a half hours after IST midnight.
+ */
+export function istDayWindow(now: Date = new Date()) {
+  const ist = new Date(now.getTime() + IST_OFFSET_MINUTES * 60 * 1000);
+  const start = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()));
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+  return { start, end };
+}
+
+/**
+ * Prisma `where` for a period tab. Tabs deliberately overlap: a confirmed booking
+ * scheduled today appears under both Today and Active.
+ */
+export function periodWhere(period: string | null, now: Date = new Date()) {
+  const { start, end } = istDayWindow(now);
+  switch (period) {
+    case "today":
+    case "current":
+      return { slot_date: { gte: start, lte: end } };
+    case "active":
+      return { status: { in: ACTIVE_BOOKING_STATUSES } };
+    case "upcoming":
+      return { slot_date: { gt: end }, status: { in: ACTIVE_BOOKING_STATUSES } };
+    case "past":
+      return {
+        OR: [
+          { slot_date: { lt: start } },
+          { status: { in: FINISHED_BOOKING_STATUSES } },
+        ],
+      };
+    default:
+      return {};
+  }
+}
 
 type BookingForLifecycle = {
   id: string;
