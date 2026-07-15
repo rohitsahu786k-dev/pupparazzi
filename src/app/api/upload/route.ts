@@ -10,7 +10,13 @@ import { uploadToCloudinary } from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
 
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]);
+const ALLOWED_MIME_TO_EXT: Record<string, string[]> = {
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/png": [".png"],
+  "image/webp": [".webp"],
+  "image/gif": [".gif"],
+  "application/pdf": [".pdf"],
+};
 const CLIENT_DOCUMENT_CATEGORIES = new Set(["KYC", "Documents", "Bookings", "Vaccination"]);
 
 function safeSegment(value: string) {
@@ -59,8 +65,10 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
-    if (!ALLOWED_TYPES.has(file.type)) {
-      return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
+    const fileExt = path.extname(file.name).toLowerCase();
+    const allowedExts = ALLOWED_MIME_TO_EXT[file.type];
+    if (!allowedExts || !allowedExts.includes(fileExt)) {
+      return NextResponse.json({ error: "Unsupported file type or extension mismatch" }, { status: 400 });
     }
     if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
       return NextResponse.json({ error: UPLOAD_SIZE_ERROR_MESSAGE }, { status: 400 });

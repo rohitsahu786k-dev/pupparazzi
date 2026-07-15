@@ -18,6 +18,7 @@ import {
   vaccinationReminderEmail,
   vaccinationUpdatedEmail,
 } from "@/lib/reminders/emails";
+import { getEmailTemplateOverrides, type EmailTemplateOverrides } from "@/lib/reminders/email-templates";
 import type { PetVaccination } from "@prisma/client";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -27,17 +28,20 @@ export type NotifyContext = {
   today: Date;
   dueSoonThresholdDays: number;
   profileUrl: string;
+  overrides: EmailTemplateOverrides;
 };
 
 export async function buildNotifyContext(): Promise<NotifyContext> {
   const reminder = await getReminderSettings();
   const business = await getSetting<BusinessSettings>("business", DEFAULT_BUSINESS_SETTINGS);
   const brand = await resolveBranding(reminder, business);
+  const overrides = await getEmailTemplateOverrides();
   return {
     brand,
     today: todayInZone(reminder.timezone),
     dueSoonThresholdDays: reminder.dueSoonThresholdDays,
     profileUrl: `${brand.appUrl}/dashboard/pets`,
+    overrides,
   };
 }
 
@@ -69,7 +73,7 @@ export function buildVaccinationEmail(rec: PetVaccination, pet: PetLite, ctx: No
     daysOverdue: diff < 0 ? Math.abs(diff) : 0,
     vetName: rec.vet_name,
     vetContact: rec.vet_contact,
-  });
+  }, ctx.overrides);
 }
 
 /** Send a confirmation email after a vaccination is updated or completed. Best-effort. */
@@ -86,7 +90,8 @@ export async function sendVaccinationConfirmation(rec: PetVaccination, pet: PetL
     nextDueDate: formatCalendarDate(rec.next_due_date),
     completed,
     administeredDate: rec.administered_date ? formatCalendarDate(rec.administered_date) : null,
-  });
+  }, ctx.overrides);
+  if (!email.active) return; // admin disabled this confirmation template
   const result = await sendMail({ to, subject: email.subject, html: email.html, text: email.text, replyTo: ctx.brand.replyTo });
   await prisma.notification.create({
     data: {

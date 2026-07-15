@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Syringe, Pencil, Trash2, CheckCircle2, BellOff, Bell, Send, History, X } from "lucide-react";
+import { Loader2, Plus, Syringe, Pencil, Trash2, CheckCircle2, BellOff, Bell, Send, History, X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,6 +25,7 @@ type Vaccination = {
   vet_name: string | null;
   vet_contact: string | null;
   notes: string | null;
+  certificate_asset_id: string | null;
   certificate_path: string | null;
 };
 
@@ -49,6 +50,9 @@ type FormState = {
   vet_name: string;
   vet_contact: string;
   notes: string;
+  certificate_asset_id: string;
+  certificate_path: string;
+  certificate_name: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -60,7 +64,29 @@ const EMPTY_FORM: FormState = {
   vet_name: "",
   vet_contact: "",
   notes: "",
+  certificate_asset_id: "",
+  certificate_path: "",
+  certificate_name: "",
 };
+
+const CERT_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp";
+const CERT_MAX_BYTES = 2 * 1024 * 1024;
+
+/** Upload a certificate via the shared /api/upload endpoint; returns {id, path}. */
+async function uploadCertificate(file: File, petId: string, ownerId?: string): Promise<{ id: string; path: string }> {
+  if (file.size > CERT_MAX_BYTES) throw new Error("File is too large. Please upload up to 2 MB.");
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("folder", "vaccination");
+  fd.append("category", "Vaccination");
+  fd.append("documentType", "Vaccination Record Certificate");
+  fd.append("petId", petId);
+  if (ownerId) fd.append("clientId", ownerId);
+  const res = await fetch("/api/upload", { method: "POST", body: fd });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Upload failed");
+  return { id: data.id, path: data.path || data.url || "" };
+}
 
 function isoToInput(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "";
@@ -74,6 +100,7 @@ function addMonthsToInput(baseIso: string | null, months: number): string {
 
 export default function VaccinationManager({
   petId,
+  ownerId,
   dob,
   dobIsEstimated,
   birthdayReminderEnabled: initialBirthdayEnabled,
@@ -81,6 +108,7 @@ export default function VaccinationManager({
   isOperations = false,
 }: {
   petId: string;
+  ownerId?: string;
   petName: string;
   dob: string | null;
   dobIsEstimated?: boolean;
@@ -148,6 +176,9 @@ export default function VaccinationManager({
       vet_name: v.vet_name || "",
       vet_contact: v.vet_contact || "",
       notes: v.notes || "",
+      certificate_asset_id: v.certificate_asset_id || "",
+      certificate_path: v.certificate_path || "",
+      certificate_name: v.certificate_path ? "Current certificate" : "",
     });
     setEditorOpen(true);
   }
@@ -172,6 +203,8 @@ export default function VaccinationManager({
       vet_name: form.vet_name.trim() || null,
       vet_contact: form.vet_contact.trim() || null,
       notes: form.notes.trim() || null,
+      certificate_asset_id: form.certificate_asset_id || null,
+      certificate_path: form.certificate_path || null,
     };
     const res = editingId
       ? await fetch(`/api/pets/${petId}/vaccinations/${editingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
@@ -194,6 +227,17 @@ export default function VaccinationManager({
       body: JSON.stringify({ reminder_enabled: !v.reminder_enabled }),
     });
     if (res.ok) await load(); else setError("Could not update reminder.");
+    setBusyId("");
+  }
+
+  async function removeCertificate(v: Vaccination) {
+    if (!confirm("Remove the certificate from this record?")) return;
+    setBusyId(v.id);
+    const res = await fetch(`/api/pets/${petId}/vaccinations/${v.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ certificate_asset_id: null, certificate_path: null }),
+    });
+    if (res.ok) { flash("Certificate removed."); await load(); } else setError("Could not remove certificate.");
     setBusyId("");
   }
 
@@ -317,6 +361,12 @@ export default function VaccinationManager({
                         <p className="mt-0.5 text-xs text-muted-foreground">Vet: {[v.vet_name, v.vet_contact].filter(Boolean).join(" · ")}</p>
                       )}
                       {v.notes && <p className="mt-0.5 text-xs text-muted-foreground">{v.notes}</p>}
+                      {v.certificate_path && (
+                        <p className="mt-0.5 text-xs">
+                          <a href={v.certificate_path} target="_blank" rel="noreferrer" className="text-primary underline">View certificate</a>
+                          <button type="button" onClick={() => removeCertificate(v)} className="ml-3 text-muted-foreground hover:text-red-600">Remove</button>
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       <Button size="sm" variant="outline" disabled={busyId === v.id} onClick={() => setCompleteId(v.id)} title="Mark completed"><CheckCircle2 className="h-3.5 w-3.5" /></Button>
@@ -329,7 +379,7 @@ export default function VaccinationManager({
                     </div>
                   </div>
 
-                  {completeId === v.id && <CompletePanel petId={petId} vaccination={v} onClose={() => setCompleteId(null)} onDone={() => { setCompleteId(null); flash("Marked completed."); load(); }} />}
+                  {completeId === v.id && <CompletePanel petId={petId} ownerId={ownerId} vaccination={v} onClose={() => setCompleteId(null)} onDone={() => { setCompleteId(null); flash("Marked completed."); load(); }} />}
                   {historyId === v.id && <HistoryPanel history={history} onClose={() => setHistoryId(null)} />}
                 </div>
               );
@@ -344,6 +394,9 @@ export default function VaccinationManager({
           setForm={setForm}
           saving={saving}
           editing={Boolean(editingId)}
+          petId={petId}
+          ownerId={ownerId}
+          onError={setError}
           onClose={() => setEditorOpen(false)}
           onSubmit={submitForm}
         />
@@ -361,8 +414,45 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function EditorModal({ form, setForm, saving, editing, onClose, onSubmit }: {
-  form: FormState; setForm: (f: FormState) => void; saving: boolean; editing: boolean; onClose: () => void; onSubmit: () => void;
+function CertificateField({ form, setForm, petId, ownerId, onError }: {
+  form: FormState; setForm: (f: FormState) => void; petId: string; ownerId?: string; onError: (m: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    onError("");
+    try {
+      const { id, path } = await uploadCertificate(file, petId, ownerId);
+      setForm({ ...form, certificate_asset_id: id, certificate_path: path, certificate_name: file.name });
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Upload failed");
+    }
+    setUploading(false);
+  }
+  return (
+    <Field label="Certificate (PDF/JPG/PNG/WebP, up to 2 MB)">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          <span>{form.certificate_path ? "Replace file" : "Upload file"}</span>
+          <input type="file" accept={CERT_ACCEPT} className="hidden" onChange={onPick} disabled={uploading} />
+        </label>
+        {form.certificate_path && (
+          <>
+            <a href={form.certificate_path} target="_blank" rel="noreferrer" className="text-xs text-primary underline">{form.certificate_name || "View"}</a>
+            <button type="button" onClick={() => setForm({ ...form, certificate_asset_id: "", certificate_path: "", certificate_name: "" })} className="text-xs text-muted-foreground hover:text-red-600">Remove</button>
+          </>
+        )}
+      </div>
+    </Field>
+  );
+}
+
+function EditorModal({ form, setForm, saving, editing, petId, ownerId, onError, onClose, onSubmit }: {
+  form: FormState; setForm: (f: FormState) => void; saving: boolean; editing: boolean; petId: string; ownerId?: string; onError: (m: string) => void; onClose: () => void; onSubmit: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
@@ -394,6 +484,7 @@ function EditorModal({ form, setForm, saving, editing, onClose, onSubmit }: {
             <Field label="Vet contact"><Input value={form.vet_contact} onChange={(e) => setForm({ ...form, vet_contact: e.target.value })} /></Field>
           </div>
           <Field label="Notes"><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+          <CertificateField form={form} setForm={setForm} petId={petId} ownerId={ownerId} onError={onError} />
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.reminder_enabled} onChange={(e) => setForm({ ...form, reminder_enabled: e.target.checked })} />
             Send reminder emails for this record
@@ -408,12 +499,13 @@ function EditorModal({ form, setForm, saving, editing, onClose, onSubmit }: {
   );
 }
 
-function CompletePanel({ petId, vaccination, onClose, onDone }: { petId: string; vaccination: Vaccination; onClose: () => void; onDone: () => void }) {
+function CompletePanel({ petId, ownerId, vaccination, onClose, onDone }: { petId: string; ownerId?: string; vaccination: Vaccination; onClose: () => void; onDone: () => void }) {
   const [administered, setAdministered] = useState(new Date().toISOString().slice(0, 10));
   const [createNext, setCreateNext] = useState(true);
   const [nextDue, setNextDue] = useState(addMonthsToInput(new Date().toISOString(), 12));
   const [vetName, setVetName] = useState(vaccination.vet_name || "");
   const [vetContact, setVetContact] = useState(vaccination.vet_contact || "");
+  const [certForm, setCertForm] = useState<FormState>({ ...EMPTY_FORM, certificate_asset_id: vaccination.certificate_asset_id || "", certificate_path: vaccination.certificate_path || "", certificate_name: vaccination.certificate_path ? "Current certificate" : "" });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -422,7 +514,11 @@ function CompletePanel({ petId, vaccination, onClose, onDone }: { petId: string;
     setErr("");
     const res = await fetch(`/api/pets/${petId}/vaccinations/${vaccination.id}/complete`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ administered_date: administered, create_next_cycle: createNext, next_due_date: createNext ? nextDue : null, vet_name: vetName || null, vet_contact: vetContact || null }),
+      body: JSON.stringify({
+        administered_date: administered, create_next_cycle: createNext, next_due_date: createNext ? nextDue : null,
+        vet_name: vetName || null, vet_contact: vetContact || null,
+        certificate_asset_id: certForm.certificate_asset_id || null, certificate_path: certForm.certificate_path || null,
+      }),
     });
     if (res.ok) onDone();
     else { const d = await res.json().catch(() => ({})); setErr(d.message || "Could not mark completed."); }
@@ -439,6 +535,7 @@ function CompletePanel({ petId, vaccination, onClose, onDone }: { petId: string;
         <Field label="Vet name"><Input value={vetName} onChange={(e) => setVetName(e.target.value)} /></Field>
         <Field label="Vet contact"><Input value={vetContact} onChange={(e) => setVetContact(e.target.value)} /></Field>
       </div>
+      <div className="mt-3"><CertificateField form={certForm} setForm={setCertForm} petId={petId} ownerId={ownerId} onError={setErr} /></div>
       <label className="mt-2 flex items-center gap-2 text-sm">
         <input type="checkbox" checked={createNext} onChange={(e) => setCreateNext(e.target.checked)} />
         Open the next cycle with the due date above

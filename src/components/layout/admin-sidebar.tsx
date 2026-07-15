@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Calendar, Users, PawPrint,
-  Settings, Scissors, Banknote, FileText, MapPin, TicketPercent, MessageSquareQuote, BellRing
+  Settings, Scissors, Banknote, FileText, MapPin, TicketPercent, MessageSquareQuote, BellRing, MailCheck
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
@@ -16,6 +16,7 @@ const navItems = [
   { name: "Clients", href: "/admin/clients", icon: Users },
   { name: "Pets", href: "/admin/pets", icon: PawPrint },
   { name: "Reminders", href: "/admin/reminders", icon: BellRing },
+  { name: "Email Templates", href: "/admin/email-templates", icon: MailCheck },
   { name: "Services", href: "/admin/services", icon: Scissors },
   { name: "Coupons", href: "/admin/coupons", icon: TicketPercent },
   { name: "Testimonials", href: "/admin/testimonials", icon: MessageSquareQuote },

@@ -88,17 +88,9 @@ This file is the source of truth for continuing the work. Update it as you go.
 
 ## Remaining / not done this session (tracked for continuation)
 These were intentionally deferred (session scoped to "working backend core first"):
-- **Automated test suite** (§17). No test framework was present. Recommend adding Vitest and
-  unit tests for `dates.ts` (age, birthday, Feb-29, status), processor idempotency (mock
-  Prisma), template rendering/escaping, and permission checks. Pure helpers in `dates.ts` /
-  `vaccine-config.ts` are structured to be trivially unit-testable.
 - **DB-backed email template editor UI** (§8.4). Current templates are strong typed defaults in
   code (consistent with every other email in this app). To make them admin-editable, add an
   `EmailTemplate` model or `AppSetting("email_templates")` + a render layer + editor page.
-- **Legacy `ClientRecord` import utility** (§10). `OldDataImportJob`/`OldClientHistory` exist;
-  build a dry-run parser that maps `pet_birthday`, `anti_rabies`, `dhppil`, `corona`,
-  `kennel_cough`, `deworming_date`, `last_tick_prevention_date` → PetVaccination, reporting
-  ambiguous DD/MM vs MM/DD dates rather than guessing.
 - **Certificate upload wired into the vaccination form.** The schema + API accept
   `certificate_asset_id`/`certificate_path`; reuse `/api/upload` + `Asset` to attach files in
   the manager UI (fields exist, upload control not yet added).
@@ -107,3 +99,8 @@ These were intentionally deferred (session scoped to "working backend core first
 - **Mobile expanded row in `admin/pets`** shows the manager only in the desktop table view;
   add it to the mobile card block too for full parity.
 - Broader admin dashboard filters (client/vaccine-type/date-range search) beyond type+status.
+
+## Completed Deferred Items
+- **Automated test suite** (§17): Implemented robust Vitest suites covering dates, permissions, reminders, templates, and CRUD serialization. Added GHA CI workflow for automated testing on PRs/pushes.
+- **Legacy `ClientRecord` import utility** (§10): Created `scripts/migrate-client-record-reminders.ts` and successfully migrated 455 legacy records to the live database with full idempotency.
+

@@ -30,7 +30,9 @@ import {
   birthdayGreetingEmail,
   vaccinationReminderEmail,
   adminSummaryEmail,
+  deliveryFailureEmail,
 } from "@/lib/reminders/emails";
+import { getEmailTemplateOverrides } from "@/lib/reminders/email-templates";
 
 const MAX_ATTEMPTS = 3;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -211,6 +213,7 @@ export async function runReminderProcessor(options: { now?: Date; trigger?: stri
   const reminder = await getReminderSettings();
   const business = await getSetting<BusinessSettings>("business", DEFAULT_BUSINESS_SETTINGS);
   const brand = await resolveBranding(reminder, business);
+  const overrides = await getEmailTemplateOverrides();
   const tz = reminder.timezone || "Asia/Kolkata";
   const today = todayInZone(tz, now);
   const profileUrl = `${brand.appUrl}/dashboard/pets`;
@@ -218,6 +221,14 @@ export async function runReminderProcessor(options: { now?: Date; trigger?: stri
   let sent = 0;
   let skipped = 0;
   let failed = 0;
+
+  // Real dashboard-style counts (computed once per pet/record, not per job) so
+  // the admin summary reports actual figures — never a candidate proxy.
+  let birthdaysToday = 0;
+  let birthdaysNext7 = 0;
+  let vaccinationsDueToday = 0;
+  let vaccinationsNext7 = 0;
+  let vaccinationsOverdue = 0;
 
   console.log(`[reminders] start trigger=${options.trigger ?? "manual"} tz=${tz} today=${today.toISOString().slice(0, 10)}`);
 
@@ -235,13 +246,14 @@ export async function runReminderProcessor(options: { now?: Date; trigger?: stri
     for (const pet of pets) {
       if (!pet.dob) continue;
       const untilBirthday = daysUntilBirthday(pet.dob, today, reminder.feb29Handling);
+      if (untilBirthday === 0) birthdaysToday += 1;
+      else if (untilBirthday >= 1 && untilBirthday <= 7) birthdaysNext7 += 1;
       const bday = nextBirthday(pet.dob, today, reminder.feb29Handling);
       const year = bday.getUTCFullYear();
       const ownerEmail = pet.owner?.email?.trim() || "";
 
       for (const dayBefore of reminder.birthdayReminderDays) {
         if (untilBirthday !== dayBefore) continue;
-        birthdayCandidates += 1;
 
         const isDay = dayBefore === 0;
         const useGreeting = isDay && reminder.birthdaySendGreetingOnDay;
@@ -249,8 +261,12 @@ export async function runReminderProcessor(options: { now?: Date; trigger?: stri
         const key = useGreeting ? `birthday_greeting:${pet.id}:${year}` : `birthday:${pet.id}:${year}:${dayBefore}`;
 
         const email = useGreeting
-          ? birthdayGreetingEmail({ ownerName: pet.owner?.name || "Pet Parent", petName: pet.name, petPhotoUrl: resolvePhotoUrl(pet.profile_photo, brand.appUrl), petProfileUrl: profileUrl, brand, petAge: formatAge(pet.dob, today) })
-          : birthdayReminderEmail({ ownerName: pet.owner?.name || "Pet Parent", petName: pet.name, petPhotoUrl: resolvePhotoUrl(pet.profile_photo, brand.appUrl), petProfileUrl: profileUrl, brand, birthdayDate: formatCalendarDate(bday), daysUntilBirthday: dayBefore, petAge: formatAge(pet.dob, today) });
+          ? birthdayGreetingEmail({ ownerName: pet.owner?.name || "Pet Parent", petName: pet.name, petPhotoUrl: resolvePhotoUrl(pet.profile_photo, brand.appUrl), petProfileUrl: profileUrl, brand, petAge: formatAge(pet.dob, today), birthdayDate: formatCalendarDate(bday) }, overrides)
+          : birthdayReminderEmail({ ownerName: pet.owner?.name || "Pet Parent", petName: pet.name, petPhotoUrl: resolvePhotoUrl(pet.profile_photo, brand.appUrl), petProfileUrl: profileUrl, brand, birthdayDate: formatCalendarDate(bday), daysUntilBirthday: dayBefore, petAge: formatAge(pet.dob, today) }, overrides);
+
+        // Admin disabled this template → do not send (and do not reserve a row).
+        if (!email.active) { skipped += 1; continue; }
+        birthdayCandidates += 1;
 
         const reserve = await reserveDelivery(key, {
           user_id: pet.owner?.id, pet_id: pet.id, reminder_type: reminderType,
@@ -275,7 +291,7 @@ export async function runReminderProcessor(options: { now?: Date; trigger?: stri
 
   // ── Vaccinations ───────────────────────────────────────────────────────────
   let vaccinationCandidates = 0;
-  if (reminder.vaccinationRemindersEnabled) {
+  {
     const records = await prisma.petVaccination.findMany({
       where: { reminder_enabled: true },
       include: {
@@ -289,6 +305,14 @@ export async function runReminderProcessor(options: { now?: Date; trigger?: stri
       const due = toUtcMidnight(rec.next_due_date);
       const dueIso = due.toISOString().slice(0, 10);
       const untilDue = dayDiff(due, today); // >0 future, 0 today, <0 past
+
+      // Count real due/overdue figures for the summary.
+      if (untilDue < 0) vaccinationsOverdue += 1;
+      else if (untilDue === 0) vaccinationsDueToday += 1;
+      else if (untilDue <= 7) vaccinationsNext7 += 1;
+
+      if (!reminder.vaccinationRemindersEnabled) continue;
+
       const ownerEmail = rec.pet?.owner?.email?.trim() || "";
       const name = vaccineLabel(rec.vaccine_type, rec.custom_vaccine_name);
       const perRecordDays = Array.isArray(rec.reminder_days_json)
@@ -314,7 +338,6 @@ export async function runReminderProcessor(options: { now?: Date; trigger?: stri
       }
 
       for (const job of jobs) {
-        vaccinationCandidates += 1;
         const email = vaccinationReminderEmail({
           ownerName: rec.pet?.owner?.name || "Pet Parent",
           petName: rec.pet?.name || "your pet",
@@ -329,7 +352,10 @@ export async function runReminderProcessor(options: { now?: Date; trigger?: stri
           daysOverdue: job.daysOverdue,
           vetName: rec.vet_name,
           vetContact: rec.vet_contact,
-        });
+        }, overrides);
+
+        if (!email.active) { skipped += 1; continue; }
+        vaccinationCandidates += 1;
 
         const reserve = await reserveDelivery(job.key, {
           user_id: rec.pet?.owner?.id, pet_id: rec.pet_id, vaccination_id: rec.id,
@@ -353,25 +379,45 @@ export async function runReminderProcessor(options: { now?: Date; trigger?: stri
     }
   }
 
+  const adminRecipient = reminder.adminSummaryRecipient?.trim() || "";
+  const hasAdminRecipient = Boolean(adminRecipient && EMAIL_RE.test(adminRecipient));
+
   // ── Admin daily summary (best-effort, never blocks the run) ─────────────────
-  if (reminder.adminSummaryEnabled && reminder.adminSummaryRecipient && EMAIL_RE.test(reminder.adminSummaryRecipient)) {
+  if (reminder.adminSummaryEnabled && hasAdminRecipient) {
     const key = `admin_summary:${today.toISOString().slice(0, 10)}`;
     const reserve = await reserveDelivery(key, {
-      reminder_type: "admin_summary", scheduled_for: today, recipient: reminder.adminSummaryRecipient,
+      reminder_type: "admin_summary", scheduled_for: today, recipient: adminRecipient,
     });
     if (reserve.action === "send") {
       const email = adminSummaryEmail({
         brand, dateLabel: formatCalendarDate(today),
-        birthdayCount: birthdayCandidates, vaccinationDueCount: vaccinationCandidates,
-        overdueCount: 0, sent, failed, skipped,
-      });
-      const res = await sendMail({ to: reminder.adminSummaryRecipient, subject: email.subject, html: email.html, text: email.text, replyTo: brand.replyTo });
-      await prisma.reminderDelivery.update({
-        where: { id: reserve.deliveryId },
-        data: res.success
-          ? { status: "Sent", sent_at: new Date(), provider_message_id: res.messageId ?? null }
-          : { status: "Failed", error_message: res.error.slice(0, 300) },
-      }).catch(() => {});
+        birthdaysToday, birthdaysNext7,
+        vaccinationsDueToday, vaccinationsNext7, vaccinationsOverdue,
+        sent, failed, skipped,
+      }, overrides);
+      if (email.active) {
+        const res = await sendMail({ to: adminRecipient, subject: email.subject, html: email.html, text: email.text, replyTo: brand.replyTo });
+        await prisma.reminderDelivery.update({
+          where: { id: reserve.deliveryId },
+          data: res.success
+            ? { status: "Sent", sent_at: new Date(), provider_message_id: res.messageId ?? null }
+            : { status: "Failed", error_message: res.error.slice(0, 300) },
+        }).catch(() => {});
+      } else {
+        await markSkipped(key, "Template disabled");
+      }
+    }
+  }
+
+  // ── One consolidated delivery-failure alert (uses the editable template) ─────
+  if (failed > 0 && hasAdminRecipient) {
+    const alert = deliveryFailureEmail({
+      brand, reminderType: "daily reminder run", recipient: adminRecipient,
+      petName: "—", ownerName: "—",
+      errorMessage: `${failed} reminder delivery(ies) failed today. See Admin → Reminders → Delivery history for details.`,
+    }, overrides);
+    if (alert.active) {
+      await sendMail({ to: adminRecipient, subject: alert.subject, html: alert.html, text: alert.text, replyTo: brand.replyTo }).catch(() => {});
     }
   }
 

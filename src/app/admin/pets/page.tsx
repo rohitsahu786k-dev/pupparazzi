@@ -139,10 +139,24 @@ export default function AdminPetsPage() {
                       <Input defaultValue={pet.weight || ""} placeholder="Weight" onBlur={(e) => updatePet(pet.id, { weight: e.target.value })} className="h-9" />
                       <Input defaultValue={pet.size || ""} placeholder="Size" onBlur={(e) => updatePet(pet.id, { size: e.target.value })} className="h-9" />
                     </div>
+                    <label className="mt-2 block text-xs text-muted-foreground">Date of birth
+                      <Input type="date" defaultValue={pet.dob ? pet.dob.slice(0, 10) : ""} onBlur={(e) => updatePet(pet.id, { dob: e.target.value || null })} className="mt-1 h-9" />
+                    </label>
                     <div className="mt-3 flex justify-end">
                       <Button size="sm" variant="destructive" disabled={savingId === pet.id} onClick={() => deletePet(pet.id)}>
                         {savingId === pet.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                       </Button>
+                    </div>
+                    <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+                      <VaccinationManager
+                        petId={pet.id}
+                        ownerId={pet.owner_id}
+                        petName={pet.name}
+                        dob={pet.dob ?? null}
+                        dobIsEstimated={Boolean(pet.dob_is_estimated)}
+                        birthdayReminderEnabled={pet.birthday_reminder_enabled ?? true}
+                        isOperations
+                      />
                     </div>
                   </div>
                 )}
@@ -240,6 +254,7 @@ export default function AdminPetsPage() {
                         <div className="mt-4" onClick={(e) => e.stopPropagation()}>
                           <VaccinationManager
                             petId={pet.id}
+                            ownerId={pet.owner_id}
                             petName={pet.name}
                             dob={pet.dob ?? null}
                             dobIsEstimated={Boolean(pet.dob_is_estimated)}
