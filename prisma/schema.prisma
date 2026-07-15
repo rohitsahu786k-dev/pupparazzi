@@ -58,16 +58,16 @@ model User {
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  pets          Pet[]
-  addresses     Address[]
-  clientBookings Booking[] @relation("ClientBookings")
-  staffBookings  Booking[] @relation("StaffBookings")
-  payments      Payment[]
-  invoices      Invoice[]
-  staffProfile  Staff?
-  notifications Notification[]
+  accounts       Account[]
+  sessions       Session[]
+  pets           Pet[]
+  addresses      Address[]
+  clientBookings Booking[]      @relation("ClientBookings")
+  staffBookings  Booking[]      @relation("StaffBookings")
+  payments       Payment[]
+  invoices       Invoice[]
+  staffProfile   Staff?
+  notifications  Notification[]
 }
 
 model VerificationToken {
@@ -80,72 +80,76 @@ model VerificationToken {
 }
 
 model Pet {
-  id                    String      @id @default(auto()) @map("_id") @db.ObjectId
-  owner_id              String      @db.ObjectId
-  name                  String
-  type                  String      // Dog, Cat, Bird, Other
-  breed                 String?
-  gender                String?
-  dob                   DateTime?
-  weight                Float?
-  coat_type             String?
-  size                  String?     // Small, Medium, Large, Giant
-  aggression_level      Int?        @default(1) // 1-10
-  profile_photo         String?
-  photos_array          Json?       // Array of strings (URLs)
-  neutered              Boolean?    @default(false)
-  special_occasion      String?
-  special_occasion_date DateTime?
-  microchip_number      String?
-  adoption_status       String?
-  social_handle         String?
-  consent_photos        Boolean?    @default(false)
-  dietary_preference    String?
-  allergies             String?
-  preferences           String?
-  walk_schedule_1       String?
-  walk_schedule_2       String?
-  walk_schedule_3       String?
-  local_guardian_name   String?
+  id                     String    @id @default(auto()) @map("_id") @db.ObjectId
+  owner_id               String    @db.ObjectId
+  name                   String
+  type                   String // Dog, Cat, Bird, Other
+  breed                  String?
+  gender                 String?
+  dob                    DateTime?
+  weight                 Float?
+  coat_type              String?
+  size                   String? // Small, Medium, Large, Giant
+  aggression_level       Int?      @default(1) // 1-10
+  profile_photo          String?
+  photos_array           Json? // Array of strings (URLs)
+  neutered               Boolean?  @default(false)
+  special_occasion       String?
+  special_occasion_date  DateTime?
+  microchip_number       String?
+  adoption_status        String?
+  social_handle          String?
+  consent_photos         Boolean?  @default(false)
+  dietary_preference     String?
+  allergies              String?
+  preferences            String?
+  walk_schedule_1        String?
+  walk_schedule_2        String?
+  walk_schedule_3        String?
+  local_guardian_name    String?
   local_guardian_contact String?
-  tc_accepted           Boolean?    @default(true)
-  created_at            DateTime    @default(now())
-  updated_at            DateTime    @updatedAt
+  tc_accepted            Boolean?  @default(true)
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
 
-  owner                 User        @relation(fields: [owner_id], references: [id], onDelete: Cascade)
-  medical               PetMedical?
-  bookings              Booking[]
+  owner        User             @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  medical      PetMedical?
+  bookings     Booking[]
+  vaccinations PetVaccination[]
+
+  birthday_reminder_enabled Boolean? @default(true)
+  dob_is_estimated          Boolean? @default(false)
 }
 
 model PetMedical {
-  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
-  pet_id                String    @unique @db.ObjectId
-  vaccination_status    String?   // Vaccinated, Not Vaccinated, Partial
-  anti_rabies_date      DateTime?
-  dhppl_date            DateTime?
-  corona_date           DateTime?
-  kennel_cough_date     DateTime?
-  deworming_date        DateTime?
-  tick_prevention       Boolean?  @default(false)
-  tick_prevention_date  DateTime?
-  tick_method           String?
-  ongoing_medication    Boolean?  @default(false)
-  medication_detail     String?
-  illness_history       String?
-  vaccination_certificate_asset_id String? @db.ObjectId
-  vaccination_certificate_path String?
-  last_heat_month       Int?
-  last_heat_year        Int?
-  vet_name              String?
-  vet_contact           String?
+  id                               String    @id @default(auto()) @map("_id") @db.ObjectId
+  pet_id                           String    @unique @db.ObjectId
+  vaccination_status               String? // Vaccinated, Not Vaccinated, Partial
+  anti_rabies_date                 DateTime?
+  dhppl_date                       DateTime?
+  corona_date                      DateTime?
+  kennel_cough_date                DateTime?
+  deworming_date                   DateTime?
+  tick_prevention                  Boolean?  @default(false)
+  tick_prevention_date             DateTime?
+  tick_method                      String?
+  ongoing_medication               Boolean?  @default(false)
+  medication_detail                String?
+  illness_history                  String?
+  vaccination_certificate_asset_id String?   @db.ObjectId
+  vaccination_certificate_path     String?
+  last_heat_month                  Int?
+  last_heat_year                   Int?
+  vet_name                         String?
+  vet_contact                      String?
 
-  pet                   Pet       @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+  pet Pet @relation(fields: [pet_id], references: [id], onDelete: Cascade)
 }
 
 model Address {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  user_id    String   @db.ObjectId
-  label      String?  // Home, Work, Other
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  user_id    String  @db.ObjectId
+  label      String? // Home, Work, Other
   line1      String
   city       String
   state      String
@@ -153,115 +157,115 @@ model Address {
   phone      String?
   lat        Float?
   lng        Float?
-  is_default Boolean  @default(false)
+  is_default Boolean @default(false)
 
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  bookings   Booking[]
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  bookings Booking[]
 }
 
 model Service {
-  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
-  name                String
-  category            String   // Grooming, Boarding
-  service_group       String?
-  breed_size          String?
-  coat_type           String?
-  session_count       Int?
-  display_order       Int      @default(0)
-  description_short   String?
-  description_long    String?
-  price               Float
-  discounted_price    Float?
-  slot_duration_mins  Int      @default(60)
-  max_slots_per_day   Int?
-  is_active           Boolean  @default(true)
-  is_coming_soon      Boolean  @default(false)
-  is_bestseller       Boolean  @default(false)
-  free_services_json  Json?    // Array of strings
-  images_json         Json?    // Array of strings (URLs)
-  created_at          DateTime @default(now())
-  updated_at          DateTime @updatedAt
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  name               String
+  category           String // Grooming, Boarding
+  service_group      String?
+  breed_size         String?
+  coat_type          String?
+  session_count      Int?
+  display_order      Int      @default(0)
+  description_short  String?
+  description_long   String?
+  price              Float
+  discounted_price   Float?
+  slot_duration_mins Int      @default(60)
+  max_slots_per_day  Int?
+  is_active          Boolean  @default(true)
+  is_coming_soon     Boolean  @default(false)
+  is_bestseller      Boolean  @default(false)
+  free_services_json Json? // Array of strings
+  images_json        Json? // Array of strings (URLs)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
-  addons              Addon[]
-  bookings            Booking[]
+  addons   Addon[]
+  bookings Booking[]
 }
 
 model Addon {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  service_id  String   @db.ObjectId
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  service_id  String  @db.ObjectId
   name        String
   description String?
   price       Float
-  is_active   Boolean  @default(true)
+  is_active   Boolean @default(true)
 
-  service     Service  @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
 }
 
 model Booking {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  booking_id       String    @unique // Human-readable e.g. BKG-1029
-  client_id        String    @db.ObjectId
-  pet_id           String    @db.ObjectId
-  service_id       String    @db.ObjectId
-  staff_id         String?   @db.ObjectId
-  address_id       String?   @db.ObjectId
-  addons_json      Json?     // Array of addon objects
-  slot_date        DateTime
-  slot_time        String    // e.g. "10:00 AM"
-  status           String    @default("Pending") // Pending, Confirmed, In Progress, Completed, Cancelled
-  payment_status   String    @default("Pending") // Pending, Paid, Refunded
-  notes            String?
-  internal_notes   String?
-  after_photos_json Json?    // Array of strings (URLs)
-  boarding_type    String?
-  check_in_date    DateTime?
-  check_out_date   DateTime?
-  check_in_time    String?
-  check_out_time   String?
-  check_in_slot    String?
-  check_out_slot   String?
-  weight           Float?
-  check_out_weight Float?
-  meal_type        String?
-  kennel           String?
-  final_amount     Float?
-  discount_type    String?   // PERCENT or FLAT
-  discount_value   Float?    // 10 => 10% when PERCENT, or Rs. 10 when FLAT
-  discount_amount  Float?    // resolved rupee value of the discount, computed server-side
-  discount_reason  String?
-  discount_by      String?   @db.ObjectId // admin/staff user who applied it
+  id                       String    @id @default(auto()) @map("_id") @db.ObjectId
+  booking_id               String    @unique // Human-readable e.g. BKG-1029
+  client_id                String    @db.ObjectId
+  pet_id                   String    @db.ObjectId
+  service_id               String    @db.ObjectId
+  staff_id                 String?   @db.ObjectId
+  address_id               String?   @db.ObjectId
+  addons_json              Json? // Array of addon objects
+  slot_date                DateTime
+  slot_time                String // e.g. "10:00 AM"
+  status                   String    @default("Pending") // Pending, Confirmed, In Progress, Completed, Cancelled
+  payment_status           String    @default("Pending") // Pending, Paid, Refunded
+  notes                    String?
+  internal_notes           String?
+  after_photos_json        Json? // Array of strings (URLs)
+  boarding_type            String?
+  check_in_date            DateTime?
+  check_out_date           DateTime?
+  check_in_time            String?
+  check_out_time           String?
+  check_in_slot            String?
+  check_out_slot           String?
+  weight                   Float?
+  check_out_weight         Float?
+  meal_type                String?
+  kennel                   String?
+  final_amount             Float?
+  discount_type            String? // PERCENT or FLAT
+  discount_value           Float? // 10 => 10% when PERCENT, or Rs. 10 when FLAT
+  discount_amount          Float? // resolved rupee value of the discount, computed server-side
+  discount_reason          String?
+  discount_by              String?   @db.ObjectId // admin/staff user who applied it
   // Boarding stay extension. A client's request parks here as "Requested" until an
   // admin/staff approves it; admin/staff extensions are applied straight away.
-  extension_status         String?   // Requested, Approved, Rejected
+  extension_status         String? // Requested, Approved, Rejected
   extension_check_out_date DateTime?
   extension_check_out_time String?
-  extension_extra_amount   Float?    // additional charge the extension adds
+  extension_extra_amount   Float? // additional charge the extension adds
   extension_note           String?
   extension_requested_by   String?   @db.ObjectId
   extension_requested_at   DateTime?
   extension_decided_at     DateTime?
-  late_checkout_fees Float?
-  refund_amount    Float?
-  refund_reason    String?
-  companion_name   String?
-  companion_phone  String?
-  end_time         String?
-  staff_name       String?
-  services_json    Json?
-  documents_json   Json?
-  details_completed Boolean  @default(false)
-  google_event_id  String?
-  expiry_locked    Boolean   @default(false) // true once an admin/staff manually sets status; blocks auto-expiry from overwriting it
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
+  late_checkout_fees       Float?
+  refund_amount            Float?
+  refund_reason            String?
+  companion_name           String?
+  companion_phone          String?
+  end_time                 String?
+  staff_name               String?
+  services_json            Json?
+  documents_json           Json?
+  details_completed        Boolean   @default(false)
+  google_event_id          String?
+  expiry_locked            Boolean   @default(false) // true once an admin/staff manually sets status; blocks auto-expiry from overwriting it
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
 
-  client           User      @relation("ClientBookings", fields: [client_id], references: [id])
-  staff            User?     @relation("StaffBookings", fields: [staff_id], references: [id])
-  pet              Pet       @relation(fields: [pet_id], references: [id])
-  service          Service   @relation(fields: [service_id], references: [id])
-  address          Address?  @relation(fields: [address_id], references: [id])
-  payments         Payment[]
-  invoices         Invoice[]
+  client   User      @relation("ClientBookings", fields: [client_id], references: [id])
+  staff    User?     @relation("StaffBookings", fields: [staff_id], references: [id])
+  pet      Pet       @relation(fields: [pet_id], references: [id])
+  service  Service   @relation(fields: [service_id], references: [id])
+  address  Address?  @relation(fields: [address_id], references: [id])
+  payments Payment[]
+  invoices Invoice[]
 }
 
 model Payment {
@@ -271,8 +275,8 @@ model Payment {
   invoice_id          String?
   invoice_type        String?
   amount              Float
-  mode                String   // Cash, Online, Wallet
-  source              String?  // Razorpay, Manual
+  mode                String // Cash, Online, Wallet
+  source              String? // Razorpay, Manual
   razorpay_order_id   String?
   razorpay_payment_id String?
   transaction_id      String?  @unique
@@ -280,45 +284,45 @@ model Payment {
   parent_phone        String?
   created_at          DateTime @default(now())
 
-  booking             Booking? @relation(fields: [booking_id], references: [id])
-  client              User     @relation(fields: [client_id], references: [id])
+  booking Booking? @relation(fields: [booking_id], references: [id])
+  client  User     @relation(fields: [client_id], references: [id])
 }
 
 model Invoice {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  invoice_id       String   @unique // Human-readable
-  booking_id       String?  @db.ObjectId
-  client_id        String   @db.ObjectId
-  line_items_json  Json     // Array of line items {desc, qty, rate, amount}
-  subtotal         Float
-  tax              Float    @default(0)
-  total            Float
-  status           String   @default("Pending") // Pending, Paid
-  pdf_path         String?
-  created_at       DateTime @default(now())
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  invoice_id      String   @unique // Human-readable
+  booking_id      String?  @db.ObjectId
+  client_id       String   @db.ObjectId
+  line_items_json Json // Array of line items {desc, qty, rate, amount}
+  subtotal        Float
+  tax             Float    @default(0)
+  total           Float
+  status          String   @default("Pending") // Pending, Paid
+  pdf_path        String?
+  created_at      DateTime @default(now())
 
-  booking          Booking? @relation(fields: [booking_id], references: [id])
-  client           User     @relation(fields: [client_id], references: [id])
+  booking Booking? @relation(fields: [booking_id], references: [id])
+  client  User     @relation(fields: [client_id], references: [id])
 }
 
 model Staff {
-  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
-  user_id            String   @unique @db.ObjectId
-  role               String   // Groomer, Walker, Trainer, Receptionist, Admin
-  services_json      Json?    // Array of service categories they can handle
+  id                 String @id @default(auto()) @map("_id") @db.ObjectId
+  user_id            String @unique @db.ObjectId
+  role               String // Groomer, Walker, Trainer, Receptionist, Admin
+  services_json      Json? // Array of service categories they can handle
   working_hours_json Json?
   leave_dates_json   Json?
 
-  user               User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model Expense {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   date            DateTime
-  category        String   // Supplies, Staff, Marketing, Utilities, Other
+  category        String // Supplies, Staff, Marketing, Utilities, Other
   description     String
   amount          Float
-  mode            String   // Cash, Bank, UPI
+  mode            String // Cash, Bank, UPI
   reference       String?
   attachment_path String?
   created_by      String   @db.ObjectId
@@ -326,17 +330,30 @@ model Expense {
 }
 
 model Notification {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  user_id    String   @db.ObjectId
-  channel    String   // Email, SMS, Both
-  type       String   // Reminder, Confirmation, etc.
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  user_id    String    @db.ObjectId
+  channel    String // Email, SMS, Both
+  type       String // Reminder, Confirmation, etc.
   subject    String?
   body       String
-  status     String   @default("Pending") // Pending, Sent, Failed
+  status     String    @default("Pending") // Pending, Sent, Failed
   sent_at    DateTime?
-  created_at DateTime @default(now())
+  created_at DateTime  @default(now())
 
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  // Optional context for pet birthday / vaccination reminders. All backward-compatible.
+  pet_id              String?   @db.ObjectId
+  vaccination_id      String?   @db.ObjectId
+  template_key        String?
+  recipient           String?
+  provider_message_id String?
+  error_message       String?
+  scheduled_for       DateTime?
+  attempt_count       Int?      @default(0)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([pet_id])
+  @@index([type])
 }
 
 model Asset {
@@ -344,7 +361,7 @@ model Asset {
   filename      String
   original_name String
   path          String
-  category      String   // Services, Hero, Testimonials, Staff, General
+  category      String // Services, Hero, Testimonials, Staff, General
   document_type String?
   client_id     String?  @db.ObjectId
   pet_id        String?  @db.ObjectId
@@ -356,16 +373,16 @@ model Asset {
 }
 
 model OldDataImportJob {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  source_path     String?
-  status          String   @default("Pending")
-  mode            String   @default("Preview")
-  summary_json    Json?
-  report_json     Json?
-  error_message   String?
-  created_by      String?  @db.ObjectId
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  source_path   String?
+  status        String   @default("Pending")
+  mode          String   @default("Preview")
+  summary_json  Json?
+  report_json   Json?
+  error_message String?
+  created_by    String?  @db.ObjectId
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 }
 
 model OldClientHistory {
@@ -420,76 +437,137 @@ model AppSetting {
 }
 
 model Testimonial {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  pet_name    String?
-  pet_breed   String?
-  rating      Int      @default(5)
-  text        String
-  image       String?
-  is_active   Boolean  @default(true)
-  order       Int      @default(0)
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  pet_name   String?
+  pet_breed  String?
+  rating     Int      @default(5)
+  text       String
+  image      String?
+  is_active  Boolean  @default(true)
+  order      Int      @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model ClientRecord {
-  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
-  pet_id_number           Int?      // Pet ID from CSV
-  name                    String
-  phone                   String
-  email                   String?
-  pet_name                String?
-  pet_type                String?
-  breed                   String?
-  gender                  String?
-  pet_birthday            String?
-  address                 String?
-  latest_booking_date     String?
-  onboarding_date         String?
-  number_of_bookings      Int?      @default(0)
-  number_of_sessions      Int?      @default(0)
-  client_tags             String?
-  home_outlet             String?
-  coat                    String?
-  breed_size              String?
-  weight_kg               Float?
-  anti_rabies             String?
-  dhppil                  String?
-  corona                  String?
-  kennel_cough            String?
-  local_guardian_name     String?
-  local_guardian_contact  String?
-  status                  String?   @default("Active")
-  archive_reason          String?
-  pet_social_media        String?
-  consent_photos          String?
-  special_occasion        String?
-  special_occasion_date   String?
-  microchip_number        String?
-  adoption_status         String?
-  neutered_or_spayed      String?
-  last_heat_month         String?
-  last_heat_year          String?
-  first_walk_schedule     String?
-  second_walk_schedule    String?
-  third_walk_schedule     String?
-  dietary_preference      String?
-  additional_meals        String?
-  preferences_or_allergies String?
-  vaccination_status      String?
-  tick_prevention         String?
+  id                        String   @id @default(auto()) @map("_id") @db.ObjectId
+  pet_id_number             Int? // Pet ID from CSV
+  name                      String
+  phone                     String
+  email                     String?
+  pet_name                  String?
+  pet_type                  String?
+  breed                     String?
+  gender                    String?
+  pet_birthday              String?
+  address                   String?
+  latest_booking_date       String?
+  onboarding_date           String?
+  number_of_bookings        Int?     @default(0)
+  number_of_sessions        Int?     @default(0)
+  client_tags               String?
+  home_outlet               String?
+  coat                      String?
+  breed_size                String?
+  weight_kg                 Float?
+  anti_rabies               String?
+  dhppil                    String?
+  corona                    String?
+  kennel_cough              String?
+  local_guardian_name       String?
+  local_guardian_contact    String?
+  status                    String?  @default("Active")
+  archive_reason            String?
+  pet_social_media          String?
+  consent_photos            String?
+  special_occasion          String?
+  special_occasion_date     String?
+  microchip_number          String?
+  adoption_status           String?
+  neutered_or_spayed        String?
+  last_heat_month           String?
+  last_heat_year            String?
+  first_walk_schedule       String?
+  second_walk_schedule      String?
+  third_walk_schedule       String?
+  dietary_preference        String?
+  additional_meals          String?
+  preferences_or_allergies  String?
+  vaccination_status        String?
+  tick_prevention           String?
   last_tick_prevention_date String?
-  tick_prevention_method  String?
-  ongoing_medication      String?
-  medication_detail       String?
-  major_illness_history   String?
-  deworming_date          String?
-  veterinarian_name       String?
-  veterinarian_contact    String?
-  tc_accepted             String?
-  wallet_balance          Float?    @default(0)
-  outstanding_balance     Float?    @default(0)
-  created_at              DateTime  @default(now())
-  updated_at              DateTime  @updatedAt
+  tick_prevention_method    String?
+  ongoing_medication        String?
+  medication_detail         String?
+  major_illness_history     String?
+  deworming_date            String?
+  veterinarian_name         String?
+  veterinarian_contact      String?
+  tc_accepted               String?
+  wallet_balance            Float?   @default(0)
+  outstanding_balance       Float?   @default(0)
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pet Birthday & Vaccination Reminder System
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// One vaccination/treatment cycle for a pet. The authoritative source of the
+/// *next due date*. Administered dates from the legacy PetMedical model are
+/// backfilled into these records by scripts/migrate-pet-vaccinations.ts.
+model PetVaccination {
+  id                   String    @id @default(auto()) @map("_id") @db.ObjectId
+  pet_id               String    @db.ObjectId
+  vaccine_type         String // one of VACCINE_TYPES keys (see lib/reminders/vaccine-config)
+  custom_vaccine_name  String? // required when vaccine_type === "custom"
+  administered_date    DateTime?
+  next_due_date        DateTime
+  reminder_enabled     Boolean   @default(true)
+  reminder_days_json   Json? // optional per-record override of the global schedule (number[])
+  notes                String?
+  vet_name             String?
+  vet_contact          String?
+  certificate_asset_id String?   @db.ObjectId
+  certificate_path     String?
+  status               String    @default("Upcoming") // derived on read; stored as a hint only
+  completed_at         DateTime?
+  created_by           String?   @db.ObjectId
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+
+  pet Pet @relation(fields: [pet_id], references: [id], onDelete: Cascade)
+
+  @@index([pet_id])
+  @@index([next_due_date])
+  @@index([reminder_enabled])
+}
+
+/// Idempotent ledger of every reminder we attempt to deliver. The unique
+/// reminder_key is reserved atomically before an email is sent so the same
+/// reminder can never be sent twice, even under concurrent cron runs.
+model ReminderDelivery {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  reminder_key        String    @unique
+  user_id             String?   @db.ObjectId
+  pet_id              String?   @db.ObjectId
+  vaccination_id      String?   @db.ObjectId
+  reminder_type       String // birthday | birthday_greeting | vaccination_due_soon | ...
+  channel             String    @default("Email")
+  scheduled_for       DateTime
+  recipient           String?
+  subject             String?
+  status              String    @default("Pending") // Pending, Processing, Sent, Failed, Skipped
+  provider_message_id String?
+  error_message       String?
+  attempt_count       Int       @default(0)
+  sent_at             DateTime?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  @@index([scheduled_for])
+  @@index([status])
+  @@index([pet_id])
 }

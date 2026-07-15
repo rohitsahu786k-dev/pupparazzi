@@ -19,11 +19,21 @@ export const BUSINESS = {
 
 // ── Reusable HTML helpers ────────────────────────────────────────
 
+/** Escape user-supplied values before interpolating into email HTML. */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function statusBadge(label: string, bg: string, color: string) {
   return `<span style="display:inline-block;background:${bg};color:${color};font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:5px 14px;border-radius:100px;">${label}</span>`;
 }
 
-function infoRow(label: string, value: string) {
+export function infoRow(label: string, value: string) {
   return `
   <tr>
     <td style="padding:12px 0;border-bottom:1px solid #F1F5F9;font-size:13px;color:#64748B;font-weight:500;width:40%;vertical-align:top;">${label}</td>
@@ -31,7 +41,7 @@ function infoRow(label: string, value: string) {
   </tr>`;
 }
 
-function primaryButton(label: string, url: string) {
+export function primaryButton(label: string, url: string) {
   return `
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:32px 0;">
     <tr>
@@ -42,7 +52,7 @@ function primaryButton(label: string, url: string) {
   </table>`;
 }
 
-function sectionTitle(text: string) {
+export function sectionTitle(text: string) {
   return `<h2 style="margin:0 0 20px;font-size:13px;font-weight:700;color:#94A3B8;letter-spacing:0.12em;text-transform:uppercase;">${text}</h2>`;
 }
 
@@ -67,7 +77,7 @@ function couponOfferLine(coupon: CouponRule) {
 
 // ── Base Layout ─────────────────────────────────────────────────
 
-function baseLayout(body: string, preheader = "") {
+export function baseLayout(body: string, preheader = "") {
   const year = new Date().getFullYear();
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -833,10 +843,16 @@ interface MailOptions {
   to: string;
   subject: string;
   html: string;
+  text?: string;
+  replyTo?: string;
   attachments?: nodemailer.SendMailOptions["attachments"];
 }
 
-export async function sendMail({ to, subject, html, attachments }: MailOptions) {
+export type SendMailResult =
+  | { success: true; messageId?: string }
+  | { success: false; error: string };
+
+export async function sendMail({ to, subject, html, text, replyTo, attachments }: MailOptions): Promise<SendMailResult> {
   try {
     const smtp = await getSetting("smtp", DEFAULT_SMTP_SETTINGS);
     const transporter = nodemailer.createTransport({
@@ -851,8 +867,10 @@ export async function sendMail({ to, subject, html, attachments }: MailOptions) 
     const info = await transporter.sendMail({
       from: `"${smtp.fromName || BUSINESS.name}" <${smtp.fromEmail || smtp.user || process.env.GMAIL_USER}>`,
       to,
+      replyTo: replyTo || process.env.SMTP_REPLY_TO || undefined,
       subject,
       html,
+      text,
       attachments,
     });
     console.log("Email sent:", info.messageId);

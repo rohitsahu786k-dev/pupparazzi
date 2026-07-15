@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronUp, Loader2, PawPrint, Search, Trash2 } from "lucide-react";
+import VaccinationManager from "@/components/reminders/vaccination-manager";
 
 type Pet = {
   id: string;
@@ -12,6 +13,9 @@ type Pet = {
   type: string;
   breed?: string | null;
   gender?: string | null;
+  dob?: string | null;
+  dob_is_estimated?: boolean | null;
+  birthday_reminder_enabled?: boolean | null;
   weight?: number | null;
   coat_type?: string | null;
   size?: string | null;
@@ -207,6 +211,9 @@ export default function AdminPetsPage() {
                               </select>
                               <Input defaultValue={pet.breed || ""} placeholder="Breed" onBlur={(e) => updatePet(pet.id, { breed: e.target.value })} className="h-9" />
                             </div>
+                            <label className="block text-xs text-muted-foreground">Date of birth
+                              <Input type="date" defaultValue={pet.dob ? pet.dob.slice(0, 10) : ""} onBlur={(e) => updatePet(pet.id, { dob: e.target.value || null })} className="mt-1 h-9" />
+                            </label>
                           </div>
                           <div className="space-y-2">
                             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Care profile</p>
@@ -229,6 +236,16 @@ export default function AdminPetsPage() {
                               Delete pet
                             </Button>
                           </div>
+                        </div>
+                        <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+                          <VaccinationManager
+                            petId={pet.id}
+                            petName={pet.name}
+                            dob={pet.dob ?? null}
+                            dobIsEstimated={Boolean(pet.dob_is_estimated)}
+                            birthdayReminderEnabled={pet.birthday_reminder_enabled ?? true}
+                            isOperations
+                          />
                         </div>
                       </td>
                     </tr>

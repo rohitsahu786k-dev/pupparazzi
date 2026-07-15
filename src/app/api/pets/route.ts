@@ -20,6 +20,7 @@ export async function POST(req: Request) {
       profile_photo, photos_array,
       local_guardian_name, local_guardian_contact, tc_accepted,
       walk_schedule_1, walk_schedule_2, walk_schedule_3,
+      birthday_reminder_enabled, dob_is_estimated,
       // Medical info
       vaccination_status, vet_name, vet_contact, ongoing_medication,
       medication_detail, illness_history,
@@ -30,6 +31,10 @@ export async function POST(req: Request) {
     }
     if (!isOperations(session.user.role) && owner_id !== session.user.id) {
       return NextResponse.json({ message: "You can only create pets for your own account" }, { status: 403 });
+    }
+    const dobDate = dob ? new Date(dob) : null;
+    if (dobDate && (Number.isNaN(dobDate.getTime()) || dobDate.getTime() > Date.now())) {
+      return NextResponse.json({ message: "Date of birth must be a valid past date" }, { status: 400 });
     }
 
     // Verify owner exists
@@ -45,7 +50,9 @@ export async function POST(req: Request) {
         type,
         breed: breed || null,
         gender: gender || null,
-        dob: dob ? new Date(dob) : null,
+        dob: dobDate,
+        dob_is_estimated: dob_is_estimated ?? false,
+        birthday_reminder_enabled: birthday_reminder_enabled ?? true,
         weight: weight ? parseFloat(weight) : null,
         coat_type: coat_type || null,
         size: size || null,
@@ -121,11 +128,29 @@ export async function PUT(req: Request) {
       return NextResponse.json({ message: "You can only update your own pet" }, { status: 403 });
     }
 
-    const { medical, owner, bookings, ...safeUpdateData } = updateData;
+    const { medical, owner, bookings, vaccinations, dob, ...safeUpdateData } = updateData;
+
+    // Coerce dob (arrives as an ISO/date string from the form) and guard the future.
+    let dobUpdate: Record<string, unknown> = {};
+    if (dob !== undefined) {
+      const dobDate = dob ? new Date(dob) : null;
+      if (dobDate && (Number.isNaN(dobDate.getTime()) || dobDate.getTime() > Date.now())) {
+        return NextResponse.json({ message: "Date of birth must be a valid past date" }, { status: 400 });
+      }
+      dobUpdate = { dob: dobDate };
+    }
+    if (safeUpdateData.birthday_reminder_enabled !== undefined) {
+      safeUpdateData.birthday_reminder_enabled = Boolean(safeUpdateData.birthday_reminder_enabled);
+    }
+    if (safeUpdateData.dob_is_estimated !== undefined) {
+      safeUpdateData.dob_is_estimated = Boolean(safeUpdateData.dob_is_estimated);
+    }
+
     const pet = await prisma.pet.update({
       where: { id },
       data: {
         ...safeUpdateData,
+        ...dobUpdate,
         updated_at: new Date(),
       },
       include: { medical: true },

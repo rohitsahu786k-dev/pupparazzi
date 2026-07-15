@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera, Loader2, PawPrint, Plus } from "lucide-react";
+import { Camera, ChevronDown, ChevronUp, Loader2, PawPrint, Plus } from "lucide-react";
+import VaccinationManager from "@/components/reminders/vaccination-manager";
 
 type Pet = {
   id: string;
@@ -13,6 +14,8 @@ type Pet = {
   breed?: string | null;
   gender?: string | null;
   dob?: string | null;
+  dob_is_estimated?: boolean | null;
+  birthday_reminder_enabled?: boolean | null;
   weight?: number | null;
   profile_photo?: string | null;
   photos_array?: string[] | null;
@@ -25,8 +28,9 @@ export default function DashboardPetsPage() {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ name: "", type: "Dog", breed: "", gender: "", weight: "", vaccination_status: "" });
+  const [form, setForm] = useState({ name: "", type: "Dog", breed: "", gender: "", weight: "", dob: "", vaccination_status: "" });
   const [photo, setPhoto] = useState<File | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function fetchPets() {
     if (!session?.user?.id) return;
@@ -71,6 +75,7 @@ export default function DashboardPetsPage() {
           breed: form.breed,
           gender: form.gender,
           weight: form.weight,
+          dob: form.dob || null,
           vaccination_status: form.vaccination_status,
           profile_photo: photoUrl || undefined,
           photos_array: photoUrl ? [photoUrl] : [],
@@ -79,7 +84,7 @@ export default function DashboardPetsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Unable to add pet");
-      setForm({ name: "", type: "Dog", breed: "", gender: "", weight: "", vaccination_status: "" });
+      setForm({ name: "", type: "Dog", breed: "", gender: "", weight: "", dob: "", vaccination_status: "" });
       setPhoto(null);
       setShowForm(false);
       await fetchPets();
@@ -120,6 +125,10 @@ export default function DashboardPetsPage() {
               <option>Female</option>
             </select>
             <Input placeholder="Weight kg" inputMode="decimal" value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value.replace(/[^\d.]/g, "") })} />
+            <label className="flex h-11 items-center gap-2 rounded-lg border bg-white px-3 text-sm text-muted-foreground">
+              <span className="whitespace-nowrap">Born</span>
+              <input type="date" max={new Date().toISOString().slice(0, 10)} value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="w-full bg-transparent outline-none" />
+            </label>
             <select value={form.vaccination_status} onChange={(e) => setForm({ ...form, vaccination_status: e.target.value })} className="h-11 rounded-lg border bg-white px-3 text-sm">
               <option value="">Vaccination status</option>
               <option>Vaccinated</option>
@@ -155,8 +164,10 @@ export default function DashboardPetsPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {pets.map((pet) => (
-            <div key={pet.id} className="rounded-lg border bg-white p-5">
+          {pets.map((pet) => {
+            const isExpanded = expandedId === pet.id;
+            return (
+            <div key={pet.id} className={`rounded-lg border bg-white p-5 ${isExpanded ? "sm:col-span-2 lg:col-span-3" : ""}`}>
               <div className="flex items-center gap-3">
                 {pet.profile_photo ? (
                   <img src={pet.profile_photo} alt={pet.name} className="h-12 w-12 rounded-full object-cover" />
@@ -165,12 +176,15 @@ export default function DashboardPetsPage() {
                     <PawPrint className="h-5 w-5" />
                   </div>
                 )}
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="font-bold">{pet.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {[pet.type, pet.breed, pet.gender].filter(Boolean).join(" · ")}
                   </p>
                 </div>
+                <Button size="sm" variant="ghost" onClick={() => setExpandedId(isExpanded ? null : pet.id)} aria-label="Health and reminders">
+                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
               </div>
               {(pet.weight || pet.dob) && (
                 <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
@@ -178,8 +192,19 @@ export default function DashboardPetsPage() {
                   {pet.dob && <span>Born {new Date(pet.dob).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>}
                 </div>
               )}
+              {isExpanded && (
+                <div className="mt-4 border-t pt-4">
+                  <VaccinationManager
+                    petId={pet.id}
+                    petName={pet.name}
+                    dob={pet.dob ?? null}
+                    dobIsEstimated={Boolean(pet.dob_is_estimated)}
+                    birthdayReminderEnabled={pet.birthday_reminder_enabled ?? true}
+                  />
+                </div>
+              )}
             </div>
-          ))}
+          );})}
         </div>
       )}
     </div>
