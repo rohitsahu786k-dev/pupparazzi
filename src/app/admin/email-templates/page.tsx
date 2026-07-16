@@ -32,10 +32,13 @@ export default function EmailTemplatesPage() {
     if (res.ok) {
       const data: TemplateSummary[] = await res.json();
       setList(data);
-      if (!activeKey && data.length) setActiveKey(data[0].key);
+      // Select the first template only if none is chosen yet (functional guard
+      // avoids depending on activeKey, so selecting a template never re-fetches
+      // the whole list).
+      setActiveKey((cur) => cur || (data.length ? data[0].key : null));
     } else setError("Unable to load templates.");
     setLoading(false);
-  }, [activeKey]);
+  }, []);
 
   const loadDetail = useCallback(async (key: string) => {
     const res = await fetch(`/api/admin/email-templates/${key}`);

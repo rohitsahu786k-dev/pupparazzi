@@ -410,14 +410,28 @@ export async function runReminderProcessor(options: { now?: Date; trigger?: stri
   }
 
   // ── One consolidated delivery-failure alert (uses the editable template) ─────
+  // Reserved with a per-day key so repeated runs (e.g. admin "Run now" spam or a
+  // frequent cron) can never send more than one alert per day.
   if (failed > 0 && hasAdminRecipient) {
-    const alert = deliveryFailureEmail({
-      brand, reminderType: "daily reminder run", recipient: adminRecipient,
-      petName: "—", ownerName: "—",
-      errorMessage: `${failed} reminder delivery(ies) failed today. See Admin → Reminders → Delivery history for details.`,
-    }, overrides);
-    if (alert.active) {
-      await sendMail({ to: adminRecipient, subject: alert.subject, html: alert.html, text: alert.text, replyTo: brand.replyTo }).catch(() => {});
+    const alertKey = `delivery_failure_alert:${today.toISOString().slice(0, 10)}`;
+    const reserve = await reserveDelivery(alertKey, {
+      reminder_type: "delivery_failure", scheduled_for: today, recipient: adminRecipient,
+    });
+    if (reserve.action === "send") {
+      const alert = deliveryFailureEmail({
+        brand, reminderType: "daily reminder run", recipient: adminRecipient,
+        petName: "—", ownerName: "—",
+        errorMessage: `${failed} reminder delivery(ies) failed today. See Admin → Reminders → Delivery history for details.`,
+      }, overrides);
+      if (alert.active) {
+        const res = await sendMail({ to: adminRecipient, subject: alert.subject, html: alert.html, text: alert.text, replyTo: brand.replyTo });
+        await prisma.reminderDelivery.update({
+          where: { id: reserve.deliveryId },
+          data: res.success ? { status: "Sent", sent_at: new Date() } : { status: "Failed", error_message: res.error.slice(0, 300) },
+        }).catch(() => {});
+      } else {
+        await markSkipped(alertKey, "Template disabled");
+      }
     }
   }
 
