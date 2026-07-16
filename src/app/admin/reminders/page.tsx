@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Play, RefreshCw, Cake, Syringe, AlertTriangle, Mail, XCircle, BellOff } from "lucide-react";
 import type { ReminderSettings } from "@/lib/reminders/settings";
+import { VACCINE_TYPE_OPTIONS } from "@/lib/reminders/vaccine-config";
 
 type Summary = {
   timezone: string;
@@ -52,7 +53,25 @@ export default function AdminRemindersPage() {
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [vaccineType, setVaccineType] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [q, setQ] = useState("");
+  const [qInput, setQInput] = useState("");
   const pageSize = 25;
+
+  // Restore filters from the URL query on first mount (deep-linkable).
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    setTypeFilter(sp.get("type") || "");
+    setStatusFilter(sp.get("status") || "");
+    setVaccineType(sp.get("vaccineType") || "");
+    setFrom(sp.get("from") || "");
+    setTo(sp.get("to") || "");
+    setQ(sp.get("q") || "");
+    setQInput(sp.get("q") || "");
+    setPage(Math.max(1, Number(sp.get("page")) || 1));
+  }, []);
 
   const loadSummary = useCallback(async () => {
     const res = await fetch("/api/admin/reminders/summary");
@@ -68,9 +87,15 @@ export default function AdminRemindersPage() {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (typeFilter) params.set("type", typeFilter);
     if (statusFilter) params.set("status", statusFilter);
+    if (vaccineType) params.set("vaccineType", vaccineType);
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (q) params.set("q", q);
+    // Keep the URL in sync so filters are shareable/bookmarkable.
+    window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
     const res = await fetch(`/api/admin/reminders/deliveries?${params}`);
     if (res.ok) { const data = await res.json(); setDeliveries(data.items); setTotal(data.total); }
-  }, [page, typeFilter, statusFilter]);
+  }, [page, typeFilter, statusFilter, vaccineType, from, to, q]);
 
   useEffect(() => { loadSummary(); loadSettings(); }, [loadSummary, loadSettings]);
   useEffect(() => { loadDeliveries(); }, [loadDeliveries]);
@@ -176,13 +201,27 @@ export default function AdminRemindersPage() {
       {/* Deliveries */}
       <div className="rounded-lg border bg-white">
         <div className="flex flex-wrap items-center gap-2 border-b p-4">
-          <p className="mr-auto font-semibold">Delivery history</p>
+          <p className="w-full font-semibold sm:mr-auto sm:w-auto">Delivery history</p>
+          <form onSubmit={(e) => { e.preventDefault(); setPage(1); setQ(qInput.trim()); }} className="flex items-center gap-1">
+            <input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="Search pet, owner, email, phone, vaccine…"
+              className="h-9 w-56 rounded-lg border bg-white px-2 text-xs" />
+            <Button size="sm" variant="outline" type="submit">Search</Button>
+          </form>
           <select value={typeFilter} onChange={(e) => { setPage(1); setTypeFilter(e.target.value); }} className="h-9 rounded-lg border bg-white px-2 text-xs">
             {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t || "All types"}</option>)}
           </select>
           <select value={statusFilter} onChange={(e) => { setPage(1); setStatusFilter(e.target.value); }} className="h-9 rounded-lg border bg-white px-2 text-xs">
             {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s || "All statuses"}</option>)}
           </select>
+          <select value={vaccineType} onChange={(e) => { setPage(1); setVaccineType(e.target.value); }} className="h-9 rounded-lg border bg-white px-2 text-xs">
+            <option value="">All vaccines</option>
+            {VACCINE_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <input type="date" value={from} onChange={(e) => { setPage(1); setFrom(e.target.value); }} title="From date" className="h-9 rounded-lg border bg-white px-2 text-xs" />
+          <input type="date" value={to} onChange={(e) => { setPage(1); setTo(e.target.value); }} title="To date" className="h-9 rounded-lg border bg-white px-2 text-xs" />
+          {(typeFilter || statusFilter || vaccineType || from || to || q) && (
+            <Button size="sm" variant="ghost" onClick={() => { setPage(1); setTypeFilter(""); setStatusFilter(""); setVaccineType(""); setFrom(""); setTo(""); setQ(""); setQInput(""); }}>Clear</Button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-200 text-left text-sm">

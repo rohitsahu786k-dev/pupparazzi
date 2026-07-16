@@ -86,21 +86,45 @@ This file is the source of truth for continuing the work. Update it as you go.
 - `prisma format` / `validate` / `generate`: PASS.
 - `next build` / `eslint`: see final session report.
 
-## Remaining / not done this session (tracked for continuation)
-These were intentionally deferred (session scoped to "working backend core first"):
-- **DB-backed email template editor UI** (§8.4). Current templates are strong typed defaults in
-  code (consistent with every other email in this app). To make them admin-editable, add an
-  `EmailTemplate` model or `AppSetting("email_templates")` + a render layer + editor page.
-- **Certificate upload wired into the vaccination form.** The schema + API accept
-  `certificate_asset_id`/`certificate_path`; reuse `/api/upload` + `Asset` to attach files in
-  the manager UI (fields exist, upload control not yet added).
-- **Admin summary "overdue" count** in the summary email is currently 0 (candidate counts are
-  passed instead); wire the real overdue count if needed.
-- **Mobile expanded row in `admin/pets`** shows the manager only in the desktop table view;
-  add it to the mobile card block too for full parity.
-- Broader admin dashboard filters (client/vaccine-type/date-range search) beyond type+status.
+## Completed in the verification/completion pass (all 12 review items)
+- **DB-backed email template editor** (§2): `src/lib/reminders/email-templates.ts`
+  (`AppSetting("email_templates")` overrides + `renderTemplate` with `{{var}}` substitution,
+  HTML-escaping of scalars, RAW fragment allow-list, disabled-template + blank-field fallback).
+  APIs under `/api/admin/email-templates` (list/get/put/preview/test/reset). Editor page
+  `src/app/admin/email-templates/page.tsx` (subject/HTML/text editors, variable reference,
+  sandboxed preview, send test, restore default, enable/disable). The engine
+  (`emails.ts` → `processor.ts`/`notify.ts`) renders via these templates.
+- **Certificate upload** (§3): wired into `vaccination-manager.tsx` (add/edit/complete) via the
+  existing `/api/upload` + `Asset` system (2 MB, PDF/JPG/PNG/WebP, server-side MIME + ownership).
+  View/replace/remove supported; stored as `certificate_asset_id` + `certificate_path`.
+- **Automated tests** (§4/§17): Vitest suites in `src/__tests__/` (26 tests): dates (age, next
+  birthday, Feb-29 feb28+mar1, IST midnight boundary), status derivation (all 6), reminder
+  idempotency + retry + double-fire, template rendering/escaping/fallback/disabled, permissions
+  (own vs other pet, admin), CRUD validation + serialization. `npm test` runs them; GHA CI in
+  `.github/workflows/ci.yml` runs prisma validate/generate + lint + test + build.
+- **Legacy `ClientRecord` migration** (§5): `scripts/migrate-client-record-reminders.ts` REWRITTEN
+  with a STRICT date parser — never guesses DD/MM vs MM/DD, rejects yearless strings, reports
+  ambiguous/invalid, handles `pet_birthday` → `Pet.dob`, writes a JSON report to
+  `scripts/reports/`. NOTE: the legacy vaccine columns are yearless ("Mar 01") / junk, so the
+  strict parser correctly imports **0** rows (inventing a year is forbidden). A prior broken run
+  had written 827 fabricated year-1999/2001 records to the live DB; these were backed up to
+  `scripts/reports/deleted-clientrecord-vaccinations-*.json` and deleted. `PetVaccination` is clean.
+- **Overdue count** (§6): `processor.ts` now computes real `birthdaysToday/next7`,
+  `vaccinationsDueToday/next7`, `vaccinationsOverdue` and passes them to the summary email.
+- **Mobile admin pet view** (§7): the vaccination manager + DOB input now render in BOTH the
+  desktop table row and the mobile card in `admin/pets`.
+- **Dashboard filters** (§8): `/api/admin/reminders/deliveries` supports type, status, date range,
+  petId, clientId, vaccineType, and free-text `q` (pet/owner/email/phone/vaccine) — all
+  server-side. The admin reminders page exposes search + all filters and persists them in the URL.
+- **Cron/email readiness** (§10): cron route is Node runtime, `CRON_SECRET`-enforced (401 without
+  it), retry capped at 3, idempotent unique key. Production is a **VPS (CyberPanel), not Vercel**,
+  so `vercel.json` is inert there; the daily job runs via an OS crontab entry (03:30 UTC = 09:00
+  IST). The pre-existing `/api/cron/bookings` is NOT scheduled on the VPS crontab and is unrelated
+  to this feature — intentionally left untouched (adding it to `vercel.json` would do nothing on
+  the VPS and could double-trigger if an external scheduler already calls it). Flagged for the owner.
 
-## Completed Deferred Items
-- **Automated test suite** (§17): Implemented robust Vitest suites covering dates, permissions, reminders, templates, and CRUD serialization. Added GHA CI workflow for automated testing on PRs/pushes.
-- **Legacy `ClientRecord` import utility** (§10): Created `scripts/migrate-client-record-reminders.ts` and successfully migrated 455 legacy records to the live database with full idempotency.
+## Production DB state (live MongoDB)
+- Schema synced via `prisma db push` (collections + `ReminderDelivery.reminder_key` unique index).
+- `PetVaccination`: 0 rows (garbage import removed; strict re-migration imports 0 by design).
+- `Pet.dob`: 808 pets — pre-existing app data, untouched.
 

@@ -54,24 +54,63 @@ npx prisma generate      # regenerate the client (adds PetVaccination, ReminderD
 npx prisma db push       # sync new collections/indexes to MongoDB
 ```
 
-### Backfill legacy vaccination dates
+### Tests
+
+```bash
+npm test        # Vitest: dates, status, idempotency, templates, permissions, CRUD
+```
+
+CI (`.github/workflows/ci.yml`) runs prisma validate/generate + lint + test + build on PRs/pushes.
+
+### Backfill legacy data
+
+From `PetMedical` administered dates:
 
 ```bash
 npx tsx scripts/migrate-pet-vaccinations.ts           # dry run (no writes)
 npx tsx scripts/migrate-pet-vaccinations.ts --apply   # write PetVaccination records
 ```
 
+From legacy `ClientRecord` fields (vaccine dates + `pet_birthday` → `Pet.dob`):
+
+```bash
+npx tsx scripts/migrate-client-record-reminders.ts           # dry run + JSON report
+npx tsx scripts/migrate-client-record-reminders.ts --apply   # write records
+```
+
+The ClientRecord importer parses dates **strictly** — it never guesses DD/MM vs MM/DD and
+rejects yearless strings, reporting ambiguous/invalid values in a report under
+`scripts/reports/` rather than inventing dates. (In the current dataset the legacy vaccine
+columns are yearless, so it correctly imports 0 rows.)
+
 ### Cron setup
 
-`vercel.json` runs `/api/cron/reminders` daily at `30 3 * * *` UTC (09:00 IST). When
-`CRON_SECRET` is set, callers must send `Authorization: Bearer <CRON_SECRET>`. Admins can
-also trigger a run from **Admin → Reminders → Run reminders now**.
+`vercel.json` runs `/api/cron/reminders` daily at `30 3 * * *` UTC (09:00 IST) **on Vercel**.
+This project is deployed on a **VPS (CyberPanel), not Vercel**, so the job is driven by an OS
+crontab entry instead:
+
+```cron
+30 3 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/reminders
+```
+
+When `CRON_SECRET` is set, callers must send `Authorization: Bearer <CRON_SECRET>` (unauthenticated
+calls get 401). Admins can also trigger a run from **Admin → Reminders → Run reminders now**.
+Note: the separate `/api/cron/bookings` job is not part of this feature and is scheduled by its
+own trigger; it is intentionally not added to `vercel.json`.
 
 ### Email templates / test emails
 
-Reminder templates are typed defaults in `src/lib/reminders/emails.ts`. Send a test copy of a
-vaccination reminder from the pet profile (staff/admin: the **Test** action). Verify SMTP via
-**Admin → Settings → Test email**.
+Reminder emails are editable at **Admin → Email Templates** (subject, HTML body, plain-text body,
+enable/disable, variable reference, sandboxed preview, send test, restore default). Overrides are
+stored in `AppSetting("email_templates")`; blank fields and disabled templates fall back safely to
+the built-in defaults in `src/lib/reminders/email-templates.ts`. The reminder engine always renders
+through this layer. Verify SMTP via **Admin → Settings → Test email**.
+
+### Vaccination certificates
+
+Upload a certificate (PDF/JPG/PNG/WebP, ≤ 2 MB) when adding, editing, or completing a vaccination
+in the pet's **Vaccination & Reminders** panel. Files go through the existing `/api/upload` + `Asset`
+system with server-side type/size validation and ownership checks; view/replace/remove are supported.
 
 ### Troubleshooting
 

@@ -93,11 +93,33 @@ management lives on the pet profile (Admin → Pets → expand a pet).
 Dashboard → **My Pets** → expand a pet: see age + next birthday, toggle birthday reminders,
 and manage vaccination records (add, edit, mark complete, reschedule, view history).
 
+## Email templates (admin-editable)
+
+Reminder emails render through `src/lib/reminders/email-templates.ts`. Each template key has a
+built-in default (subject / HTML body / text body with `{{variable}}` placeholders). Admins edit
+overrides at **Admin → Email Templates**, stored under `AppSetting("email_templates")`.
+
+- Scalar variables are HTML-escaped; a small allow-list (`RAW_VARIABLES`: `petPhotoBlock`,
+  `detailsTable`, `ctaButton`, `footerNote`, `summaryTable`) is injected as server-generated HTML.
+- Blank override fields and disabled templates fall back to the built-in default; a disabled
+  template is not sent (`renderTemplate` returns `active: false` and the engine skips it).
+- Preview is rendered with sample data and sanitized (scripts/handlers stripped) inside a
+  sandboxed iframe. APIs: `GET /api/admin/email-templates`, `GET|PUT /…/:key`,
+  `POST /…/:key/{preview,test,reset}`.
+- The cron engine (`processor.ts`) and on-demand sends (`notify.ts`) load overrides once and pass
+  them to the builders in `emails.ts`, so scheduled and manual mail both honour saved templates.
+
 ## Migration / backfill
 
-`npx tsx scripts/migrate-pet-vaccinations.ts` (dry run) → `--apply` to write. Idempotently
-converts `PetMedical` administered dates into `PetVaccination` records; existing records are
-never duplicated and legacy data is never modified.
+Two idempotent, dry-run-by-default scripts (never modify legacy source data):
+
+- `scripts/migrate-pet-vaccinations.ts` — converts `PetMedical` administered dates into
+  `PetVaccination` records. `--apply` to write.
+- `scripts/migrate-client-record-reminders.ts` — converts legacy `ClientRecord` vaccine dates +
+  `pet_birthday`. Uses a **strict** date parser: it never guesses DD/MM vs MM/DD, rejects yearless
+  strings, and writes a JSON report (`scripts/reports/`) counting migrated / skipped / ambiguous /
+  invalid / unmatched. It imports 0 when the source dates are not unambiguous full dates — inventing
+  a year is treated as a data-integrity error, not a convenience.
 
 ## Rollback
 
