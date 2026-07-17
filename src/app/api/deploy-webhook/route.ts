@@ -31,6 +31,7 @@ LOG="${DEPLOY_LOG}"
 LOCK="${DEPLOY_TMP}/deploy-webhook.lock"
 APP="${APP_DIR}"
 export PATH="${PATH_VALUE}"
+export NPM_CONFIG_PRODUCTION=false
 
 mkdir -p "$(dirname "$LOG")" "${DEPLOY_TMP}"
 exec >> "$LOG" 2>&1
@@ -47,7 +48,7 @@ trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
 cd "$APP"
 git fetch origin master
 git reset --hard origin/master
-npm ci
+npm ci --include=dev
 npx prisma db push
 npm run build
 
