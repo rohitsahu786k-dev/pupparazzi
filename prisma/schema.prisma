@@ -619,7 +619,6 @@ model EmailLog {
   related_user_id     String?   @db.ObjectId
   related_pet_id      String?   @db.ObjectId
   related_booking_id  String?   @db.ObjectId
-  related_campaign_id String?   @db.ObjectId
   status              String    @default("Queued") // Queued | Sent | Failed | Skipped
   queued_at           DateTime  @default(now())
   attempted_at        DateTime?
@@ -636,63 +635,4 @@ model EmailLog {
   @@index([recipient])
   @@index([status])
   @@index([related_user_id])
-  @@index([related_campaign_id])
-}
-
-model EmailCampaign {
-  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
-  campaign_type           String
-  status                  String    @default("Draft") // Draft | Running | Paused | Stopped | Completed
-  started_at              DateTime?
-  completed_at            DateTime?
-  paused_at               DateTime?
-  daily_cap               Int?
-  reserved_quota          Int       @default(50)
-  provider_daily_quota    Int?
-  provider_daily_used     Int       @default(0)
-  total_eligible          Int       @default(0)
-  queued                  Int       @default(0)
-  sent                    Int       @default(0)
-  delivered               Int       @default(0)
-  failed                  Int       @default(0)
-  skipped                 Int       @default(0)
-  activated               Int       @default(0)
-  created_by              String?   @db.ObjectId
-  created_at              DateTime  @default(now())
-  updated_at              DateTime  @updatedAt
-
-  recipients EmailCampaignRecipient[]
-
-  @@index([campaign_type])
-  @@index([status])
-}
-
-model EmailCampaignRecipient {
-  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
-  campaign_id             String    @db.ObjectId
-  user_id                 String    @db.ObjectId
-  email                   String
-  status                  String    @default("Queued") // Queued | Processing | Sent | Failed | Skipped | Activated
-  queued_at               DateTime  @default(now())
-  attempted_at            DateTime?
-  sent_at                 DateTime?
-  provider_message_id     String?
-  attempt_count           Int       @default(0)
-  next_attempt_at         DateTime?
-  last_error              String?
-  skipped_reason          String?
-  activation_status       String    @default("Pending")
-  token_reference         String?
-  excluded_at             DateTime?
-  created_at              DateTime  @default(now())
-  updated_at              DateTime  @updatedAt
-
-  campaign EmailCampaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
-
-  @@unique([campaign_id, user_id])
-  @@index([campaign_id])
-  @@index([user_id])
-  @@index([email])
-  @@index([status])
-  @@index([next_attempt_at])
 }

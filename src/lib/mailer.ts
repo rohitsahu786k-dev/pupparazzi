@@ -850,24 +850,7 @@ interface MailOptions {
   relatedUserId?: string | null;
   relatedPetId?: string | null;
   relatedBookingId?: string | null;
-  relatedCampaignId?: string | null;
   idempotencyKey?: string | null;
-}
-
-export function portalActivationEmailHtml(data: { userName: string; setupUrl: string; expiresMinutes: number }) {
-  const body = `
-    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:36px 48px 32px;text-align:center;">
-      <h1 style="margin:0 0 10px;font-size:30px;font-weight:800;color:#FFFFFF;line-height:1.2;">Set up your Pupparazzi account</h1>
-      <p style="margin:0;font-size:16px;color:#94A3B8;">Your existing records are now available on our new platform.</p>
-    </div>
-    <div style="padding:40px 48px;" class="email-card">
-      <p style="margin:0 0 18px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${escapeHtml(data.userName)}</strong>,</p>
-      <p style="margin:0 0 18px;font-size:15px;color:#475569;line-height:1.7;">Your Pupparazzi customer profile, pet details, and service records have been moved to our secure online portal. Please use the one-time link below to create or reset your password.</p>
-      <p style="margin:0 0 24px;font-size:13px;color:#64748B;line-height:1.6;">This secure link expires in <strong>${data.expiresMinutes} minutes</strong>. If it expires, use the normal forgot-password option or contact us at <a href="mailto:${BUSINESS.email}" style="color:#EC4899;text-decoration:none;">${BUSINESS.email}</a>.</p>
-      ${primaryButton("Set Up My Account", data.setupUrl)}
-      <p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">This message is from ${BUSINESS.name}. We will never ask you to share your password by email.</p>
-    </div>`;
-  return baseLayout(body, `Set up your ${BUSINESS.shortName} portal account`);
 }
 
 export type SendMailResult =
@@ -900,7 +883,6 @@ async function reserveEmailLog(options: MailOptions) {
         related_user_id: options.relatedUserId || null,
         related_pet_id: options.relatedPetId || null,
         related_booking_id: options.relatedBookingId || null,
-        related_campaign_id: options.relatedCampaignId || null,
         attempted_at: new Date(),
         attempt_count: 1,
       },
@@ -938,7 +920,6 @@ async function writeEmailLog(options: MailOptions, result: SendMailResult, reser
         related_user_id: options.relatedUserId || null,
         related_pet_id: options.relatedPetId || null,
         related_booking_id: options.relatedBookingId || null,
-        related_campaign_id: options.relatedCampaignId || null,
         idempotency_key: options.idempotencyKey || undefined,
         attempted_at: new Date(),
         attempt_count: 1,
@@ -1055,20 +1036,6 @@ export async function sendPasswordResetEmail(to: string, data: Parameters<typeof
     subject: `Reset your ${BUSINESS.shortName} password`,
     html: passwordResetEmailHtml(data),
     emailType: "password_reset",
-  });
-}
-
-export async function sendPortalActivationEmail(
-  to: string,
-  data: Parameters<typeof portalActivationEmailHtml>[0],
-  meta?: Pick<MailOptions, "relatedUserId" | "relatedCampaignId" | "idempotencyKey">
-) {
-  return sendMail({
-    to,
-    subject: `Set up your ${BUSINESS.shortName} account`,
-    html: portalActivationEmailHtml(data),
-    emailType: "portal_activation",
-    ...meta,
   });
 }
 
