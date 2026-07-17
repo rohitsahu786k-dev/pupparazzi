@@ -41,6 +41,23 @@ describe("Vaccination CRUD & Validation logic", () => {
     }
   });
 
+  it("validates admin-managed vaccine types selected from master data", () => {
+    const res = validateVaccination({
+      vaccine_type_id: "60c72b2f9b1d8b2d88888888",
+      vaccine_type: "leptospirosis-booster",
+      type_display_name: "Leptospirosis Booster",
+      category: "vaccine",
+      next_due_date: "2026-08-20",
+    });
+
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.data.vaccine_type).toBe("leptospirosis-booster");
+      expect(res.data.vaccine_type_id).toBe("60c72b2f9b1d8b2d88888888");
+      expect(res.data.type_display_name).toBe("Leptospirosis Booster");
+    }
+  });
+
   it("fails validation if administered date is after next due date", () => {
     const input = {
       vaccine_type: "anti_rabies",

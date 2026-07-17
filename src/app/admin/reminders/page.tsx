@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Play, RefreshCw, Cake, Syringe, AlertTriangle, Mail, XCircle, BellOff } from "lucide-react";
 import type { ReminderSettings } from "@/lib/reminders/settings";
-import { VACCINE_TYPE_OPTIONS } from "@/lib/reminders/vaccine-config";
 
 type Summary = {
   timezone: string;
@@ -24,6 +23,12 @@ type Delivery = {
   id: string; reminder_type: string; status: string; recipient: string | null; subject: string | null;
   scheduled_for: string; sent_at: string | null; error_message: string | null; created_at: string;
   pet_name: string | null; owner_name: string | null; owner_email: string | null;
+};
+
+type VaccineOption = {
+  id: string;
+  key: string;
+  display_name: string;
 };
 
 const TYPE_OPTIONS = ["", "birthday", "birthday_greeting", "vaccination_due_soon", "vaccination_due_today", "vaccination_overdue", "vaccination_manual", "admin_summary"];
@@ -49,6 +54,7 @@ export default function AdminRemindersPage() {
   const [showSettings, setShowSettings] = useState(false);
 
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [vaccineOptions, setVaccineOptions] = useState<VaccineOption[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState("");
@@ -99,6 +105,12 @@ export default function AdminRemindersPage() {
 
   useEffect(() => { loadSummary(); loadSettings(); }, [loadSummary, loadSettings]);
   useEffect(() => { loadDeliveries(); }, [loadDeliveries]);
+  useEffect(() => {
+    fetch("/api/vaccine-treatment-types")
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setVaccineOptions(Array.isArray(data) ? data : []))
+      .catch(() => setVaccineOptions([]));
+  }, []);
 
   function flash(msg: string) { setNotice(msg); setTimeout(() => setNotice(""), 5000); }
 
@@ -200,27 +212,27 @@ export default function AdminRemindersPage() {
 
       {/* Deliveries */}
       <div className="rounded-lg border bg-white">
-        <div className="flex flex-wrap items-center gap-2 border-b p-4">
-          <p className="w-full font-semibold sm:mr-auto sm:w-auto">Delivery history</p>
-          <form onSubmit={(e) => { e.preventDefault(); setPage(1); setQ(qInput.trim()); }} className="flex items-center gap-1">
+        <div className="grid gap-2 border-b p-4 lg:grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] lg:items-center">
+          <p className="font-semibold lg:mr-auto">Delivery history</p>
+          <form onSubmit={(e) => { e.preventDefault(); setPage(1); setQ(qInput.trim()); }} className="grid grid-cols-[minmax(0,1fr)_auto] gap-1 lg:flex lg:items-center">
             <input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="Search pet, owner, email, phone, vaccine…"
-              className="h-9 w-56 rounded-lg border bg-white px-2 text-xs" />
+              className="h-9 min-w-0 rounded-lg border bg-white px-2 text-xs lg:w-56" />
             <Button size="sm" variant="outline" type="submit">Search</Button>
           </form>
-          <select value={typeFilter} onChange={(e) => { setPage(1); setTypeFilter(e.target.value); }} className="h-9 rounded-lg border bg-white px-2 text-xs">
+          <select value={typeFilter} onChange={(e) => { setPage(1); setTypeFilter(e.target.value); }} className="h-9 w-full rounded-lg border bg-white px-2 text-xs">
             {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t || "All types"}</option>)}
           </select>
-          <select value={statusFilter} onChange={(e) => { setPage(1); setStatusFilter(e.target.value); }} className="h-9 rounded-lg border bg-white px-2 text-xs">
+          <select value={statusFilter} onChange={(e) => { setPage(1); setStatusFilter(e.target.value); }} className="h-9 w-full rounded-lg border bg-white px-2 text-xs">
             {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s || "All statuses"}</option>)}
           </select>
-          <select value={vaccineType} onChange={(e) => { setPage(1); setVaccineType(e.target.value); }} className="h-9 rounded-lg border bg-white px-2 text-xs">
+          <select value={vaccineType} onChange={(e) => { setPage(1); setVaccineType(e.target.value); }} className="h-9 w-full rounded-lg border bg-white px-2 text-xs">
             <option value="">All vaccines</option>
-            {VACCINE_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {vaccineOptions.map((o) => <option key={o.id} value={o.key}>{o.display_name}</option>)}
           </select>
-          <input type="date" value={from} onChange={(e) => { setPage(1); setFrom(e.target.value); }} title="From date" className="h-9 rounded-lg border bg-white px-2 text-xs" />
-          <input type="date" value={to} onChange={(e) => { setPage(1); setTo(e.target.value); }} title="To date" className="h-9 rounded-lg border bg-white px-2 text-xs" />
+          <input type="date" value={from} onChange={(e) => { setPage(1); setFrom(e.target.value); }} title="From date" className="h-9 w-full rounded-lg border bg-white px-2 text-xs" />
+          <input type="date" value={to} onChange={(e) => { setPage(1); setTo(e.target.value); }} title="To date" className="h-9 w-full rounded-lg border bg-white px-2 text-xs" />
           {(typeFilter || statusFilter || vaccineType || from || to || q) && (
-            <Button size="sm" variant="ghost" onClick={() => { setPage(1); setTypeFilter(""); setStatusFilter(""); setVaccineType(""); setFrom(""); setTo(""); setQ(""); setQInput(""); }}>Clear</Button>
+            <Button className="w-full lg:w-auto" size="sm" variant="ghost" onClick={() => { setPage(1); setTypeFilter(""); setStatusFilter(""); setVaccineType(""); setFrom(""); setTo(""); setQ(""); setQInput(""); }}>Clear</Button>
           )}
         </div>
         <div className="overflow-x-auto">

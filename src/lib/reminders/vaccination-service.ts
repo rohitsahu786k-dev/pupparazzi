@@ -14,6 +14,7 @@ import { isVaccineType, vaccineLabel, MAX_REMINDER_DAY } from "@/lib/reminders/v
 import type { PetVaccination } from "@prisma/client";
 
 const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
+const DYNAMIC_VACCINE_KEY_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function isObjectId(value: unknown): value is string {
   return typeof value === "string" && OBJECT_ID_RE.test(value);
@@ -111,9 +112,17 @@ export function sanitizeReminderDays(value: unknown): number[] | null {
   return cleaned.length ? cleaned : null;
 }
 
+function isConfiguredVaccineType(input: VaccinationInput) {
+  if (isVaccineType(input.vaccine_type)) return true;
+  if (input.vaccine_type !== "custom" && input.vaccine_type_id && isObjectId(input.vaccine_type_id)) {
+    return DYNAMIC_VACCINE_KEY_RE.test(input.vaccine_type);
+  }
+  return false;
+}
+
 /** Validate a create/update payload. Returns typed data or an error message. */
 export function validateVaccination(input: VaccinationInput): { ok: true; data: ValidatedVaccination } | { ok: false; message: string } {
-  if (!isVaccineType(input.vaccine_type)) {
+  if (!isConfiguredVaccineType(input)) {
     return { ok: false, message: "Invalid vaccine type" };
   }
   const customName = (input.custom_vaccine_name || "").trim();

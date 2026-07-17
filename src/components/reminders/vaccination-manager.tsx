@@ -580,11 +580,11 @@ function EditorModal({ form, setForm, saving, editing, vaccineOptions, petId, ow
           {form.vaccine_type === "custom" && (
             <Field label="Custom name"><Input value={form.custom_vaccine_name} onChange={(e) => setForm({ ...form, custom_vaccine_name: e.target.value })} placeholder="e.g. Leptospirosis" /></Field>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Last administered"><Input type="date" value={form.administered_date} onChange={(e) => setForm({ ...form, administered_date: e.target.value })} /></Field>
             <Field label="Next due date *"><Input type="date" value={form.next_due_date} onChange={(e) => setForm({ ...form, next_due_date: e.target.value })} /></Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Recommended interval (months)"><Input type="number" min="0" value={form.recommended_interval_months} onChange={(e) => setForm({ ...form, recommended_interval_months: e.target.value })} /></Field>
             <Field label="Reminder recipient"><Input value={form.reminder_recipient} onChange={(e) => setForm({ ...form, reminder_recipient: e.target.value })} placeholder="Owner email by default" /></Field>
           </div>
@@ -593,15 +593,15 @@ function EditorModal({ form, setForm, saving, editing, vaccineOptions, petId, ow
               <button key={o.months} type="button" onClick={() => setForm({ ...form, next_due_date: addMonthsToInput(form.administered_date || null, o.months) })} className="rounded-full border px-3 py-1 text-xs hover:bg-muted">+{o.label}</button>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Vet name"><Input value={form.vet_name} onChange={(e) => setForm({ ...form, vet_name: e.target.value })} /></Field>
             <Field label="Vet contact"><Input value={form.vet_contact} onChange={(e) => setForm({ ...form, vet_contact: e.target.value })} /></Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Provider / clinic"><Input value={form.provider_name} onChange={(e) => setForm({ ...form, provider_name: e.target.value })} /></Field>
             <Field label="Administered by"><Input value={form.administered_by} onChange={(e) => setForm({ ...form, administered_by: e.target.value })} /></Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Dose number"><Input value={form.dose_number} onChange={(e) => setForm({ ...form, dose_number: e.target.value })} /></Field>
             <Field label="Batch / lot number"><Input value={form.batch_lot_number} onChange={(e) => setForm({ ...form, batch_lot_number: e.target.value })} /></Field>
           </div>
@@ -651,7 +651,7 @@ function CompletePanel({ petId, ownerId, vaccination, onClose, onDone }: { petId
     <div className="mt-3 rounded-lg border bg-muted/30 p-4">
       <p className="mb-3 text-sm font-semibold">Mark {vaccination.vaccine_label} completed</p>
       {err && <p className="mb-2 text-xs font-medium text-red-600">{err}</p>}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Administered date"><Input type="date" value={administered} onChange={(e) => setAdministered(e.target.value)} /></Field>
         <Field label="Next due date"><Input type="date" value={nextDue} onChange={(e) => setNextDue(e.target.value)} disabled={!createNext} /></Field>
         <Field label="Vet name"><Input value={vetName} onChange={(e) => setVetName(e.target.value)} /></Field>

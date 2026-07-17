@@ -3,6 +3,7 @@ import { requireOperations } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { VACCINE_DEFINITIONS, VACCINE_TYPES, type VaccineType } from "@/lib/reminders/vaccine-config";
+import { normalizeVaccineTreatmentName } from "@/lib/vaccine-treatment-types";
 
 export const runtime = "nodejs";
 
@@ -39,8 +40,11 @@ export async function GET(req: Request) {
   }
 
   // Vaccine type → resolve to matching vaccination_ids, then filter.
-  if (vaccineType && (VACCINE_TYPES as readonly string[]).includes(vaccineType)) {
-    const vaccs = await prisma.petVaccination.findMany({ where: { vaccine_type: vaccineType }, select: { id: true } });
+  if (vaccineType) {
+    const vaccs = await prisma.petVaccination.findMany({
+      where: { OR: [{ vaccine_type: vaccineType }, ...(OBJECT_ID_RE.test(vaccineType) ? [{ vaccine_type_id: vaccineType }] : [])] },
+      select: { id: true },
+    });
     and.push({ vaccination_id: { in: vaccs.length ? vaccs.map((v) => v.id) : ["000000000000000000000000"] } });
   }
 
@@ -54,6 +58,7 @@ export async function GET(req: Request) {
         where: {
           OR: [
             { custom_vaccine_name: ci },
+            { type_display_name: ci },
             // Match a built-in vaccine label typed as free text (e.g. "rabies").
             { vaccine_type: { in: matchVaccineTypesByLabel(q) } },
           ],
@@ -115,5 +120,8 @@ export async function GET(req: Request) {
 
 function matchVaccineTypesByLabel(q: string): VaccineType[] {
   const needle = q.toLowerCase();
-  return (VACCINE_TYPES as readonly VaccineType[]).filter((t) => VACCINE_DEFINITIONS[t].label.toLowerCase().includes(needle));
+  const normalizedNeedle = normalizeVaccineTreatmentName(q);
+  return (VACCINE_TYPES as readonly VaccineType[]).filter((t) => (
+    VACCINE_DEFINITIONS[t].label.toLowerCase().includes(needle) || t.includes(normalizedNeedle)
+  ));
 }
