@@ -271,7 +271,7 @@ export async function POST(req: Request) {
   await syncStaffProfile(user.id, role);
 
   if (realEmail && (password || isClient)) {
-    sendWelcomeEmail(realEmail, { userName: user.name || "there", email: realEmail, password: password || undefined, role: role as any }).catch(console.error);
+    sendWelcomeEmail(realEmail, { userName: user.name || "there", email: realEmail, role: role as any }).catch(console.error);
   }
   const created = await prisma.user.findUnique({ where: { id: user.id }, select: publicUserSelect() });
   return NextResponse.json(created, { status: 201 });
@@ -335,7 +335,6 @@ export async function PATCH(req: Request) {
     sendPasswordUpdatedEmail(user.email as string, {
       userName: user.name || "there",
       email: user.email as string,
-      password: String(body.password),
       role: (user.role || "CLIENT") as "CLIENT" | "STAFF" | "ADMIN",
       changedByAdmin: true,
     }).catch(console.error);

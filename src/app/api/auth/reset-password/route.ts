@@ -2,14 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { sendPasswordUpdatedEmail } from "@/lib/mailer";
-
-function normalizeEmail(value: unknown) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function identifierFor(email: string) {
-  return `password-reset:${email}`;
-}
+import { normalizeEmail, resetIdentifierFor } from "@/lib/account-activation";
 
 export async function POST(req: Request) {
   try {
@@ -22,7 +15,7 @@ export async function POST(req: Request) {
 
     const records = await prisma.verificationToken.findMany({
       where: {
-        identifier: identifierFor(normalizedEmail),
+        identifier: resetIdentifierFor(normalizedEmail),
         expires: { gt: new Date() },
       },
     });
@@ -43,7 +36,7 @@ export async function POST(req: Request) {
       where: { email: normalizedEmail },
       data: { password_hash: await bcrypt.hash(nextPassword, 10), emailVerified: new Date() },
     });
-    await prisma.verificationToken.deleteMany({ where: { identifier: identifierFor(normalizedEmail) } });
+    await prisma.verificationToken.deleteMany({ where: { identifier: resetIdentifierFor(normalizedEmail) } });
     await prisma.session.deleteMany({ where: { userId: user.id } });
 
     // The user chose this password themselves, so we confirm the change and remind

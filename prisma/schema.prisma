@@ -521,28 +521,67 @@ model ClientRecord {
 model PetVaccination {
   id                   String    @id @default(auto()) @map("_id") @db.ObjectId
   pet_id               String    @db.ObjectId
+  vaccine_type_id      String?   @db.ObjectId
   vaccine_type         String // one of VACCINE_TYPES keys (see lib/reminders/vaccine-config)
+  type_display_name    String?
+  category             String? // vaccine | deworming | parasite_prevention | custom_treatment
   custom_vaccine_name  String? // required when vaccine_type === "custom"
   administered_date    DateTime?
   next_due_date        DateTime
+  recommended_interval_months Int?
   reminder_enabled     Boolean   @default(true)
   reminder_days_json   Json? // optional per-record override of the global schedule (number[])
+  reminder_recipient   String?
   notes                String?
   vet_name             String?
   vet_contact          String?
+  provider_name        String?
+  administered_by      String?
+  dose_number          String?
+  batch_lot_number     String?
   certificate_asset_id String?   @db.ObjectId
   certificate_path     String?
   status               String    @default("Upcoming") // derived on read; stored as a hint only
+  source               String    @default("staff") // customer | staff | admin | imported | migrated
+  verification_status  String    @default("Verified") // Submitted | Verified | Rejected | Needs clarification
+  legacy_value         String?
+  legacy_review_required Boolean @default(false)
+  archived_at          DateTime?
   completed_at         DateTime?
   created_by           String?   @db.ObjectId
+  updated_by           String?   @db.ObjectId
   created_at           DateTime  @default(now())
   updated_at           DateTime  @updatedAt
 
   pet Pet @relation(fields: [pet_id], references: [id], onDelete: Cascade)
 
   @@index([pet_id])
+  @@index([vaccine_type_id])
   @@index([next_due_date])
   @@index([reminder_enabled])
+  @@index([archived_at])
+  @@index([verification_status])
+}
+
+model VaccineTreatmentType {
+  id                              String   @id @default(auto()) @map("_id") @db.ObjectId
+  key                             String   @unique
+  display_name                    String
+  normalized_name                 String   @unique
+  category                        String
+  default_interval_months         Int?
+  is_active                       Boolean  @default(true)
+  archived_at                     DateTime?
+  display_order                   Int      @default(0)
+  legacy_aliases_json             Json?
+  created_by                      String?  @db.ObjectId
+  updated_by                      String?  @db.ObjectId
+  created_at                      DateTime @default(now())
+  updated_at                      DateTime @updatedAt
+
+  @@index([category])
+  @@index([is_active])
+  @@index([display_order])
 }
 
 /// Idempotent ledger of every reminder we attempt to deliver. The unique
@@ -570,4 +609,90 @@ model ReminderDelivery {
   @@index([scheduled_for])
   @@index([status])
   @@index([pet_id])
+}
+
+model EmailLog {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  email_type          String
+  recipient           String
+  subject             String?
+  related_user_id     String?   @db.ObjectId
+  related_pet_id      String?   @db.ObjectId
+  related_booking_id  String?   @db.ObjectId
+  related_campaign_id String?   @db.ObjectId
+  status              String    @default("Queued") // Queued | Sent | Failed | Skipped
+  queued_at           DateTime  @default(now())
+  attempted_at        DateTime?
+  sent_at             DateTime?
+  provider_message_id String?
+  attempt_count       Int       @default(0)
+  failure_reason      String?
+  retry_eligible      Boolean   @default(false)
+  idempotency_key     String?   @unique
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  @@index([email_type])
+  @@index([recipient])
+  @@index([status])
+  @@index([related_user_id])
+  @@index([related_campaign_id])
+}
+
+model EmailCampaign {
+  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
+  campaign_type           String
+  status                  String    @default("Draft") // Draft | Running | Paused | Stopped | Completed
+  started_at              DateTime?
+  completed_at            DateTime?
+  paused_at               DateTime?
+  daily_cap               Int?
+  reserved_quota          Int       @default(50)
+  provider_daily_quota    Int?
+  provider_daily_used     Int       @default(0)
+  total_eligible          Int       @default(0)
+  queued                  Int       @default(0)
+  sent                    Int       @default(0)
+  delivered               Int       @default(0)
+  failed                  Int       @default(0)
+  skipped                 Int       @default(0)
+  activated               Int       @default(0)
+  created_by              String?   @db.ObjectId
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
+
+  recipients EmailCampaignRecipient[]
+
+  @@index([campaign_type])
+  @@index([status])
+}
+
+model EmailCampaignRecipient {
+  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
+  campaign_id             String    @db.ObjectId
+  user_id                 String    @db.ObjectId
+  email                   String
+  status                  String    @default("Queued") // Queued | Processing | Sent | Failed | Skipped | Activated
+  queued_at               DateTime  @default(now())
+  attempted_at            DateTime?
+  sent_at                 DateTime?
+  provider_message_id     String?
+  attempt_count           Int       @default(0)
+  next_attempt_at         DateTime?
+  last_error              String?
+  skipped_reason          String?
+  activation_status       String    @default("Pending")
+  token_reference         String?
+  excluded_at             DateTime?
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
+
+  campaign EmailCampaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@unique([campaign_id, user_id])
+  @@index([campaign_id])
+  @@index([user_id])
+  @@index([email])
+  @@index([status])
+  @@index([next_attempt_at])
 }

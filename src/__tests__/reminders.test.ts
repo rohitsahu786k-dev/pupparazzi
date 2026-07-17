@@ -53,7 +53,7 @@ describe("Reminder processor idempotency and concurrency", () => {
 
   it("sends birthday and vaccination reminders when candidates match and reservations succeed", async () => {
     // 1. Mock settings: enable birthday and vaccination reminders
-    vi.mocked(prisma.appSetting.findUnique).mockImplementation(async ({ where }: any) => {
+    vi.mocked(prisma.appSetting.findUnique as any).mockImplementation(async ({ where }: any) => {
       if (where.key === "reminder_settings") {
         return {
           key: "reminder_settings",
@@ -132,7 +132,7 @@ describe("Reminder processor idempotency and concurrency", () => {
 
   it("skips sending if double-fired (idempotency unique constraint violation)", async () => {
     // Mock settings
-    vi.mocked(prisma.appSetting.findUnique).mockImplementation(async ({ where }: any) => {
+    vi.mocked(prisma.appSetting.findUnique as any).mockImplementation(async ({ where }: any) => {
       if (where.key === "reminder_settings") {
         return {
           key: "reminder_settings",
@@ -182,7 +182,7 @@ describe("Reminder processor idempotency and concurrency", () => {
   });
 
   it("retries a previously failed reminder if attempts are below limit", async () => {
-    vi.mocked(prisma.appSetting.findUnique).mockImplementation(async ({ where }: any) => {
+    vi.mocked(prisma.appSetting.findUnique as any).mockImplementation(async ({ where }: any) => {
       if (where.key === "reminder_settings") {
         return {
           key: "reminder_settings",

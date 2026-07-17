@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runReminderProcessor } from "@/lib/reminders/processor";
+import { processActivationCampaign } from "@/lib/email-campaigns";
 
 // Nodemailer needs Node APIs — must not run on the Edge runtime.
 export const runtime = "nodejs";
@@ -29,7 +30,8 @@ async function handle(req: Request, trigger: string) {
   }
   try {
     const result = await runReminderProcessor({ trigger });
-    return NextResponse.json(result);
+    const activationCampaign = await processActivationCampaign();
+    return NextResponse.json({ ...result, activationCampaign });
   } catch (error) {
     console.error("[cron/reminders] failed:", error);
     return NextResponse.json({ success: false, message: "Reminder processing failed" }, { status: 500 });

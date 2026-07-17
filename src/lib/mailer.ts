@@ -846,13 +846,116 @@ interface MailOptions {
   text?: string;
   replyTo?: string;
   attachments?: nodemailer.SendMailOptions["attachments"];
+  emailType?: string;
+  relatedUserId?: string | null;
+  relatedPetId?: string | null;
+  relatedBookingId?: string | null;
+  relatedCampaignId?: string | null;
+  idempotencyKey?: string | null;
+}
+
+export function portalActivationEmailHtml(data: { userName: string; setupUrl: string; expiresMinutes: number }) {
+  const body = `
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:36px 48px 32px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:30px;font-weight:800;color:#FFFFFF;line-height:1.2;">Set up your Pupparazzi account</h1>
+      <p style="margin:0;font-size:16px;color:#94A3B8;">Your existing records are now available on our new platform.</p>
+    </div>
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 18px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${escapeHtml(data.userName)}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:15px;color:#475569;line-height:1.7;">Your Pupparazzi customer profile, pet details, and service records have been moved to our secure online portal. Please use the one-time link below to create or reset your password.</p>
+      <p style="margin:0 0 24px;font-size:13px;color:#64748B;line-height:1.6;">This secure link expires in <strong>${data.expiresMinutes} minutes</strong>. If it expires, use the normal forgot-password option or contact us at <a href="mailto:${BUSINESS.email}" style="color:#EC4899;text-decoration:none;">${BUSINESS.email}</a>.</p>
+      ${primaryButton("Set Up My Account", data.setupUrl)}
+      <p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">This message is from ${BUSINESS.name}. We will never ask you to share your password by email.</p>
+    </div>`;
+  return baseLayout(body, `Set up your ${BUSINESS.shortName} portal account`);
 }
 
 export type SendMailResult =
   | { success: true; messageId?: string }
   | { success: false; error: string };
 
-export async function sendMail({ to, subject, html, text, replyTo, attachments }: MailOptions): Promise<SendMailResult> {
+function redactEmailError(error: unknown) {
+  return String(error).replace(/(pass|password|token|secret)=([^&\s]+)/gi, "$1=[redacted]").slice(0, 1000);
+}
+
+async function reserveEmailLog(options: MailOptions) {
+  if (!options.idempotencyKey) return null;
+  try {
+    const existing = await prisma.emailLog.findUnique({ where: { idempotency_key: options.idempotencyKey } });
+    if (existing?.status === "Sent") return { ...existing, alreadySent: true };
+    return await prisma.emailLog.upsert({
+      where: { idempotency_key: options.idempotencyKey },
+      update: {
+        attempted_at: new Date(),
+        attempt_count: { increment: 1 },
+        status: "Queued",
+        failure_reason: null,
+        retry_eligible: false,
+      },
+      create: {
+        idempotency_key: options.idempotencyKey,
+        email_type: options.emailType || "transactional",
+        recipient: options.to,
+        subject: options.subject,
+        related_user_id: options.relatedUserId || null,
+        related_pet_id: options.relatedPetId || null,
+        related_booking_id: options.relatedBookingId || null,
+        related_campaign_id: options.relatedCampaignId || null,
+        attempted_at: new Date(),
+        attempt_count: 1,
+      },
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function writeEmailLog(options: MailOptions, result: SendMailResult, reservedId?: string | null) {
+  const data = result.success
+    ? {
+        status: "Sent",
+        sent_at: new Date(),
+        provider_message_id: result.messageId || null,
+        failure_reason: null,
+        retry_eligible: false,
+      }
+    : {
+        status: "Failed",
+        failure_reason: result.error,
+        retry_eligible: true,
+      };
+
+  try {
+    if (reservedId) {
+      await prisma.emailLog.update({ where: { id: reservedId }, data });
+      return;
+    }
+    await prisma.emailLog.create({
+      data: {
+        email_type: options.emailType || "transactional",
+        recipient: options.to,
+        subject: options.subject,
+        related_user_id: options.relatedUserId || null,
+        related_pet_id: options.relatedPetId || null,
+        related_booking_id: options.relatedBookingId || null,
+        related_campaign_id: options.relatedCampaignId || null,
+        idempotency_key: options.idempotencyKey || undefined,
+        attempted_at: new Date(),
+        attempt_count: 1,
+        ...data,
+      },
+    });
+  } catch (error) {
+    console.error("Email log write error:", redactEmailError(error));
+  }
+}
+
+export async function sendMail(options: MailOptions): Promise<SendMailResult> {
+  const { to, subject, html, text, replyTo, attachments } = options;
+  const reserved = await reserveEmailLog(options);
+  if ((reserved as any)?.alreadySent) {
+    return { success: true, messageId: reserved?.provider_message_id || undefined };
+  }
   try {
     const smtp = await getSetting("smtp", DEFAULT_SMTP_SETTINGS);
     const transporter = nodemailer.createTransport({
@@ -873,11 +976,14 @@ export async function sendMail({ to, subject, html, text, replyTo, attachments }
       text,
       attachments,
     });
-    console.log("Email sent:", info.messageId);
-    return { success: true, messageId: info.messageId };
+    const result: SendMailResult = { success: true, messageId: info.messageId };
+    await writeEmailLog(options, result, reserved?.id);
+    return result;
   } catch (error) {
-    console.error("Email send error:", error);
-    return { success: false, error: String(error) };
+    const result: SendMailResult = { success: false, error: redactEmailError(error) };
+    console.error("Email send error:", result.error);
+    await writeEmailLog(options, result, reserved?.id);
+    return result;
   }
 }
 
@@ -922,6 +1028,8 @@ export async function sendWelcomeEmail(to: string, data: Parameters<typeof welco
     to,
     subject: `Welcome to ${BUSINESS.shortName}, ${data.userName}! `,
     html: welcomeEmailHtml({ ...data, welcomeCoupon }),
+    emailType: "welcome",
+    idempotencyKey: `welcome:${to.toLowerCase()}`,
   });
 }
 
@@ -946,6 +1054,21 @@ export async function sendPasswordResetEmail(to: string, data: Parameters<typeof
     to,
     subject: `Reset your ${BUSINESS.shortName} password`,
     html: passwordResetEmailHtml(data),
+    emailType: "password_reset",
+  });
+}
+
+export async function sendPortalActivationEmail(
+  to: string,
+  data: Parameters<typeof portalActivationEmailHtml>[0],
+  meta?: Pick<MailOptions, "relatedUserId" | "relatedCampaignId" | "idempotencyKey">
+) {
+  return sendMail({
+    to,
+    subject: `Set up your ${BUSINESS.shortName} account`,
+    html: portalActivationEmailHtml(data),
+    emailType: "portal_activation",
+    ...meta,
   });
 }
 
