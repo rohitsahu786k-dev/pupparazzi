@@ -77,7 +77,8 @@ const PERIOD_TABS = [
   { label: "Past", value: "past" },
 ] as const;
 
-type PeriodCounts = { all: number; today: number; active: number; upcoming: number; past: number };
+type BookingMetrics = { serviceToday: number; bookedToday: number; collectedToday: number; paidLabel: string; timezone: string };
+type PeriodCounts = { all: number; today: number; active: number; upcoming: number; past: number; metrics?: BookingMetrics };
 
 const EMPTY_COUNTS: PeriodCounts = { all: 0, today: 0, active: 0, upcoming: 0, past: 0 };
 
@@ -174,14 +175,6 @@ function detailsLink(booking: Booking) {
 function dateKey(value: string | Date) {
   const date = new Date(value);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function paidAmount(booking: Booking) {
-  const successfulPayments = (booking.payments || []).filter((payment) => payment.status === "Success");
-  if (successfulPayments.length) {
-    return successfulPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-  }
-  return booking.payment_status === "Paid" ? bookingAmount(booking) : 0;
 }
 
 /**
@@ -585,8 +578,7 @@ export default function AdminBookingsPage() {
 
   const isSelectedToday = selectedCalendarDate === dateKey(new Date());
   const selectedDateBookingsCount = filtered.filter((booking) => dateKey(booking.slot_date) === selectedCalendarDate).length;
-  const createdTodayBookings = filtered.filter((booking) => booking.created_at && dateKey(booking.created_at) === dateKey(new Date())).length;
-  const revenue = filtered.reduce((sum, booking) => sum + paidAmount(booking), 0);
+  const metrics = counts.metrics;
   const calendarDays = useMemo(() => {
     const base = selectedCalendarDate ? new Date(selectedCalendarDate) : new Date();
     const start = new Date(base.getFullYear(), base.getMonth(), 1);
@@ -614,15 +606,15 @@ export default function AdminBookingsPage() {
         <div className="grid grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
           <div className="rounded-lg border bg-white px-4 py-3">
             <p className="text-muted-foreground text-ellipsis overflow-hidden whitespace-nowrap">{isSelectedToday ? "Service today" : `Service on ${new Date(selectedCalendarDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}`}</p>
-            <p className="text-xl font-bold">{selectedDateBookingsCount}</p>
+            <p className="text-xl font-bold">{isSelectedToday ? metrics?.serviceToday ?? selectedDateBookingsCount : selectedDateBookingsCount}</p>
           </div>
           <div className="rounded-lg border bg-white px-4 py-3">
             <p className="text-muted-foreground">Booked today</p>
-            <p className="text-xl font-bold">{createdTodayBookings}</p>
+            <p className="text-xl font-bold">{metrics?.bookedToday ?? 0}</p>
           </div>
           <div className="rounded-lg border bg-white px-4 py-3">
-            <p className="text-muted-foreground">Paid</p>
-            <p className="text-xl font-bold">₹{revenue.toLocaleString("en-IN")}</p>
+            <p className="text-muted-foreground">{metrics?.paidLabel || "Collected today"}</p>
+            <p className="text-xl font-bold">Rs. {Number(metrics?.collectedToday || 0).toLocaleString("en-IN")}</p>
           </div>
         </div>
       </div>
@@ -663,29 +655,67 @@ export default function AdminBookingsPage() {
         <div className="flex flex-wrap items-end gap-3">
           <div className="relative min-w-[240px] flex-[2_1_320px]">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search booking, client, pet, email..." className="pl-9" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search booking ID, client, pet, phone or email" className="pl-9" />
           </div>
-          <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="h-11 min-w-[170px] flex-1 rounded-lg border bg-white px-3 text-sm" aria-label="Filter booking history by client">
-            <option value="">All clients</option>
-            {clients.map((client) => <option key={client.id} value={client.id}>{client.name || client.phone || client.email || "Client"}</option>)}
-          </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-11 min-w-[140px] flex-1 rounded-lg border bg-white px-3 text-sm">
-            {STATUSES.map((item) => <option key={item}>{item}</option>)}
-          </select>
-          <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className="h-11 min-w-[150px] flex-1 rounded-lg border bg-white px-3 text-sm">
-            {PAYMENT_STATUSES.map((item) => <option key={item}>{item}</option>)}
-          </select>
-          <select value={serviceCategory} onChange={(e) => setServiceCategory(e.target.value)} className="h-11 min-w-[130px] flex-1 rounded-lg border bg-white px-3 text-sm">
-            {SERVICE_FILTERS.map((item) => <option key={item}>{item}</option>)}
-          </select>
-          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="min-w-[150px] flex-1" />
-          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="min-w-[150px] flex-1" />
-          <Button variant="outline" className="h-11 min-w-[110px] flex-1 sm:flex-none" onClick={fetchBookings}>Refresh</Button>
+          <label className="min-w-[170px] flex-1 text-xs font-semibold">Client
+            <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm" aria-label="Client">
+              <option value="">All clients</option>
+              {clients.map((client) => <option key={client.id} value={client.id}>{client.name || client.phone || client.email || "Client"}</option>)}
+            </select>
+          </label>
+          <label className="min-w-[140px] flex-1 text-xs font-semibold">Booking status
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm">
+              {STATUSES.map((item) => <option key={item} value={item}>{item === "All" ? "All statuses" : item}</option>)}
+            </select>
+          </label>
+          <label className="min-w-[150px] flex-1 text-xs font-semibold">Payment status
+            <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm">
+              {PAYMENT_STATUSES.map((item) => <option key={item} value={item}>{item === "All" ? "All payment statuses" : item}</option>)}
+            </select>
+          </label>
+          <label className="min-w-[130px] flex-1 text-xs font-semibold">Service
+            <select value={serviceCategory} onChange={(e) => setServiceCategory(e.target.value)} className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm">
+              {SERVICE_FILTERS.map((item) => <option key={item} value={item}>{item === "All" ? "All services" : item}</option>)}
+            </select>
+          </label>
+          <label className="min-w-[150px] flex-1 text-xs font-semibold">Service date from
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="mt-1" />
+          </label>
+          <label className="min-w-[150px] flex-1 text-xs font-semibold">Service date to
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="mt-1" />
+          </label>
+          <Button variant="outline" className="h-11 min-w-[110px] flex-1 sm:flex-none" onClick={fetchBookings}>Apply filters</Button>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" variant={viewMode === "list" ? "default" : "outline"} onClick={() => setViewMode("list")}><List className="mr-1 h-3.5 w-3.5" /> List</Button>
           <Button type="button" size="sm" variant={viewMode === "calendar" ? "default" : "outline"} onClick={() => setViewMode("calendar")}><Grid2X2 className="mr-1 h-3.5 w-3.5" /> Calendar</Button>
           <Input type="date" value={selectedCalendarDate} onChange={(e) => setSelectedCalendarDate(e.target.value)} className="h-9 w-44" />
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setQuery("");
+              setClientId("");
+              setStatus("All");
+              setPaymentStatus("All");
+              setServiceCategory("All");
+              setDateFrom("");
+              setDateTo("");
+              setPeriod("all");
+            }}
+          >
+            Clear all filters
+          </Button>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-semibold text-muted-foreground">{filtered.length} result{filtered.length === 1 ? "" : "s"}</span>
+          {clientId && <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">Client selected</span>}
+          {status !== "All" && <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">Status: {status}</span>}
+          {paymentStatus !== "All" && <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">Payment: {paymentStatus}</span>}
+          {serviceCategory !== "All" && <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">Service: {serviceCategory}</span>}
+          {dateFrom && <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">From: {dateFrom}</span>}
+          {dateTo && <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">To: {dateTo}</span>}
         </div>
       </div>
 

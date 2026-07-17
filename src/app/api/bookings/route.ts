@@ -18,6 +18,7 @@ import {
   expirePastBookings,
   formatBookingDate,
   periodWhere,
+  serviceOverlapWhere,
 } from "@/lib/booking-lifecycle";
 import { collectCodPayment } from "@/lib/payment-invoices";
 import { bookingDetailFormUrl, detailFormService } from "@/lib/booking-detail-forms";
@@ -174,12 +175,7 @@ export async function GET(req: Request) {
           ...(serviceCategory && serviceCategory !== "All" ? [{ service: { category: serviceCategory } }] : []),
           ...(period && period !== "all" ? [periodWhere(period)] : []),
           ...((dateFrom || dateTo)
-            ? [{
-                slot_date: {
-                  ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-                  ...(dateTo ? { lte: dayRange(new Date(dateTo)).end } : {}),
-                },
-              }]
+            ? [serviceOverlapWhere(dateFrom ? new Date(dateFrom) : new Date("1970-01-01"), dateTo ? dayRange(new Date(dateTo)).end : new Date("2999-12-31"))]
             : []),
         ],
       },

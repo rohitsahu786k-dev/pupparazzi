@@ -26,6 +26,27 @@ export function istDayWindow(now: Date = new Date()) {
   return { start, end };
 }
 
+export function serviceOverlapWhere(start: Date, end: Date) {
+  return {
+    OR: [
+      {
+        AND: [
+          { check_in_date: { not: null } },
+          { check_out_date: { not: null } },
+          { check_in_date: { lte: end } },
+          { check_out_date: { gte: start } },
+        ],
+      },
+      {
+        AND: [
+          { OR: [{ check_in_date: null }, { check_out_date: null }] },
+          { slot_date: { gte: start, lte: end } },
+        ],
+      },
+    ],
+  };
+}
+
 /**
  * Prisma `where` for a period tab. Tabs deliberately overlap: a confirmed booking
  * scheduled today appears under both Today and Active.
@@ -35,7 +56,7 @@ export function periodWhere(period: string | null, now: Date = new Date()) {
   switch (period) {
     case "today":
     case "current":
-      return { slot_date: { gte: start, lte: end } };
+      return serviceOverlapWhere(start, end);
     case "active":
       return { status: { in: ACTIVE_BOOKING_STATUSES } };
     case "upcoming":

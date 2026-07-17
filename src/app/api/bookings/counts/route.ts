@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { expirePastBookings, periodWhere } from "@/lib/booking-lifecycle";
+import { expirePastBookings, istDayWindow, periodWhere, serviceOverlapWhere } from "@/lib/booking-lifecycle";
 
 function canManageBookings(role?: string | null) {
   return role === "ADMIN" || role === "STAFF";
@@ -55,7 +55,49 @@ export async function GET(req: Request) {
       count("past"),
     ]);
 
-    return NextResponse.json({ all, today, active, upcoming, past });
+    const todayRange = istDayWindow();
+    const activeServiceTodayWhere = {
+      AND: [
+        ...baseFilters,
+        serviceOverlapWhere(todayRange.start, todayRange.end),
+        { status: { notIn: ["Cancelled", "Expired"] } },
+      ],
+    };
+    const bookedTodayWhere = {
+      AND: [
+        ...baseFilters,
+        { created_at: { gte: todayRange.start, lte: todayRange.end } },
+        { status: { notIn: ["Cancelled", "Expired"] } },
+      ],
+    };
+    const [serviceToday, bookedToday, paymentsToday] = await Promise.all([
+      prisma.booking.count({ where: activeServiceTodayWhere }),
+      prisma.booking.count({ where: bookedTodayWhere }),
+      prisma.payment.findMany({
+        where: {
+          status: "Success",
+          created_at: { gte: todayRange.start, lte: todayRange.end },
+          ...(userId ? { client_id: userId } : {}),
+        },
+        select: { amount: true },
+      }),
+    ]);
+    const collectedToday = paymentsToday.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+
+    return NextResponse.json({
+      all,
+      today,
+      active,
+      upcoming,
+      past,
+      metrics: {
+        serviceToday,
+        bookedToday,
+        collectedToday,
+        timezone: "Asia/Kolkata",
+        paidLabel: "Collected today",
+      },
+    });
   } catch (error) {
     console.error("GET booking counts error:", error);
     return NextResponse.json({ message: "Failed to load booking counts", error: String(error) }, { status: 500 });
