@@ -16,8 +16,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!access.ok) return NextResponse.json({ message: access.message }, { status: access.status });
 
   const records = await prisma.petVaccination.findMany({
-    where: { pet_id: id },
-    orderBy: { next_due_date: "asc" },
+    where: { pet_id: id, archived_at: null },
+    orderBy: [{ administered_date: "desc" }, { next_due_date: "asc" }],
   });
   const { today, dueSoonThresholdDays } = await serializationContext();
   return NextResponse.json(records.map((r) => serializeVaccination(r, dueSoonThresholdDays, today)));
@@ -36,7 +36,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ message: "Invalid request body" }, { status: 400 });
   }
 
-  const validated = validateVaccination(body as never);
+  const payload = {
+    ...(body as Record<string, unknown>),
+    source: (body as Record<string, unknown>)?.source || (access.role === "ADMIN" ? "admin" : access.role === "STAFF" ? "staff" : "customer"),
+    verification_status: (body as Record<string, unknown>)?.verification_status || (access.role === "CLIENT" ? "Submitted" : "Verified"),
+  };
+  const validated = validateVaccination(payload as never);
   if (!validated.ok) return NextResponse.json({ message: validated.message }, { status: 400 });
 
   const created = await prisma.petVaccination.create({

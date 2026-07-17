@@ -5,7 +5,6 @@ import { Loader2, Plus, Syringe, Pencil, Trash2, CheckCircle2, BellOff, Bell, Se
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  VACCINE_TYPE_OPTIONS,
   STATUS_BADGE_CLASS,
   REPEAT_INTERVAL_OPTIONS,
   type VaccinationStatus,
@@ -14,19 +13,37 @@ import { formatAge, nextBirthday, daysUntilBirthday, formatCalendarDate } from "
 
 type Vaccination = {
   id: string;
+  vaccine_type_id: string | null;
   vaccine_type: string;
   vaccine_label: string;
+  category: string | null;
   custom_vaccine_name: string | null;
   administered_date: string | null;
   next_due_date: string;
+  recommended_interval_months: number | null;
   days_remaining: number;
   status: string;
   reminder_enabled: boolean;
+  reminder_recipient: string | null;
   vet_name: string | null;
   vet_contact: string | null;
+  provider_name: string | null;
+  administered_by: string | null;
+  dose_number: string | null;
+  batch_lot_number: string | null;
   notes: string | null;
   certificate_asset_id: string | null;
   certificate_path: string | null;
+  source: string;
+  verification_status: string;
+};
+
+type VaccineOption = {
+  id: string;
+  key: string;
+  display_name: string;
+  category: string;
+  default_interval_months: number | null;
 };
 
 type Delivery = {
@@ -42,13 +59,22 @@ type Delivery = {
 };
 
 type FormState = {
+  vaccine_type_id: string;
   vaccine_type: string;
+  type_display_name: string;
+  category: string;
   custom_vaccine_name: string;
   administered_date: string;
   next_due_date: string;
+  recommended_interval_months: string;
   reminder_enabled: boolean;
+  reminder_recipient: string;
   vet_name: string;
   vet_contact: string;
+  provider_name: string;
+  administered_by: string;
+  dose_number: string;
+  batch_lot_number: string;
   notes: string;
   certificate_asset_id: string;
   certificate_path: string;
@@ -56,13 +82,22 @@ type FormState = {
 };
 
 const EMPTY_FORM: FormState = {
+  vaccine_type_id: "",
   vaccine_type: "anti_rabies",
+  type_display_name: "Anti-Rabies Vaccine",
+  category: "vaccine",
   custom_vaccine_name: "",
   administered_date: "",
   next_due_date: "",
+  recommended_interval_months: "12",
   reminder_enabled: true,
+  reminder_recipient: "",
   vet_name: "",
   vet_contact: "",
+  provider_name: "",
+  administered_by: "",
+  dose_number: "",
+  batch_lot_number: "",
   notes: "",
   certificate_asset_id: "",
   certificate_path: "",
@@ -117,6 +152,7 @@ export default function VaccinationManager({
   isOperations?: boolean;
 }) {
   const [items, setItems] = useState<Vaccination[]>([]);
+  const [vaccineOptions, setVaccineOptions] = useState<VaccineOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -145,6 +181,26 @@ export default function VaccinationManager({
   }, [petId]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    fetch("/api/vaccine-treatment-types")
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => {
+        const options = Array.isArray(data) ? data : [];
+        setVaccineOptions(options);
+        const first = options[0];
+        if (first) {
+          setForm((current) => ({
+            ...current,
+            vaccine_type_id: current.vaccine_type_id || first.id,
+            vaccine_type: current.vaccine_type || first.key,
+            type_display_name: current.type_display_name || first.display_name,
+            category: current.category || first.category,
+            recommended_interval_months: current.recommended_interval_months || String(first.default_interval_months ?? ""),
+          }));
+        }
+      })
+      .catch(() => setVaccineOptions([]));
+  }, []);
 
   const dobDate = useMemo(() => (dob ? new Date(dob) : null), [dob]);
   const birthdayInfo = useMemo(() => {
@@ -161,7 +217,17 @@ export default function VaccinationManager({
 
   function openAdd() {
     setEditingId(null);
-    setForm({ ...EMPTY_FORM, next_due_date: addMonthsToInput(null, 12) });
+    const first = vaccineOptions[0];
+    const interval = first?.default_interval_months ?? 12;
+    setForm({
+      ...EMPTY_FORM,
+      vaccine_type_id: first?.id || "",
+      vaccine_type: first?.key || EMPTY_FORM.vaccine_type,
+      type_display_name: first?.display_name || EMPTY_FORM.type_display_name,
+      category: first?.category || EMPTY_FORM.category,
+      recommended_interval_months: String(interval),
+      next_due_date: addMonthsToInput(null, interval),
+    });
     setEditorOpen(true);
   }
 
@@ -169,12 +235,21 @@ export default function VaccinationManager({
     setEditingId(v.id);
     setForm({
       vaccine_type: v.vaccine_type,
+      vaccine_type_id: v.vaccine_type_id || "",
+      type_display_name: v.vaccine_label,
+      category: v.category || "",
       custom_vaccine_name: v.custom_vaccine_name || "",
       administered_date: isoToInput(v.administered_date),
       next_due_date: isoToInput(v.next_due_date),
+      recommended_interval_months: v.recommended_interval_months == null ? "" : String(v.recommended_interval_months),
       reminder_enabled: v.reminder_enabled,
+      reminder_recipient: v.reminder_recipient || "",
       vet_name: v.vet_name || "",
       vet_contact: v.vet_contact || "",
+      provider_name: v.provider_name || "",
+      administered_by: v.administered_by || "",
+      dose_number: v.dose_number || "",
+      batch_lot_number: v.batch_lot_number || "",
       notes: v.notes || "",
       certificate_asset_id: v.certificate_asset_id || "",
       certificate_path: v.certificate_path || "",
@@ -195,13 +270,22 @@ export default function VaccinationManager({
     }
     setSaving(true);
     const payload = {
+      vaccine_type_id: form.vaccine_type_id || null,
       vaccine_type: form.vaccine_type,
+      type_display_name: form.type_display_name || null,
+      category: form.category || null,
       custom_vaccine_name: form.custom_vaccine_name.trim() || null,
       administered_date: form.administered_date || null,
       next_due_date: form.next_due_date,
+      recommended_interval_months: form.recommended_interval_months === "" ? null : Number(form.recommended_interval_months),
       reminder_enabled: form.reminder_enabled,
+      reminder_recipient: form.reminder_recipient.trim() || null,
       vet_name: form.vet_name.trim() || null,
       vet_contact: form.vet_contact.trim() || null,
+      provider_name: form.provider_name.trim() || null,
+      administered_by: form.administered_by.trim() || null,
+      dose_number: form.dose_number.trim() || null,
+      batch_lot_number: form.batch_lot_number.trim() || null,
       notes: form.notes.trim() || null,
       certificate_asset_id: form.certificate_asset_id || null,
       certificate_path: form.certificate_path || null,
@@ -360,10 +444,18 @@ export default function VaccinationManager({
                       {(v.vet_name || v.vet_contact) && (
                         <p className="mt-0.5 text-xs text-muted-foreground">Vet: {[v.vet_name, v.vet_contact].filter(Boolean).join(" · ")}</p>
                       )}
+                      {(v.provider_name || v.administered_by || v.dose_number || v.batch_lot_number) && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {[v.provider_name && `Provider: ${v.provider_name}`, v.administered_by && `Administered by: ${v.administered_by}`, v.dose_number && `Dose: ${v.dose_number}`, v.batch_lot_number && `Batch: ${v.batch_lot_number}`].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Reminder {v.reminder_enabled ? "enabled" : "disabled"}{v.reminder_recipient ? ` for ${v.reminder_recipient}` : ""} · Certificate {v.certificate_path ? "available" : "not uploaded"} · {v.verification_status}
+                      </p>
                       {v.notes && <p className="mt-0.5 text-xs text-muted-foreground">{v.notes}</p>}
                       {v.certificate_path && (
                         <p className="mt-0.5 text-xs">
-                          <a href={v.certificate_path} target="_blank" rel="noreferrer" className="text-primary underline">View certificate</a>
+                          <a href={v.certificate_asset_id ? `/api/assets/${v.certificate_asset_id}/file` : v.certificate_path} target="_blank" rel="noreferrer" className="text-primary underline">View certificate</a>
                           <button type="button" onClick={() => removeCertificate(v)} className="ml-3 text-muted-foreground hover:text-red-600">Remove</button>
                         </p>
                       )}
@@ -394,6 +486,7 @@ export default function VaccinationManager({
           setForm={setForm}
           saving={saving}
           editing={Boolean(editingId)}
+          vaccineOptions={vaccineOptions}
           petId={petId}
           ownerId={ownerId}
           onError={setError}
@@ -442,7 +535,7 @@ function CertificateField({ form, setForm, petId, ownerId, onError }: {
         </label>
         {form.certificate_path && (
           <>
-            <a href={form.certificate_path} target="_blank" rel="noreferrer" className="text-xs text-primary underline">{form.certificate_name || "View"}</a>
+            <a href={form.certificate_asset_id ? `/api/assets/${form.certificate_asset_id}/file` : form.certificate_path} target="_blank" rel="noreferrer" className="text-xs text-primary underline">{form.certificate_name || "View"}</a>
             <button type="button" onClick={() => setForm({ ...form, certificate_asset_id: "", certificate_path: "", certificate_name: "" })} className="text-xs text-muted-foreground hover:text-red-600">Remove</button>
           </>
         )}
@@ -451,8 +544,8 @@ function CertificateField({ form, setForm, petId, ownerId, onError }: {
   );
 }
 
-function EditorModal({ form, setForm, saving, editing, petId, ownerId, onError, onClose, onSubmit }: {
-  form: FormState; setForm: (f: FormState) => void; saving: boolean; editing: boolean; petId: string; ownerId?: string; onError: (m: string) => void; onClose: () => void; onSubmit: () => void;
+function EditorModal({ form, setForm, saving, editing, vaccineOptions, petId, ownerId, onError, onClose, onSubmit }: {
+  form: FormState; setForm: (f: FormState) => void; saving: boolean; editing: boolean; vaccineOptions: VaccineOption[]; petId: string; ownerId?: string; onError: (m: string) => void; onClose: () => void; onSubmit: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
@@ -463,8 +556,25 @@ function EditorModal({ form, setForm, saving, editing, petId, ownerId, onError, 
         </div>
         <div className="space-y-3">
           <Field label="Vaccine / treatment">
-            <select value={form.vaccine_type} onChange={(e) => setForm({ ...form, vaccine_type: e.target.value })} className="h-10 w-full rounded-lg border bg-white px-2 text-sm">
-              {VACCINE_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <select
+              value={form.vaccine_type_id || form.vaccine_type}
+              onChange={(e) => {
+                const selected = vaccineOptions.find((option) => option.id === e.target.value || option.key === e.target.value);
+                if (!selected) return setForm({ ...form, vaccine_type: e.target.value });
+                const interval = selected.default_interval_months == null ? "" : String(selected.default_interval_months);
+                setForm({
+                  ...form,
+                  vaccine_type_id: selected.id,
+                  vaccine_type: selected.key,
+                  type_display_name: selected.display_name,
+                  category: selected.category,
+                  recommended_interval_months: interval,
+                  next_due_date: interval ? addMonthsToInput(form.administered_date || null, Number(interval)) : form.next_due_date,
+                });
+              }}
+              className="h-10 w-full rounded-lg border bg-white px-2 text-sm"
+            >
+              {vaccineOptions.map((o) => <option key={o.id} value={o.id}>{o.display_name}</option>)}
             </select>
           </Field>
           {form.vaccine_type === "custom" && (
@@ -474,6 +584,10 @@ function EditorModal({ form, setForm, saving, editing, petId, ownerId, onError, 
             <Field label="Last administered"><Input type="date" value={form.administered_date} onChange={(e) => setForm({ ...form, administered_date: e.target.value })} /></Field>
             <Field label="Next due date *"><Input type="date" value={form.next_due_date} onChange={(e) => setForm({ ...form, next_due_date: e.target.value })} /></Field>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Recommended interval (months)"><Input type="number" min="0" value={form.recommended_interval_months} onChange={(e) => setForm({ ...form, recommended_interval_months: e.target.value })} /></Field>
+            <Field label="Reminder recipient"><Input value={form.reminder_recipient} onChange={(e) => setForm({ ...form, reminder_recipient: e.target.value })} placeholder="Owner email by default" /></Field>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {REPEAT_INTERVAL_OPTIONS.map((o) => (
               <button key={o.months} type="button" onClick={() => setForm({ ...form, next_due_date: addMonthsToInput(form.administered_date || null, o.months) })} className="rounded-full border px-3 py-1 text-xs hover:bg-muted">+{o.label}</button>
@@ -482,6 +596,14 @@ function EditorModal({ form, setForm, saving, editing, petId, ownerId, onError, 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Vet name"><Input value={form.vet_name} onChange={(e) => setForm({ ...form, vet_name: e.target.value })} /></Field>
             <Field label="Vet contact"><Input value={form.vet_contact} onChange={(e) => setForm({ ...form, vet_contact: e.target.value })} /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Provider / clinic"><Input value={form.provider_name} onChange={(e) => setForm({ ...form, provider_name: e.target.value })} /></Field>
+            <Field label="Administered by"><Input value={form.administered_by} onChange={(e) => setForm({ ...form, administered_by: e.target.value })} /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Dose number"><Input value={form.dose_number} onChange={(e) => setForm({ ...form, dose_number: e.target.value })} /></Field>
+            <Field label="Batch / lot number"><Input value={form.batch_lot_number} onChange={(e) => setForm({ ...form, batch_lot_number: e.target.value })} /></Field>
           </div>
           <Field label="Notes"><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
           <CertificateField form={form} setForm={setForm} petId={petId} ownerId={ownerId} onError={onError} />

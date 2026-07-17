@@ -70,6 +70,9 @@ export async function POST(request: NextRequest) {
     if (!allowedExts || !allowedExts.includes(fileExt)) {
       return NextResponse.json({ error: "Unsupported file type or extension mismatch" }, { status: 400 });
     }
+    if (category === "Vaccination" && file.type === "image/gif") {
+      return NextResponse.json({ error: "Vaccination certificates must be PDF, JPG, JPEG, PNG, or WebP." }, { status: 400 });
+    }
     if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
       return NextResponse.json({ error: UPLOAD_SIZE_ERROR_MESSAGE }, { status: 400 });
     }

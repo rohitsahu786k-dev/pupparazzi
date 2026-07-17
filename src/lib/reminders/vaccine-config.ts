@@ -10,11 +10,14 @@
 
 export const VACCINE_TYPES = [
   "anti_rabies",
+  "immunity_7_in_1",
+  "immunity_10_in_1",
   "dhppl",
   "corona",
   "kennel_cough",
   "deworming",
   "tick_prevention",
+  "tick_flea_prevention",
   "custom",
 ] as const;
 
@@ -37,12 +40,15 @@ export type VaccineDefinition = {
 };
 
 export const VACCINE_DEFINITIONS: Record<VaccineType, VaccineDefinition> = {
-  anti_rabies: { key: "anti_rabies", label: "Anti Rabies", defaultCycleMonths: 12, legacyDateField: "anti_rabies_date" },
-  dhppl: { key: "dhppl", label: "DHPPiL", defaultCycleMonths: 12, legacyDateField: "dhppl_date" },
-  corona: { key: "corona", label: "Corona", defaultCycleMonths: 12, legacyDateField: "corona_date" },
-  kennel_cough: { key: "kennel_cough", label: "Kennel Cough", defaultCycleMonths: 12, legacyDateField: "kennel_cough_date" },
+  anti_rabies: { key: "anti_rabies", label: "Anti-Rabies Vaccine", defaultCycleMonths: 12, legacyDateField: "anti_rabies_date" },
+  immunity_7_in_1: { key: "immunity_7_in_1", label: "Immunity Vaccine - 7-in-1", defaultCycleMonths: 12, legacyDateField: null },
+  immunity_10_in_1: { key: "immunity_10_in_1", label: "Immunity Vaccine - 10-in-1", defaultCycleMonths: 12, legacyDateField: null },
+  dhppl: { key: "dhppl", label: "Legacy Immunity Vaccine (review)", defaultCycleMonths: 12, legacyDateField: "dhppl_date" },
+  corona: { key: "corona", label: "Corona Vaccine", defaultCycleMonths: 12, legacyDateField: "corona_date" },
+  kennel_cough: { key: "kennel_cough", label: "Kennel Cough Vaccine", defaultCycleMonths: 12, legacyDateField: "kennel_cough_date" },
   deworming: { key: "deworming", label: "Deworming", defaultCycleMonths: 3, legacyDateField: "deworming_date" },
-  tick_prevention: { key: "tick_prevention", label: "Tick Prevention", defaultCycleMonths: 1, legacyDateField: "tick_prevention_date" },
+  tick_prevention: { key: "tick_prevention", label: "Tick & Flea Prevention", defaultCycleMonths: 1, legacyDateField: "tick_prevention_date" },
+  tick_flea_prevention: { key: "tick_flea_prevention", label: "Tick & Flea Prevention", defaultCycleMonths: 1, legacyDateField: null },
   custom: { key: "custom", label: "Custom Vaccine or Treatment", defaultCycleMonths: null, legacyDateField: null },
 };
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { validateVaccination, serializeVaccination } from "../lib/reminders/vaccination-service";
+import { VACCINE_DEFINITIONS } from "../lib/reminders/vaccine-config";
 
 describe("Vaccination CRUD & Validation logic", () => {
   it("successfully validates standard vaccine entry with valid inputs", () => {
@@ -109,8 +110,16 @@ describe("Vaccination CRUD & Validation logic", () => {
     const res = serializeVaccination(record, 7, today);
 
     expect(res.id).toBe("rec-123");
-    expect(res.vaccine_label).toBe("Anti Rabies");
+    expect(res.vaccine_label).toBe("Anti-Rabies Vaccine");
     expect(res.status).toBe("Due Today"); // Derived due today
     expect(res.certificate_path).toBe("/uploads/rabies.pdf");
+  });
+
+  it("exposes clear standard vaccine and treatment labels", () => {
+    expect(VACCINE_DEFINITIONS.anti_rabies.label).toBe("Anti-Rabies Vaccine");
+    expect(VACCINE_DEFINITIONS.immunity_7_in_1.label).toBe("Immunity Vaccine - 7-in-1");
+    expect(VACCINE_DEFINITIONS.immunity_10_in_1.label).toBe("Immunity Vaccine - 10-in-1");
+    expect(VACCINE_DEFINITIONS.tick_flea_prevention.label).toBe("Tick & Flea Prevention");
+    expect(VACCINE_DEFINITIONS.dhppl.label).toContain("Legacy");
   });
 });
