@@ -34,7 +34,16 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.update({
       where: { email: normalizedEmail },
-      data: { password_hash: await bcrypt.hash(nextPassword, 10), emailVerified: new Date() },
+      data: {
+        password_hash: await bcrypt.hash(nextPassword, 10),
+        emailVerified: new Date(),
+        account_state: "Password configured",
+        portal_activated_at: new Date(),
+      },
+    });
+    await prisma.emailCampaignRecipient.updateMany({
+      where: { customer_id: user.id, status: "Sent" },
+      data: { status: "Activated", activation_status: "Password configured" },
     });
     await prisma.verificationToken.deleteMany({ where: { identifier: resetIdentifierFor(normalizedEmail) } });
     await prisma.session.deleteMany({ where: { userId: user.id } });

@@ -11,12 +11,14 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || "";
   const type = searchParams.get("type") || "";
+  const campaignId = searchParams.get("campaignId") || "";
   const q = (searchParams.get("q") || "").trim();
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(100, Math.max(10, Number(searchParams.get("pageSize") || 25)));
   const where = {
     ...(status ? { status } : {}),
     ...(type ? { email_type: type } : {}),
+    ...(campaignId ? { related_campaign_id: campaignId } : {}),
     ...(q ? {
       OR: [
         { recipient: { contains: q, mode: "insensitive" as const } },

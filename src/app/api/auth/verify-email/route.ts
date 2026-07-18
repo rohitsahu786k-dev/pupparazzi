@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.update({
       where: { email: normalizedEmail },
-      data: { emailVerified: new Date() },
+      data: { emailVerified: new Date(), account_state: "Account activated", portal_activated_at: new Date() },
     });
 
     sendWelcomeEmail(normalizedEmail, {

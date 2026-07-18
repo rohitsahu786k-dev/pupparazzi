@@ -589,6 +589,30 @@ export function passwordResetEmailHtml(data: { userName: string; resetUrl: strin
   return baseLayout(body, `Reset your ${BUSINESS.shortName} password`);
 }
 
+export function portalActivationEmailHtml(data: { userName: string; activationUrl: string; expiresMinutes: number }) {
+  const body = `
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:40px 48px;text-align:center;">
+      <h1 style="margin:0 0 10px;font-size:30px;font-weight:800;color:#FFFFFF;line-height:1.2;">Set up your Pupparazzi account</h1>
+      <p style="margin:0;font-size:16px;color:#94A3B8;">Your existing records are ready on our new portal.</p>
+    </div>
+    <div style="padding:40px 48px;" class="email-card">
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Hi <strong style="color:#0F172A;">${data.userName}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:15px;color:#475569;line-height:1.7;">Your existing ${BUSINESS.shortName} account has been moved to our new platform. Your customer and pet records are already available.</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">Use the secure one-time link below to create or reset your portal password. The link expires in ${data.expiresMinutes} minutes. If it expires, use Forgot password on the portal or contact us.</p>
+      ${primaryButton("Set Up My Account", data.activationUrl)}
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:28px 0;">
+        <tr>
+          <td style="background:#FDF2F8;border-left:4px solid #EC4899;border-radius:0 12px 12px 0;padding:16px 20px;">
+            <p style="margin:0;font-size:13px;color:#9D174D;line-height:1.6;">This email is from ${BUSINESS.name}. We will never send you a plain-text password.</p>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">Need help? Reply to this email or contact <a href="mailto:${BUSINESS.email}" style="color:#EC4899;text-decoration:none;">${BUSINESS.email}</a>.</p>
+    </div>`;
+
+  return baseLayout(body, `Set up your ${BUSINESS.shortName} portal account`);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // TEMPLATE 4 – BOOKING CANCELLATION
 // ═══════════════════════════════════════════════════════════════
@@ -850,6 +874,7 @@ interface MailOptions {
   relatedUserId?: string | null;
   relatedPetId?: string | null;
   relatedBookingId?: string | null;
+  relatedCampaignId?: string | null;
   idempotencyKey?: string | null;
 }
 
@@ -883,6 +908,7 @@ async function reserveEmailLog(options: MailOptions) {
         related_user_id: options.relatedUserId || null,
         related_pet_id: options.relatedPetId || null,
         related_booking_id: options.relatedBookingId || null,
+        related_campaign_id: options.relatedCampaignId || null,
         attempted_at: new Date(),
         attempt_count: 1,
       },
@@ -920,6 +946,7 @@ async function writeEmailLog(options: MailOptions, result: SendMailResult, reser
         related_user_id: options.relatedUserId || null,
         related_pet_id: options.relatedPetId || null,
         related_booking_id: options.relatedBookingId || null,
+        related_campaign_id: options.relatedCampaignId || null,
         idempotency_key: options.idempotencyKey || undefined,
         attempted_at: new Date(),
         attempt_count: 1,
@@ -1036,6 +1063,22 @@ export async function sendPasswordResetEmail(to: string, data: Parameters<typeof
     subject: `Reset your ${BUSINESS.shortName} password`,
     html: passwordResetEmailHtml(data),
     emailType: "password_reset",
+  });
+}
+
+export async function sendPortalActivationEmail(
+  to: string,
+  data: Parameters<typeof portalActivationEmailHtml>[0],
+  meta?: { relatedUserId?: string | null; relatedCampaignId?: string | null; idempotencyKey?: string | null },
+) {
+  return sendMail({
+    to,
+    subject: `Set up your ${BUSINESS.shortName} account`,
+    html: portalActivationEmailHtml(data),
+    emailType: "portal_activation",
+    relatedUserId: meta?.relatedUserId || null,
+    relatedCampaignId: meta?.relatedCampaignId || null,
+    idempotencyKey: meta?.idempotencyKey || null,
   });
 }
 

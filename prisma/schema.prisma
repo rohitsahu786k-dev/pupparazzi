@@ -55,6 +55,14 @@ model User {
   wallet_balance      Float     @default(0)
   outstanding_balance Float     @default(0)
   is_active           Boolean   @default(true)
+  account_state       String    @default("Account activated") // Imported | Portal invite pending | Invite queued | Invite sent | Invite failed | Account activated | Password configured
+  imported_at         DateTime?
+  portal_invited_at   DateTime?
+  portal_activated_at DateTime?
+  email_suppressed    Boolean   @default(false)
+  email_unsubscribed  Boolean   @default(false)
+  email_bounced       Boolean   @default(false)
+  email_excluded      Boolean   @default(false)
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
 
@@ -68,6 +76,10 @@ model User {
   invoices       Invoice[]
   staffProfile   Staff?
   notifications  Notification[]
+
+  @@index([role])
+  @@index([account_state])
+  @@index([email_suppressed])
 }
 
 model VerificationToken {
@@ -619,6 +631,7 @@ model EmailLog {
   related_user_id     String?   @db.ObjectId
   related_pet_id      String?   @db.ObjectId
   related_booking_id  String?   @db.ObjectId
+  related_campaign_id String?   @db.ObjectId
   status              String    @default("Queued") // Queued | Sent | Failed | Skipped
   queued_at           DateTime  @default(now())
   attempted_at        DateTime?
@@ -635,4 +648,57 @@ model EmailLog {
   @@index([recipient])
   @@index([status])
   @@index([related_user_id])
+  @@index([related_campaign_id])
+}
+
+model EmailCampaign {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  campaign_type   String
+  status          String    @default("Draft") // Draft | Running | Paused | Stopped | Completed
+  started_at      DateTime?
+  completed_at    DateTime?
+  paused_at       DateTime?
+  stopped_at      DateTime?
+  daily_cap       Int?
+  reserved_quota  Int       @default(50)
+  total_eligible  Int       @default(0)
+  queued          Int       @default(0)
+  sent            Int       @default(0)
+  delivered       Int       @default(0)
+  failed          Int       @default(0)
+  skipped         Int       @default(0)
+  activated       Int       @default(0)
+  created_by      String?   @db.ObjectId
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@index([campaign_type])
+  @@index([status])
+}
+
+model EmailCampaignRecipient {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  campaign_id         String    @db.ObjectId
+  campaign_type       String
+  customer_id         String    @db.ObjectId
+  email               String
+  status              String    @default("Queued") // Queued | Processing | Sent | Failed | Skipped | Activated
+  queued_at           DateTime?
+  attempted_at        DateTime?
+  sent_at             DateTime?
+  provider_message_id String?
+  attempt_count       Int       @default(0)
+  last_error          String?
+  skipped_reason      String?
+  activation_status   String?
+  token_reference     String?
+  next_attempt_at     DateTime?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  @@index([campaign_id])
+  @@index([status])
+  @@index([next_attempt_at])
+  @@index([customer_id])
+  @@unique([campaign_type, customer_id])
 }

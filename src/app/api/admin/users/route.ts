@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, requireOperations } from "@/lib/admin";
+import { requireOperations } from "@/lib/admin";
 import { sendWelcomeEmail, sendPasswordUpdatedEmail } from "@/lib/mailer";
 import { deleteUserCascade } from "@/lib/delete-records";
 import { buildClientDataExport } from "@/lib/client-data-export";
@@ -49,6 +49,9 @@ function publicUserSelect(): Prisma.UserSelect {
     role: true,
     is_active: true,
     emailVerified: true,
+    account_state: true,
+    portal_invited_at: true,
+    portal_activated_at: true,
     wallet_balance: true,
     outstanding_balance: true,
     created_at: true,
@@ -265,12 +268,13 @@ export async function POST(req: Request) {
       role: role as any,
       password_hash: password ? await bcrypt.hash(password, 10) : undefined,
       emailVerified: realEmail ? new Date() : null,
+      account_state: password ? "Account activated" : "Portal invite pending",
       is_active: body.is_active ?? true,
     },
   });
   await syncStaffProfile(user.id, role);
 
-  if (realEmail && (password || isClient)) {
+  if (realEmail && password) {
     sendWelcomeEmail(realEmail, { userName: user.name || "there", email: realEmail, role: role as any }).catch(console.error);
   }
   const created = await prisma.user.findUnique({ where: { id: user.id }, select: publicUserSelect() });
@@ -315,11 +319,14 @@ export async function PATCH(req: Request) {
     ...(body.outstanding_balance !== undefined ? { outstanding_balance: Number(body.outstanding_balance) } : {}),
     ...(body.emailVerified === true ? { emailVerified: new Date() } : {}),
     ...(body.emailVerified === false ? { emailVerified: null } : {}),
+    ...(body.account_state !== undefined ? { account_state: String(body.account_state) } : {}),
   };
   if (body.password) {
     const password = String(body.password);
     if (password.length < 6) return NextResponse.json({ message: "Password must be at least 6 characters" }, { status: 400 });
     data.password_hash = await bcrypt.hash(password, 10);
+    data.account_state = "Password configured";
+    data.portal_activated_at = new Date();
   }
 
   const user = await prisma.user.update({

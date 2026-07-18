@@ -28,10 +28,10 @@ export async function POST(req: Request) {
     const user = existingUser
       ? await prisma.user.update({
           where: { id: existingUser.id },
-          data: { name, email: normalizedEmail, phone, password_hash: hashedPassword },
+          data: { name, email: normalizedEmail, phone, password_hash: hashedPassword, account_state: "Portal invite pending" },
         })
       : await prisma.user.create({
-          data: { name, email: normalizedEmail, phone, password_hash: hashedPassword },
+          data: { name, email: normalizedEmail, phone, password_hash: hashedPassword, account_state: "Portal invite pending" },
         });
 
     await sendVerificationOtp(normalizedEmail, name);
