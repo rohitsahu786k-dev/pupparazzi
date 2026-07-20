@@ -120,8 +120,8 @@ export default function VaccineTreatmentSettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">Manage selectable medical record types without rewriting historical records.</p>
       </div>
 
-      <div className="rounded-lg border bg-white p-4">
-        <div className="grid gap-3 lg:grid-cols-[1.5fr_180px_160px_120px_120px] lg:items-end">
+      <div className="overflow-hidden rounded-lg border bg-white p-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_minmax(170px,190px)_minmax(140px,170px)_minmax(110px,140px)_auto] xl:items-end">
           <label className="block text-sm font-semibold">
             Display name
             <Input className="mt-1" value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="Vaccine or treatment name" />
@@ -140,9 +140,9 @@ export default function VaccineTreatmentSettingsPage() {
             Order
             <Input className="mt-1" type="number" value={form.display_order} onChange={(e) => setForm({ ...form, display_order: e.target.value })} />
           </label>
-          <div className="flex gap-2">
-            <Button className="flex-1 lg:flex-none" onClick={save}>{editingId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}{editingId ? "Save" : "Add"}</Button>
-            {editingId && <Button type="button" variant="outline" onClick={() => { setEditingId(""); setForm(EMPTY); }}>Cancel</Button>}
+          <div className="grid gap-2 sm:grid-cols-2 md:col-span-2 xl:col-span-1 xl:flex xl:justify-end">
+            <Button className="w-full xl:w-auto" onClick={save}>{editingId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}{editingId ? "Save" : "Add"}</Button>
+            {editingId && <Button className="w-full xl:w-auto" type="button" variant="outline" onClick={() => { setEditingId(""); setForm(EMPTY); }}>Cancel</Button>}
           </div>
         </div>
         <label className="mt-3 flex items-center gap-2 text-sm font-semibold">
@@ -155,7 +155,7 @@ export default function VaccineTreatmentSettingsPage() {
 
       <div className="hidden overflow-hidden rounded-lg border bg-white md:block">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Name</th>
@@ -177,7 +177,7 @@ export default function VaccineTreatmentSettingsPage() {
                   <td className="px-4 py-3">{item.reference_count || 0}</td>
                   <td className="px-4 py-3">{item.archived_at ? "Archived" : item.is_active ? "Active" : "Inactive"}</td>
                   <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => edit(item)}><Edit3 className="mr-1 h-3.5 w-3.5" />Edit</Button>
                       {item.archived_at ? (
                         <Button size="sm" variant="outline" onClick={() => restore(item)}><RotateCcw className="mr-1 h-3.5 w-3.5" />Restore</Button>

@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, CalendarPlus, ChevronDown, ChevronUp, CreditCard, Download, Edit3, Eye, Grid2X2, List, Loader2, Mail, MapPin, MessageCircle, Phone, Printer, Save, Search, Share2, Trash2, UserCheck, UserPlus } from "lucide-react";
+import { Calendar, CalendarPlus, ChevronDown, ChevronUp, CreditCard, Download, Edit3, Eye, Filter, Grid2X2, List, Loader2, Mail, MapPin, MessageCircle, Phone, Printer, Save, Search, Share2, Trash2, UserCheck, UserPlus } from "lucide-react";
 import { canExtendBooking, quoteExtension } from "@/lib/booking-extension";
 
 type Booking = {
@@ -353,6 +353,7 @@ export default function AdminBookingsPage() {
   const [editDrafts, setEditDrafts] = useState<Record<string, BookingEditDraft>>({});
   const [counts, setCounts] = useState<PeriodCounts>(EMPTY_COUNTS);
   const [error, setError] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // The filters every request shares. The counts endpoint gets the same ones (minus
   // the period itself) so each badge matches what its tab will actually show.
@@ -420,6 +421,16 @@ export default function AdminBookingsPage() {
         .some((value) => String(value).toLowerCase().includes(needle))
     );
   }, [bookings, query]);
+
+  const activeFilterCount = [
+    clientId,
+    status !== "All",
+    paymentStatus !== "All",
+    serviceCategory !== "All",
+    dateFrom,
+    dateTo,
+    period !== "all",
+  ].filter(Boolean).length;
 
   async function updateBooking(id: string, body: Record<string, unknown>) {
     setSavingId(id);
@@ -623,7 +634,7 @@ export default function AdminBookingsPage() {
         <div
           role="tablist"
           aria-label="Filter bookings by period"
-          className="mb-4 flex w-full flex-wrap gap-1 rounded-xl border bg-muted/40 p-1"
+          className="mb-4 grid w-full grid-cols-2 gap-1 rounded-xl border bg-muted/40 p-1 sm:grid-cols-5"
         >
           {PERIOD_TABS.map((tab) => {
             const selected = period === tab.value;
@@ -634,7 +645,7 @@ export default function AdminBookingsPage() {
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setPeriod(tab.value)}
-                className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
+                className={`flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${
                   selected
                     ? "bg-white text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -652,7 +663,29 @@ export default function AdminBookingsPage() {
             );
           })}
         </div>
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="mb-3 flex items-center justify-between gap-3 md:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 px-3"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+            aria-controls="booking-filter-panel"
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[11px] font-bold text-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+          <span className="text-xs font-semibold text-muted-foreground">{filtered.length} result{filtered.length === 1 ? "" : "s"}</span>
+        </div>
+        <div
+          id="booking-filter-panel"
+          className={`${filtersOpen ? "grid" : "hidden"} gap-3 md:grid md:grid-cols-2 lg:grid-cols-[minmax(260px,1.8fr)_minmax(150px,1fr)_minmax(140px,1fr)_minmax(150px,1fr)_minmax(130px,1fr)_minmax(145px,1fr)_minmax(145px,1fr)_auto] md:items-end`}
+        >
           <div className="relative min-w-[240px] flex-[2_1_320px]">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search booking ID, client, pet, phone or email" className="pl-9" />
@@ -684,16 +717,19 @@ export default function AdminBookingsPage() {
           <label className="min-w-[150px] flex-1 text-xs font-semibold">Service date to
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="mt-1" />
           </label>
-          <Button variant="outline" className="h-11 min-w-[110px] flex-1 sm:flex-none" onClick={fetchBookings}>Apply filters</Button>
+          <Button variant="outline" className="h-11 w-full lg:w-auto" onClick={() => { fetchBookings(); setFiltersOpen(false); }}>Apply filters</Button>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button type="button" size="sm" variant={viewMode === "list" ? "default" : "outline"} onClick={() => setViewMode("list")}><List className="mr-1 h-3.5 w-3.5" /> List</Button>
-          <Button type="button" size="sm" variant={viewMode === "calendar" ? "default" : "outline"} onClick={() => setViewMode("calendar")}><Grid2X2 className="mr-1 h-3.5 w-3.5" /> Calendar</Button>
-          <Input type="date" value={selectedCalendarDate} onChange={(e) => setSelectedCalendarDate(e.target.value)} className="h-9 w-44" />
+        <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Button type="button" size="sm" variant={viewMode === "list" ? "default" : "outline"} onClick={() => setViewMode("list")}><List className="mr-1 h-3.5 w-3.5" /> List</Button>
+            <Button type="button" size="sm" variant={viewMode === "calendar" ? "default" : "outline"} onClick={() => setViewMode("calendar")}><Grid2X2 className="mr-1 h-3.5 w-3.5" /> Calendar</Button>
+          </div>
+          <Input type="date" value={selectedCalendarDate} onChange={(e) => setSelectedCalendarDate(e.target.value)} className="h-9 w-full sm:w-44" />
           <Button
             type="button"
             size="sm"
             variant="ghost"
+            className="justify-center sm:justify-start"
             onClick={() => {
               setQuery("");
               setClientId("");
@@ -708,7 +744,7 @@ export default function AdminBookingsPage() {
             Clear all filters
           </Button>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+        <div className="mt-3 hidden flex-wrap items-center gap-2 text-xs md:flex">
           <span className="font-semibold text-muted-foreground">{filtered.length} result{filtered.length === 1 ? "" : "s"}</span>
           {clientId && <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">Client selected</span>}
           {status !== "All" && <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">Status: {status}</span>}
