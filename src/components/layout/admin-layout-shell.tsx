@@ -24,8 +24,8 @@ export function AdminLayoutShell({ sidebar, children, title = "Admin Portal", av
   }, [mobileOpen]);
 
   return (
-    <div className="flex min-h-dvh w-full overflow-hidden bg-[var(--surface)]">
-      <div className="sticky top-0 hidden h-dvh shrink-0 self-start lg:block">
+    <div className="min-h-dvh w-full bg-[var(--surface)]">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:block lg:w-72">
         {sidebar}
       </div>
 
@@ -48,7 +48,7 @@ export function AdminLayoutShell({ sidebar, children, title = "Admin Portal", av
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col lg:pl-72">
         <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b bg-white/90 px-3 shadow-sm backdrop-blur sm:px-4 lg:h-16 lg:px-6">
           <div className="flex items-center gap-3">
             <button
