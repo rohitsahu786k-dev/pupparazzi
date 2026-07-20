@@ -25,7 +25,7 @@ export function AdminLayoutShell({ sidebar, children, title = "Admin Portal", av
 
   return (
     <div className="flex min-h-dvh w-full overflow-hidden bg-[var(--surface)]">
-      <div className="hidden shrink-0 lg:block">
+      <div className="sticky top-0 hidden h-dvh shrink-0 self-start lg:block">
         {sidebar}
       </div>
 

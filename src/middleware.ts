@@ -48,6 +48,10 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", origin));
     }
 
+    if (pathname.startsWith("/dashboard") && (token?.role === "ADMIN" || token?.role === "STAFF")) {
+      return NextResponse.redirect(new URL("/admin", origin));
+    }
+
     if (pathname.startsWith("/staff") && token?.role !== "STAFF" && token?.role !== "ADMIN") {
       return NextResponse.redirect(new URL("/dashboard", origin));
     }

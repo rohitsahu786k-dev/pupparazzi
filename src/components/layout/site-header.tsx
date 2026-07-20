@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, LogOut, Menu, MessageCircle, Phone, Search, Settings, Star, UserCircle2, X } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, Menu, MessageCircle, Phone, Search, Settings, Star, UserCircle2, X } from "lucide-react";
 import { LocationFetcher } from "@/components/ui/location-fetcher";
 
 const publicLinks = [
@@ -70,6 +70,7 @@ export function SiteHeader({ business }: SiteHeaderProps) {
 
   const userName = session?.user?.name || "My Account";
   const userEmail = session?.user?.email || "";
+  const dashboardHref = session?.user?.role === "ADMIN" || session?.user?.role === "STAFF" ? "/admin" : "/dashboard";
   const initials =
     userName
       .split(" ")
@@ -130,6 +131,10 @@ export function SiteHeader({ business }: SiteHeaderProps) {
                     <p className="truncate text-sm font-semibold text-foreground">{userName}</p>
                     <p className="truncate text-xs text-secondary">{userEmail}</p>
                   </div>
+                  <Link href={dashboardHref} onClick={() => setOpenMenu(false)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-muted/60">
+                    <LayoutDashboard className="h-4 w-4 text-secondary" />
+                    Dashboard
+                  </Link>
                   <Link href="/profile" onClick={() => setOpenMenu(false)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-muted/60">
                     <UserCircle2 className="h-4 w-4 text-secondary" />
                     Profile
@@ -171,11 +176,30 @@ export function SiteHeader({ business }: SiteHeaderProps) {
               </button>
             </div>
             <nav className="mt-8 grid gap-2 text-sm font-semibold">
-              {[...publicLinks, { label: "About", href: "/about", icon: Star }, { label: "Sign In", href: "/login", icon: UserCircle2 }].map((item) => (
+              {[
+                ...publicLinks,
+                { label: "About", href: "/about", icon: Star },
+                ...(status === "authenticated"
+                  ? [
+                      { label: "Dashboard", href: dashboardHref, icon: LayoutDashboard },
+                      { label: "Profile", href: "/profile", icon: UserCircle2 },
+                      { label: "Settings", href: "/settings", icon: Settings },
+                    ]
+                  : [{ label: "Sign In", href: "/login", icon: UserCircle2 }]),
+              ].map((item) => (
                 <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className="rounded-lg border bg-[var(--surface)] px-4 py-3 text-foreground">
                   {item.label}
                 </Link>
               ))}
+              {status === "authenticated" && (
+                <button
+                  type="button"
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-left text-red-600"
+                >
+                  Logout
+                </button>
+              )}
             </nav>
             <div className="mt-auto grid gap-3">
               <Button asChild>

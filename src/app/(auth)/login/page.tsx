@@ -14,6 +14,10 @@ function safeCallbackUrl(raw: string | null | undefined) {
   return raw;
 }
 
+function loginDestination(callbackUrl: string) {
+  return callbackUrl === "/login" ? "/dashboard" : callbackUrl;
+}
+
 function LoginContent() {
   const searchParams = useSearchParams();
   const callbackUrl = safeCallbackUrl(searchParams?.get("callbackUrl"));
@@ -69,9 +73,7 @@ function LoginContent() {
           setError("Invalid email or password");
         }
       } else {
-        const sessionRes = await fetch("/api/auth/session");
-        const session = await sessionRes.json().catch(() => ({}));
-        window.location.href = session?.user?.role === "ADMIN" ? "/admin" : session?.user?.role === "STAFF" ? "/staff" : callbackUrl;
+        window.location.href = loginDestination(callbackUrl);
         return;
       }
     } catch {
@@ -106,9 +108,7 @@ function LoginContent() {
         setVerificationPending(false);
         return;
       }
-      const sessionRes = await fetch("/api/auth/session");
-      const session = await sessionRes.json().catch(() => ({}));
-      window.location.href = session?.user?.role === "ADMIN" ? "/admin" : session?.user?.role === "STAFF" ? "/staff" : callbackUrl;
+      window.location.href = loginDestination(callbackUrl);
     } catch {
       setError("An unexpected error occurred");
     } finally {
