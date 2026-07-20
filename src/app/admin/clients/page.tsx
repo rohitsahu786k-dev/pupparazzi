@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, CheckCircle2, Download, Eye, FileText, KeyRound, Loader2, Printer, Search, Share2, ShieldCheck, Trash2, UserPlus, ChevronDown, ChevronUp } from "lucide-react";
+import VaccinationManager from "@/components/reminders/vaccination-manager";
 
 type AdminUser = {
   id: string;
@@ -185,6 +186,7 @@ export default function AdminClientsPage() {
   const [viewer, setViewer] = useState<{ label: string; path: string } | null>(null);
   const [passwords, setPasswords] = useState<Record<string, string>>({});
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
+  const [expandedVaccinePetId, setExpandedVaccinePetId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", role: "CLIENT", petName: "", petType: "Dog", petBreed: "", petWeight: "" });
 
   // Document upload states
@@ -377,6 +379,7 @@ export default function AdminClientsPage() {
   async function openProfile(user: AdminUser) {
     setProfileUser(user);
     setProfileOldHistory(null);
+    setExpandedVaccinePetId(null);
     setTimelineFilter("All history");
     setTimelinePetFilter("All pets");
     setProfileLoading(true);
@@ -1102,13 +1105,35 @@ export default function AdminClientsPage() {
                     )}
 
                     <div className="mt-3 space-y-2">
-                      {profilePets.length === 0 ? <p className="text-sm text-muted-foreground">No pets.</p> : profilePets.map((pet) => (
-                        <div key={pet.id} className="rounded-lg border bg-muted/25 p-3">
-                          <p className="font-bold">{pet.name}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{[pet.type, pet.breed, pet.weight ? `${pet.weight} kg` : ""].filter(Boolean).join(" - ")}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">Vaccination: {pet.medical?.vaccination_status || "Not recorded"}</p>
-                        </div>
-                      ))}
+                      {profilePets.length === 0 ? <p className="text-sm text-muted-foreground">No pets.</p> : profilePets.map((pet) => {
+                        const vaccinesOpen = expandedVaccinePetId === pet.id;
+                        return (
+                          <div key={pet.id} className="rounded-lg border bg-muted/25 p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate font-bold">{pet.name}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">{[pet.type, pet.breed, pet.weight ? `${pet.weight} kg` : ""].filter(Boolean).join(" - ")}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">Vaccination: {pet.medical?.vaccination_status || "Not recorded"}</p>
+                              </div>
+                              <Button size="sm" variant={vaccinesOpen ? "default" : "outline"} onClick={() => setExpandedVaccinePetId(vaccinesOpen ? null : pet.id)}>
+                                Vaccine
+                              </Button>
+                            </div>
+                            {vaccinesOpen && (
+                              <div className="mt-3 rounded-lg border bg-white p-3">
+                                <VaccinationManager
+                                  petId={pet.id}
+                                  ownerId={profileUser.id}
+                                  petName={pet.name}
+                                  dob={null}
+                                  canManageOwnerReminders
+                                  isOperations={true}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </section>
 

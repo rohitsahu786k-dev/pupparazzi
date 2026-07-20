@@ -587,9 +587,6 @@ export default function AdminBookingsPage() {
     return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
   }
 
-  const isSelectedToday = selectedCalendarDate === dateKey(new Date());
-  const selectedDateBookingsCount = filtered.filter((booking) => dateKey(booking.slot_date) === selectedCalendarDate).length;
-  const metrics = counts.metrics;
   const calendarDays = useMemo(() => {
     const base = selectedCalendarDate ? new Date(selectedCalendarDate) : new Date();
     const start = new Date(base.getFullYear(), base.getMonth(), 1);
@@ -613,20 +610,6 @@ export default function AdminBookingsPage() {
         <div className="flex flex-wrap gap-2">
           <Button asChild><a href="/admin/bookings/new?mode=existing"><UserCheck className="mr-2 h-4 w-4" />Book existing client</a></Button>
           <Button variant="outline" asChild><a href="/admin/bookings/new?mode=new"><UserPlus className="mr-2 h-4 w-4" />Add new client & book</a></Button>
-        </div>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
-          <div className="rounded-lg border bg-white px-4 py-3">
-            <p className="text-muted-foreground text-ellipsis overflow-hidden whitespace-nowrap">{isSelectedToday ? "Service today" : `Service on ${new Date(selectedCalendarDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}`}</p>
-            <p className="text-xl font-bold">{isSelectedToday ? metrics?.serviceToday ?? selectedDateBookingsCount : selectedDateBookingsCount}</p>
-          </div>
-          <div className="rounded-lg border bg-white px-4 py-3">
-            <p className="text-muted-foreground">Booked today</p>
-            <p className="text-xl font-bold">{metrics?.bookedToday ?? 0}</p>
-          </div>
-          <div className="rounded-lg border bg-white px-4 py-3">
-            <p className="text-muted-foreground">{metrics?.paidLabel || "Collected today"}</p>
-            <p className="text-xl font-bold">Rs. {Number(metrics?.collectedToday || 0).toLocaleString("en-IN")}</p>
-          </div>
         </div>
       </div>
 
@@ -663,7 +646,7 @@ export default function AdminBookingsPage() {
             );
           })}
         </div>
-        <div className="mb-3 flex items-center justify-between gap-3 md:hidden">
+        <div className="mb-3 flex items-center justify-between gap-3">
           <Button
             type="button"
             variant="outline"
@@ -684,7 +667,7 @@ export default function AdminBookingsPage() {
         </div>
         <div
           id="booking-filter-panel"
-          className={`${filtersOpen ? "grid" : "hidden"} gap-3 md:grid md:grid-cols-2 lg:grid-cols-[minmax(260px,1.8fr)_minmax(150px,1fr)_minmax(140px,1fr)_minmax(150px,1fr)_minmax(130px,1fr)_minmax(145px,1fr)_minmax(145px,1fr)_auto] md:items-end`}
+          className={`${filtersOpen ? "grid" : "hidden"} gap-3 md:grid-cols-2 lg:grid-cols-[minmax(260px,1.8fr)_minmax(150px,1fr)_minmax(140px,1fr)_minmax(150px,1fr)_minmax(130px,1fr)_minmax(145px,1fr)_minmax(145px,1fr)_auto] lg:items-end`}
         >
           <div className="relative min-w-[240px] flex-[2_1_320px]">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -823,19 +806,19 @@ export default function AdminBookingsPage() {
               const isExpanded = expandedBookingId === booking.id;
               const draft = editDraft(booking);
               return (
-                <div key={booking.id} className="rounded-lg border bg-white shadow-sm overflow-hidden">
+                <div key={booking.id} className="overflow-hidden rounded-lg border bg-white shadow-sm">
                   <div
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/10 select-none"
+                    className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4 hover:bg-muted/10"
                     onClick={() => setExpandedBookingId(isExpanded ? null : booking.id)}
                   >
-                    <div className="min-w-0">
-                      <p className="font-bold text-foreground">{booking.booking_id}</p>
+                    <div className="min-w-0 overflow-hidden">
+                      <p className="truncate font-bold text-foreground">{booking.booking_id}</p>
                       <p className="mt-1 truncate text-sm font-semibold">{booking.client?.name || "Customer"}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{booking.service?.category} - {booking.pet?.name || "Pet"}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">{booking.service?.category || "Service"} - {booking.pet?.name || "Pet"}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${badgeClass(booking.status)}`}>{booking.status}</span>
-                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    <div className="flex min-w-[6.5rem] items-center justify-end gap-2">
+                      <span className={`inline-flex max-w-[5.25rem] items-center justify-center rounded-lg border px-2 py-1 text-center text-[11px] font-bold leading-tight ${badgeClass(booking.status)}`}>{booking.status}</span>
+                      {isExpanded ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
                     </div>
                   </div>
                   {isExpanded && (
