@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -100,6 +101,8 @@ export async function POST(req: Request) {
       },
       include: { addons: true },
     });
+    revalidatePath("/");
+    revalidatePath("/services");
     return NextResponse.json(service, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: "Failed to create service", error: String(error) }, { status: 500 });
@@ -147,6 +150,8 @@ export async function PATCH(req: Request) {
       },
       include: { addons: true },
     });
+    revalidatePath("/");
+    revalidatePath("/services");
     return NextResponse.json(service);
   } catch (error) {
     return NextResponse.json({ message: "Failed to update service", error: String(error) }, { status: 500 });
@@ -166,9 +171,13 @@ export async function DELETE(req: Request) {
     const bookingCount = await prisma.booking.count({ where: { service_id: id } });
     if (bookingCount > 0) {
       await prisma.service.update({ where: { id }, data: { is_active: false } });
+      revalidatePath("/");
+      revalidatePath("/services");
       return NextResponse.json({ message: "Service has bookings, so it was disabled instead of deleted" });
     }
     await prisma.service.delete({ where: { id } });
+    revalidatePath("/");
+    revalidatePath("/services");
     return NextResponse.json({ message: "Service deleted successfully" });
   } catch (error) {
     return NextResponse.json({ message: "Failed to delete service", error: String(error) }, { status: 500 });

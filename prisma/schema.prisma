@@ -131,6 +131,10 @@ model Pet {
 
   birthday_reminder_enabled Boolean? @default(true)
   dob_is_estimated          Boolean? @default(false)
+
+  @@index([owner_id])
+  @@index([type])
+  @@index([created_at])
 }
 
 model PetMedical {
@@ -173,6 +177,8 @@ model Address {
 
   user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   bookings Booking[]
+
+  @@index([user_id])
 }
 
 model Service {
@@ -200,6 +206,10 @@ model Service {
 
   addons   Addon[]
   bookings Booking[]
+
+  @@index([category])
+  @@index([is_active])
+  @@index([category, display_order])
 }
 
 model Addon {
@@ -211,6 +221,8 @@ model Addon {
   is_active   Boolean @default(true)
 
   service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@index([service_id])
 }
 
 model Booking {
@@ -278,6 +290,17 @@ model Booking {
   address  Address?  @relation(fields: [address_id], references: [id])
   payments Payment[]
   invoices Invoice[]
+
+  @@index([client_id])
+  @@index([pet_id])
+  @@index([service_id])
+  @@index([staff_id])
+  @@index([status])
+  @@index([payment_status])
+  @@index([slot_date])
+  @@index([check_in_date])
+  @@index([check_out_date])
+  @@index([created_at])
 }
 
 model Payment {
@@ -298,6 +321,11 @@ model Payment {
 
   booking Booking? @relation(fields: [booking_id], references: [id])
   client  User     @relation(fields: [client_id], references: [id])
+
+  @@index([booking_id])
+  @@index([client_id])
+  @@index([status])
+  @@index([created_at])
 }
 
 model Invoice {
@@ -315,6 +343,11 @@ model Invoice {
 
   booking Booking? @relation(fields: [booking_id], references: [id])
   client  User     @relation(fields: [client_id], references: [id])
+
+  @@index([booking_id])
+  @@index([client_id])
+  @@index([status])
+  @@index([created_at])
 }
 
 model Staff {
@@ -382,6 +415,14 @@ model Asset {
   uploaded_by   String?  @db.ObjectId
   is_verified   Boolean  @default(false)
   created_at    DateTime @default(now())
+
+  @@index([category, created_at])
+  @@index([client_id])
+  @@index([pet_id])
+  @@index([booking_id])
+  @@index([document_type])
+  @@index([path])
+  @@index([created_at])
 }
 
 model OldDataImportJob {
@@ -521,6 +562,11 @@ model ClientRecord {
   outstanding_balance       Float?   @default(0)
   created_at                DateTime @default(now())
   updated_at                DateTime @updatedAt
+
+  @@index([phone])
+  @@index([name])
+  @@index([status])
+  @@index([created_at])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -531,39 +577,39 @@ model ClientRecord {
 /// *next due date*. Administered dates from the legacy PetMedical model are
 /// backfilled into these records by scripts/migrate-pet-vaccinations.ts.
 model PetVaccination {
-  id                   String    @id @default(auto()) @map("_id") @db.ObjectId
-  pet_id               String    @db.ObjectId
-  vaccine_type_id      String?   @db.ObjectId
-  vaccine_type         String // one of VACCINE_TYPES keys (see lib/reminders/vaccine-config)
-  type_display_name    String?
-  category             String? // vaccine | deworming | parasite_prevention | custom_treatment
-  custom_vaccine_name  String? // required when vaccine_type === "custom"
-  administered_date    DateTime?
-  next_due_date        DateTime
+  id                          String    @id @default(auto()) @map("_id") @db.ObjectId
+  pet_id                      String    @db.ObjectId
+  vaccine_type_id             String?   @db.ObjectId
+  vaccine_type                String // one of VACCINE_TYPES keys (see lib/reminders/vaccine-config)
+  type_display_name           String?
+  category                    String? // vaccine | deworming | parasite_prevention | custom_treatment
+  custom_vaccine_name         String? // required when vaccine_type === "custom"
+  administered_date           DateTime?
+  next_due_date               DateTime
   recommended_interval_months Int?
-  reminder_enabled     Boolean   @default(true)
-  reminder_days_json   Json? // optional per-record override of the global schedule (number[])
-  reminder_recipient   String?
-  notes                String?
-  vet_name             String?
-  vet_contact          String?
-  provider_name        String?
-  administered_by      String?
-  dose_number          String?
-  batch_lot_number     String?
-  certificate_asset_id String?   @db.ObjectId
-  certificate_path     String?
-  status               String    @default("Upcoming") // derived on read; stored as a hint only
-  source               String    @default("staff") // customer | staff | admin | imported | migrated
-  verification_status  String    @default("Verified") // Submitted | Verified | Rejected | Needs clarification
-  legacy_value         String?
-  legacy_review_required Boolean @default(false)
-  archived_at          DateTime?
-  completed_at         DateTime?
-  created_by           String?   @db.ObjectId
-  updated_by           String?   @db.ObjectId
-  created_at           DateTime  @default(now())
-  updated_at           DateTime  @updatedAt
+  reminder_enabled            Boolean   @default(true)
+  reminder_days_json          Json? // optional per-record override of the global schedule (number[])
+  reminder_recipient          String?
+  notes                       String?
+  vet_name                    String?
+  vet_contact                 String?
+  provider_name               String?
+  administered_by             String?
+  dose_number                 String?
+  batch_lot_number            String?
+  certificate_asset_id        String?   @db.ObjectId
+  certificate_path            String?
+  status                      String    @default("Upcoming") // derived on read; stored as a hint only
+  source                      String    @default("staff") // customer | staff | admin | imported | migrated
+  verification_status         String    @default("Verified") // Submitted | Verified | Rejected | Needs clarification
+  legacy_value                String?
+  legacy_review_required      Boolean   @default(false)
+  archived_at                 DateTime?
+  completed_at                DateTime?
+  created_by                  String?   @db.ObjectId
+  updated_by                  String?   @db.ObjectId
+  created_at                  DateTime  @default(now())
+  updated_at                  DateTime  @updatedAt
 
   pet Pet @relation(fields: [pet_id], references: [id], onDelete: Cascade)
 
@@ -576,20 +622,20 @@ model PetVaccination {
 }
 
 model VaccineTreatmentType {
-  id                              String   @id @default(auto()) @map("_id") @db.ObjectId
-  key                             String   @unique
-  display_name                    String
-  normalized_name                 String   @unique
-  category                        String
-  default_interval_months         Int?
-  is_active                       Boolean  @default(true)
-  archived_at                     DateTime?
-  display_order                   Int      @default(0)
-  legacy_aliases_json             Json?
-  created_by                      String?  @db.ObjectId
-  updated_by                      String?  @db.ObjectId
-  created_at                      DateTime @default(now())
-  updated_at                      DateTime @updatedAt
+  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
+  key                     String    @unique
+  display_name            String
+  normalized_name         String    @unique
+  category                String
+  default_interval_months Int?
+  is_active               Boolean   @default(true)
+  archived_at             DateTime?
+  display_order           Int       @default(0)
+  legacy_aliases_json     Json?
+  created_by              String?   @db.ObjectId
+  updated_by              String?   @db.ObjectId
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
 
   @@index([category])
   @@index([is_active])
@@ -652,25 +698,25 @@ model EmailLog {
 }
 
 model EmailCampaign {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
-  campaign_type   String
-  status          String    @default("Draft") // Draft | Running | Paused | Stopped | Completed
-  started_at      DateTime?
-  completed_at    DateTime?
-  paused_at       DateTime?
-  stopped_at      DateTime?
-  daily_cap       Int?
-  reserved_quota  Int       @default(50)
-  total_eligible  Int       @default(0)
-  queued          Int       @default(0)
-  sent            Int       @default(0)
-  delivered       Int       @default(0)
-  failed          Int       @default(0)
-  skipped         Int       @default(0)
-  activated       Int       @default(0)
-  created_by      String?   @db.ObjectId
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  campaign_type  String
+  status         String    @default("Draft") // Draft | Running | Paused | Stopped | Completed
+  started_at     DateTime?
+  completed_at   DateTime?
+  paused_at      DateTime?
+  stopped_at     DateTime?
+  daily_cap      Int?
+  reserved_quota Int       @default(50)
+  total_eligible Int       @default(0)
+  queued         Int       @default(0)
+  sent           Int       @default(0)
+  delivered      Int       @default(0)
+  failed         Int       @default(0)
+  skipped        Int       @default(0)
+  activated      Int       @default(0)
+  created_by     String?   @db.ObjectId
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 
   @@index([campaign_type])
   @@index([status])
@@ -696,9 +742,9 @@ model EmailCampaignRecipient {
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
 
+  @@unique([campaign_type, customer_id])
   @@index([campaign_id])
   @@index([status])
   @@index([next_attempt_at])
   @@index([customer_id])
-  @@unique([campaign_type, customer_id])
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MediaPicker } from "@/components/admin/media-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2, Edit3, Loader2, Plus, Star, Trash2, X } from "lucide-react";
@@ -27,6 +28,7 @@ export default function AdminTestimonialsPage() {
   const [message, setMessage] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState("");
+  const [mediaBusy, setMediaBusy] = useState(false);
 
   async function fetchAll() {
     setLoading(true);
@@ -96,14 +98,16 @@ export default function AdminTestimonialsPage() {
           className="mt-3 h-24 w-full rounded-lg border px-3 py-2 text-sm"
         />
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <Input placeholder="Image URL (optional)" value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} />
           <Input placeholder="Display Order" type="number" value={form.order} onChange={(e) => setForm({ ...form, order: e.target.value })} />
           <label className="flex h-11 items-center gap-2 rounded-lg border px-3 text-sm">
             <input type="checkbox" checked={form.is_active as boolean} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Active
           </label>
         </div>
+        <div className="mt-3">
+          <MediaPicker onBusyChange={setMediaBusy} disabled={saving} label="Client photo (optional)" value={form.image ? [form.image] : []} onChange={(images) => setForm((prev) => ({ ...prev, image: images[0] || "" }))} />
+        </div>
         <div className="mt-4 flex gap-2">
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || mediaBusy}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
             {editId ? "Update" : "Add"} Testimonial
           </Button>

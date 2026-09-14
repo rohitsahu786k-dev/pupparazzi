@@ -23,12 +23,12 @@ const navItems = [
   { name: "Coupons", href: "/admin/coupons", icon: TicketPercent },
   { name: "Testimonials", href: "/admin/testimonials", icon: MessageSquareQuote },
   { name: "Payments & Invoices", href: "/admin/payments", icon: Banknote },
-  { name: "Client Documents", href: "/admin/assets", icon: FileText },
+  { name: "Media & Documents", href: "/admin/assets", icon: FileText },
   { name: "Service Areas", href: "/admin/service-areas", icon: MapPin },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
-const staffNavNames = new Set(["Dashboard", "Bookings", "Clients", "Pets", "Services", "Client Documents"]);
+const staffNavNames = new Set(["Dashboard", "Bookings", "Clients", "Pets", "Services", "Media & Documents"]);
 
 export function AdminSidebar() {
   const pathname = usePathname();

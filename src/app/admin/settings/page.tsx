@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MediaPicker } from "@/components/admin/media-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,6 +41,8 @@ type SettingsState = {
 type TabId = "business" | "banners" | "homepage" | "integrations";
 
 export default function AdminSettingsPage() {
+  const [loadError, setLoadError] = useState("");
+  const [mediaBusy, setMediaBusy] = useState(false);
   const [settings, setSettings] = useState<SettingsState | null>(null);
   const [saving, setSaving] = useState("");
   const [testEmail, setTestEmail] = useState("");
@@ -53,11 +56,15 @@ export default function AdminSettingsPage() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   async function load() {
+    setLoadError("");
+    try {
     const res = await fetch("/api/admin/settings");
+    if (!res.ok) throw new Error("Unable to load settings.");
     if (res.ok) {
       const data = await res.json();
       setSettings(data);
     }
+    } catch { setLoadError("Unable to load settings. Please retry."); }
   }
 
   useEffect(() => {
@@ -79,7 +86,7 @@ export default function AdminSettingsPage() {
 
   function update(group: keyof SettingsState, key: string, value: any) {
     if (!settings) return;
-    setSettings({ ...settings, [group]: { ...settings[group], [key]: value } });
+    setSettings((current) => current ? { ...current, [group]: { ...current[group], [key]: value } } : current);
   }
 
   function updateHomepageArray<T extends HomepageSlide | HomepageFeature | HomepageFaq | HomepageCarouselItem>(
@@ -88,10 +95,13 @@ export default function AdminSettingsPage() {
     field: keyof T,
     value: any
   ) {
-    if (!settings) return;
-    const items = [...(settings.homepage[key] || [])];
-    items[index] = { ...items[index], [field]: value };
-    update("homepage", key, items);
+    setSettings((current) => {
+      if (!current) return current;
+      const items = [...(current.homepage[key] || [])];
+      if (!items[index]) return current;
+      items[index] = { ...items[index], [field]: value };
+      return { ...current, homepage: { ...current.homepage, [key]: items } };
+    });
   }
 
   function addHomepageItem(key: "heroSlides" | "features" | "faqs" | "bottomItems") {
@@ -128,7 +138,7 @@ export default function AdminSettingsPage() {
   }
 
   function removeHomepageItem(key: "heroSlides" | "features" | "faqs" | "bottomItems", index: number) {
-    if (!settings) return;
+    if (!settings || mediaBusy) return;
     update("homepage", key, (settings.homepage[key] || []).filter((_: unknown, itemIndex: number) => itemIndex !== index));
     if (key === "heroSlides" && previewSlideIndex >= (settings.homepage.heroSlides || []).length - 1) {
       setPreviewSlideIndex(Math.max(0, (settings.homepage.heroSlides || []).length - 2));
@@ -138,7 +148,7 @@ export default function AdminSettingsPage() {
 
   // Swap function for sorting
   function swapSlides(indexA: number, indexB: number) {
-    if (!settings) return;
+    if (!settings || mediaBusy) return;
     const slides = [...(settings.homepage.heroSlides || [])];
     if (indexB < 0 || indexB >= slides.length) return;
     
@@ -167,7 +177,7 @@ export default function AdminSettingsPage() {
   }
 
   function handleDrop(index: number) {
-    if (draggedIndex === null || draggedIndex === index || !settings) return;
+    if (mediaBusy || draggedIndex === null || draggedIndex === index || !settings) return;
     const slides = [...(settings.homepage.heroSlides || [])];
     const draggedItem = slides[draggedIndex];
     
@@ -184,43 +194,10 @@ export default function AdminSettingsPage() {
     setDraggedIndex(null);
   }
 
-  // Handle banner image upload
-  async function handleImageUpload(
-    e: React.ChangeEvent<HTMLInputElement>,
-    index: number,
-    field: "image" | "mobileImage"
-  ) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    const formData = new FormData();
-    formData.set("file", file);
-    formData.set("category", "Hero");
-    formData.set("folder", "banners");
-    
-    setSaving("upload");
-    
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (res.ok) {
-        const data = await res.json();
-        updateHomepageArray<HomepageSlide>("heroSlides", index, field, data.path || data.url);
-        showNotification("Banner image uploaded successfully!", "success");
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showNotification(data.error || "Upload failed", "error");
-      }
-    } catch (err) {
-      showNotification("An error occurred during upload.", "error");
-    } finally {
-      setSaving("");
-      if (e.target) e.target.value = "";
-    }
-  }
-
   async function save(group: keyof SettingsState) {
-    if (!settings) return;
+    if (!settings || mediaBusy || saving) return;
     setSaving(group);
+    try {
     const res = await fetch("/api/admin/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -231,7 +208,8 @@ export default function AdminSettingsPage() {
     } else {
       showNotification("Unable to save settings", "error");
     }
-    setSaving("");
+    } catch { showNotification("Unable to save settings. Please retry.", "error"); }
+    finally { setSaving(""); }
   }
 
   async function sendTest() {
@@ -250,6 +228,7 @@ export default function AdminSettingsPage() {
   }
 
   if (!settings) {
+    if (loadError) return <div role="alert" className="space-y-3 rounded-lg border bg-white p-6"><p>{loadError}</p><Button onClick={load}>Retry</Button></div>;
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -325,7 +304,7 @@ export default function AdminSettingsPage() {
                     <h2 className="text-xl font-bold text-foreground">Business Information</h2>
                     <p className="text-xs text-muted-foreground">Basic contact, address, and metadata details displayed on page headers and footers.</p>
                   </div>
-                  <Button onClick={() => save("business")} disabled={saving === "business"}>
+                  <Button onClick={() => save("business")} disabled={mediaBusy || saving === "business"}>
                     {saving === "business" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Save Profile
                   </Button>
@@ -359,10 +338,7 @@ export default function AdminSettingsPage() {
                     <span>GST Number (Optional)</span>
                     <Input value={settings.business.gst || ""} onChange={(e) => update("business", "gst", e.target.value)} />
                   </label>
-                  <label className="space-y-1 text-xs font-bold text-muted-foreground">
-                    <span>Logo Image URL</span>
-                    <Input value={settings.business.logoUrl || ""} onChange={(e) => update("business", "logoUrl", e.target.value)} />
-                  </label>
+                  <MediaPicker onBusyChange={setMediaBusy} disabled={mediaBusy || !!saving} label="Business logo" value={settings.business.logoUrl ? [settings.business.logoUrl] : []} onChange={(images) => update("business", "logoUrl", images[0] || "")} />
                   <label className="space-y-1 text-xs font-bold text-muted-foreground md:col-span-2">
                     <span>Working Hours Summary</span>
                     <Input value={settings.business.workingHours || ""} onChange={(e) => update("business", "workingHours", e.target.value)} />
@@ -513,7 +489,7 @@ export default function AdminSettingsPage() {
                     <Button variant="outline" size="sm" onClick={() => addHomepageItem("heroSlides")}>
                       <Plus className="mr-1.5 h-4 w-4" /> Add Slide
                     </Button>
-                    <Button onClick={() => save("homepage")} disabled={saving === "homepage"}>
+                    <Button onClick={() => save("homepage")} disabled={mediaBusy || saving === "homepage"}>
                       {saving === "homepage" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                       Save Carousel
                     </Button>
@@ -592,83 +568,9 @@ export default function AdminSettingsPage() {
                         <div className="mt-8 grid gap-4 lg:grid-cols-3">
                           {/* Banner Images configuration */}
                           <div className="space-y-4 lg:col-span-1 border-r pr-0 lg:pr-5 border-border/60">
-                            {/* Desktop Image upload */}
-                            <div className="space-y-1.5">
-                              <span className="text-xs font-bold text-muted-foreground block">Desktop Banner Image</span>
-                              <div className="relative aspect-[16/7] w-full rounded-xl overflow-hidden border bg-[var(--surface)] flex items-center justify-center group/img">
-                                {slide.image ? (
-                                  <>
-                                    <Image src={slide.image} alt="Desktop image" fill className="object-cover" unoptimized />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                                      <button
-                                        type="button"
-                                        className="text-xs font-bold text-white bg-black/60 px-3 py-1.5 rounded-lg border border-white/20 hover:bg-black"
-                                        onClick={() => document.getElementById(`file-desk-${index}`)?.click()}
-                                      >
-                                        Replace Desktop Image
-                                      </button>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="text-center p-3 text-muted-foreground">
-                                    <ImageIcon className="mx-auto h-8 w-8 opacity-45 mb-1" />
-                                    <span className="text-[10px] font-semibold">No desktop image</span>
-                                  </div>
-                                )}
-                              </div>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                id={`file-desk-${index}`}
-                                className="hidden"
-                                onChange={(e) => handleImageUpload(e, index, "image")}
-                              />
-                              <Input
-                                placeholder="Desktop Image URL"
-                                value={slide.image || ""}
-                                onChange={(e) => updateHomepageArray<HomepageSlide>("heroSlides", index, "image", e.target.value)}
-                                className="text-xs h-9 mt-1"
-                              />
-                            </div>
-
-                            {/* Mobile Image upload */}
-                            <div className="space-y-1.5">
-                              <span className="text-xs font-bold text-muted-foreground block">Mobile Banner Image</span>
-                              <div className="relative aspect-[4/5] w-28 mx-auto rounded-xl overflow-hidden border bg-[var(--surface)] flex items-center justify-center group/img">
-                                {slide.mobileImage || slide.image ? (
-                                  <>
-                                    <Image src={slide.mobileImage || slide.image} alt="Mobile image" fill className="object-cover" unoptimized />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                                      <button
-                                        type="button"
-                                        className="text-[10px] font-bold text-white bg-black/60 px-2 py-1 rounded-lg border border-white/20 hover:bg-black"
-                                        onClick={() => document.getElementById(`file-mob-${index}`)?.click()}
-                                      >
-                                        Replace Mobile Image
-                                      </button>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="text-center p-3 text-muted-foreground">
-                                    <ImageIcon className="mx-auto h-6 w-6 opacity-45 mb-1" />
-                                    <span className="text-[9px] font-semibold">No mobile image</span>
-                                  </div>
-                                )}
-                              </div>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                id={`file-mob-${index}`}
-                                className="hidden"
-                                onChange={(e) => handleImageUpload(e, index, "mobileImage")}
-                              />
-                              <Input
-                                placeholder="Mobile Image URL (portrait recommended)"
-                                value={slide.mobileImage || ""}
-                                onChange={(e) => updateHomepageArray<HomepageSlide>("heroSlides", index, "mobileImage", e.target.value)}
-                                className="text-xs h-9 mt-1"
-                              />
-                            </div>
+                            <MediaPicker onBusyChange={setMediaBusy} disabled={mediaBusy || !!saving} label="Desktop banner" category="Hero" value={slide.image ? [slide.image] : []} onChange={(images) => updateHomepageArray<HomepageSlide>("heroSlides", index, "image", images[0] || "")} />
+                            <MediaPicker onBusyChange={setMediaBusy} disabled={mediaBusy || !!saving} label="Mobile banner" category="Hero" value={slide.mobileImage ? [slide.mobileImage] : []} onChange={(images) => updateHomepageArray<HomepageSlide>("heroSlides", index, "mobileImage", images[0] || "")} />
+                            <p className="text-xs text-muted-foreground">Desktop image is used when no mobile image is selected.</p>
                           </div>
 
                           {/* Info Fields */}
@@ -784,7 +686,7 @@ export default function AdminSettingsPage() {
                     <h2 className="text-xl font-bold text-foreground">Section Headers & Core Copy</h2>
                     <p className="text-xs text-muted-foreground">Control headers, highlight features, faqs, and the bottom info cards.</p>
                   </div>
-                  <Button onClick={() => save("homepage")} disabled={saving === "homepage"}>
+                  <Button onClick={() => save("homepage")} disabled={mediaBusy || saving === "homepage"}>
                     {saving === "homepage" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Save Sections
                   </Button>
@@ -823,10 +725,7 @@ export default function AdminSettingsPage() {
                       <span>Event Timing / Date text</span>
                       <Input value={settings.homepage.eventDate || ""} onChange={(e) => update("homepage", "eventDate", e.target.value)} />
                     </label>
-                    <label className="space-y-1 text-xs font-bold text-muted-foreground">
-                      <span>Event Feature Image URL</span>
-                      <Input value={settings.homepage.eventImage || ""} onChange={(e) => update("homepage", "eventImage", e.target.value)} />
-                    </label>
+                    <MediaPicker onBusyChange={setMediaBusy} disabled={mediaBusy || !!saving} label="Event image" value={settings.homepage.eventImage ? [settings.homepage.eventImage] : []} onChange={(images) => update("homepage", "eventImage", images[0] || "")} />
                     <label className="space-y-1 text-xs font-bold text-muted-foreground">
                       <span>CTA Button Label</span>
                       <Input value={settings.homepage.eventCta || ""} onChange={(e) => update("homepage", "eventCta", e.target.value)} />
@@ -869,10 +768,7 @@ export default function AdminSettingsPage() {
                       <span>About Title</span>
                       <Input value={settings.homepage.aboutTitle || ""} onChange={(e) => update("homepage", "aboutTitle", e.target.value)} />
                     </label>
-                    <label className="space-y-1 text-xs font-bold text-muted-foreground sm:col-span-2">
-                      <span>About Image URL</span>
-                      <Input value={settings.homepage.aboutImage || ""} onChange={(e) => update("homepage", "aboutImage", e.target.value)} />
-                    </label>
+                    <MediaPicker onBusyChange={setMediaBusy} disabled={mediaBusy || !!saving} label="About image" value={settings.homepage.aboutImage ? [settings.homepage.aboutImage] : []} onChange={(images) => update("homepage", "aboutImage", images[0] || "")} />
                     <label className="space-y-1 text-xs font-bold text-muted-foreground sm:col-span-2">
                       <span>About Copy / Paragraph</span>
                       <textarea
@@ -933,7 +829,7 @@ export default function AdminSettingsPage() {
                       <Plus className="mr-1 h-3.5 w-3.5" /> Add Bottom Slide
                     </Button>
                   </div>
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                  <div className="space-y-3">
                     {(settings.homepage.bottomItems || []).map((item: HomepageCarouselItem, index: number) => (
                       <div key={index} className="rounded-xl border p-4 bg-[var(--surface)] relative group">
                         <button
@@ -960,14 +856,7 @@ export default function AdminSettingsPage() {
                               className="bg-white"
                             />
                           </label>
-                          <label className="space-y-1 text-[10px] font-bold text-muted-foreground">
-                            <span>Image URL</span>
-                            <Input
-                              value={item.image || ""}
-                              onChange={(e) => updateHomepageArray<HomepageCarouselItem>("bottomItems", index, "image", e.target.value)}
-                              className="bg-white"
-                            />
-                          </label>
+                          <MediaPicker onBusyChange={setMediaBusy} disabled={mediaBusy || !!saving} label="Highlight image" value={item.image ? [item.image] : []} onChange={(images) => updateHomepageArray<HomepageCarouselItem>("bottomItems", index, "image", images[0] || "")} />
                           <div className="grid gap-2 grid-cols-2">
                             <label className="space-y-1 text-[10px] font-bold text-muted-foreground">
                               <span>CTA Button</span>
@@ -1085,7 +974,7 @@ export default function AdminSettingsPage() {
                     <h2 className="text-xl font-bold text-foreground flex items-center gap-2">SMTP Mail Server</h2>
                     <p className="text-xs text-muted-foreground">Setup email servers to send booking confirmation alerts and customer messages.</p>
                   </div>
-                  <Button onClick={() => save("smtp")} disabled={saving === "smtp"}>
+                  <Button onClick={() => save("smtp")} disabled={mediaBusy || saving === "smtp"}>
                     {saving === "smtp" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Save SMTP
                   </Button>
@@ -1145,7 +1034,7 @@ export default function AdminSettingsPage() {
                     <h2 className="text-xl font-bold text-foreground">Online Payment Gateway</h2>
                     <p className="text-xs text-muted-foreground">Configure online gateway settings and checkout currencies.</p>
                   </div>
-                  <Button onClick={() => save("payment")} disabled={saving === "payment"}>
+                  <Button onClick={() => save("payment")} disabled={mediaBusy || saving === "payment"}>
                     {saving === "payment" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Save Payment Keys
                   </Button>
@@ -1198,7 +1087,7 @@ export default function AdminSettingsPage() {
                     <h2 className="text-xl font-bold text-foreground">WhatsApp Custom Templates</h2>
                     <p className="text-xs text-muted-foreground">Configure templates for WhatsApp click actions. Variable tokens: {"{{customerName}}"}, {"{{bookingId}}"}, {"{{serviceName}}"}, {"{{advanceAmount}}"}, {"{{remainingAmount}}"}.</p>
                   </div>
-                  <Button onClick={() => save("whatsapp")} disabled={saving === "whatsapp"}>
+                  <Button onClick={() => save("whatsapp")} disabled={mediaBusy || saving === "whatsapp"}>
                     {saving === "whatsapp" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Save WhatsApp Templates
                   </Button>

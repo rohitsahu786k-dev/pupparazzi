@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { getServerSession } from "next-auth";
@@ -26,13 +27,18 @@ function safeSegment(value: string) {
 function safeFilename(name: string) {
   const ext = path.extname(name).toLowerCase();
   const base = path.basename(name, ext).toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  return `${base || "asset"}-${Date.now()}${ext}`;
+  return `${base || "asset"}-${randomUUID()}${ext}`;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > MAX_UPLOAD_FILE_SIZE_BYTES + 128 * 1024) {
+      return NextResponse.json({ error: UPLOAD_SIZE_ERROR_MESSAGE }, { status: 413 });
+    }
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;

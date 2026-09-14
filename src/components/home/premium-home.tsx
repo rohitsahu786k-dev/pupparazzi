@@ -204,24 +204,17 @@ export function PremiumHome({ services, testimonials, bookingCount, clientCount,
                   index === slide ? "opacity-100 z-10 pointer-events-auto visible" : "opacity-0 z-0 pointer-events-none invisible"
                 }`}
               >
-                <Image
-                  src={item.image}
-                  alt={item.title || "Banner"}
-                  fill
-                  priority={index === 0}
-                  className="hidden object-cover md:block"
-                  sizes="100vw"
-                  unoptimized
-                />
-                <Image
-                  src={item.mobileImage || item.image}
-                  alt={item.title || "Banner"}
-                  fill
-                  priority={index === 0}
-                  className="object-cover md:hidden"
-                  sizes="100vw"
-                  unoptimized
-                />
+                <picture>
+                  <source media="(max-width: 767px)" srcSet={item.mobileImage || item.image} />
+                  <img
+                    src={item.image}
+                    alt={item.title || "Banner"}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    loading={index === 0 ? "eager" : "lazy"}
+                    fetchPriority={index === 0 ? "high" : "auto"}
+                    decoding="async"
+                  />
+                </picture>
                 
                 {/* Optional overlay */}
                 {Number(item.overlayOpacity ?? 0) > 0 && (

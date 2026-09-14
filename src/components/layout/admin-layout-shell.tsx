@@ -64,7 +64,7 @@ export function AdminLayoutShell({ sidebar, children, title = "Admin Portal", av
             {avatarLabel}
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto px-3 py-4 sm:px-4 md:px-5 lg:px-8 lg:py-8">
+        <main className="min-w-0 flex-1 px-3 py-4 sm:px-4 md:px-5 lg:px-8 lg:py-8">
           {children}
         </main>
       </div>

@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { PremiumHome } from "@/components/home/premium-home";
 import { DEFAULT_BUSINESS_SETTINGS, DEFAULT_HOMEPAGE_SETTINGS, getSetting } from "@/lib/settings";
 import { prisma } from "@/lib/prisma";
@@ -11,13 +12,18 @@ export const metadata = pageMetadata({
   path: "/",
 });
 
+// Aggregate counts need not hit the database on every homepage request.
+const getHomepageCounts = unstable_cache(async () => Promise.all([
+  prisma.booking.count(),
+  prisma.user.count({ where: { role: "CLIENT", is_active: true } }),
+  prisma.pet.count(),
+]), ["homepage-counts"], { revalidate: 300 });
+
 async function getHomepageData() {
-  const [testimonials, services, bookingCount, clientCount, petCount, business, homepage] = await Promise.all([
+  const [testimonials, services, [bookingCount, clientCount, petCount], business, homepage] = await Promise.all([
     prisma.testimonial.findMany({ where: { is_active: true }, orderBy: [{ order: "asc" }, { created_at: "desc" }], take: 6 }),
     prisma.service.findMany({ where: { is_active: true }, orderBy: [{ category: "asc" }, { display_order: "asc" }, { name: "asc" }] }),
-    prisma.booking.count(),
-    prisma.user.count({ where: { role: "CLIENT", is_active: true } }),
-    prisma.pet.count(),
+    getHomepageCounts(),
     getSetting("business", DEFAULT_BUSINESS_SETTINGS),
     getSetting("homepage", DEFAULT_HOMEPAGE_SETTINGS),
   ]);

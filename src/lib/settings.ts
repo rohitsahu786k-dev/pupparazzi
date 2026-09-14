@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { BUSINESS_ADDRESS, DEFAULT_HOMEPAGE_SETTINGS, OUTDATED_ADDRESS_MARKERS } from "@/lib/homepage-content";
 
@@ -78,8 +79,10 @@ function normalizeSetting<T>(key: string, value: T): T {
   return { ...business, address: BUSINESS_ADDRESS } as T;
 }
 
+const readSetting = cache((key: string) => prisma.appSetting.findUnique({ where: { key } }));
+
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
-  const setting = await prisma.appSetting.findUnique({ where: { key } });
+  const setting = await readSetting(key);
   const value = setting ? ({ ...fallback, ...(setting.value as object) } as T) : fallback;
   return normalizeSetting(key, value);
 }

@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import {
@@ -62,5 +63,6 @@ export async function PUT(req: Request) {
   if (key === "payment" && value?.razorpayKeySecret === "********") (merged as any).razorpayKeySecret = (existing as any).razorpayKeySecret;
 
   await setSetting(key, merged);
+  if (key === "homepage" || key === "business") revalidatePath("/", "layout");
   return NextResponse.json({ message: "Settings saved", value: merged });
 }

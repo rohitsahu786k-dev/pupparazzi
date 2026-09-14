@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MediaPicker } from "@/components/admin/media-picker";
+import * as Dialog from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Edit3, Loader2, Plus, Search, Trash2 } from "lucide-react";
@@ -52,6 +54,8 @@ function money(value: number) {
 }
 
 export default function AdminServicesPage() {
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [query, setQuery] = useState("");
@@ -62,6 +66,7 @@ export default function AdminServicesPage() {
 
   async function fetchServices() {
     setLoading(true);
+    try {
     const res = await fetch("/api/services?includeInactive=true");
     if (res.ok) {
       setServices(await res.json());
@@ -69,7 +74,8 @@ export default function AdminServicesPage() {
     } else {
       setError("Unable to load services.");
     }
-    setLoading(false);
+    } catch { setError("Unable to load services. Please retry."); }
+    finally { setLoading(false); }
   }
 
   useEffect(() => {
@@ -109,7 +115,9 @@ export default function AdminServicesPage() {
   }, [filtered]);
 
   async function saveService() {
+    if (mediaBusy || saving) return;
     setSaving(true);
+    try {
     setError("");
     const payload = {
       ...form,
@@ -135,21 +143,26 @@ export default function AdminServicesPage() {
       setError(data.message || "Service could not be saved.");
     } else {
       setForm(emptyForm);
+      setEditorOpen(false);
       await fetchServices();
     }
-    setSaving(false);
+    } catch { setError("Service could not be saved. Please retry."); }
+    finally { setSaving(false); }
   }
 
   async function deleteService(id: string) {
     if (!confirm("Delete this service permanently? Existing bookings may still reference it.")) return;
     setSaving(true);
+    try {
     const res = await fetch(`/api/services?id=${id}`, { method: "DELETE" });
     if (!res.ok) setError("Service could not be deleted.");
     await fetchServices();
-    setSaving(false);
+    } catch { setError("Service could not be deleted. Please retry."); }
+    finally { setSaving(false); }
   }
 
   function editService(service: Service) {
+    setEditorOpen(true);
     setForm({
       id: service.id,
       name: service.name,
@@ -190,8 +203,16 @@ export default function AdminServicesPage() {
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>}
 
-      <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
-        <section className="rounded-lg border bg-white p-4">
+      <div className="min-w-0 space-y-4">
+        <Dialog.Root open={editorOpen} onOpenChange={(open) => { if (!mediaBusy && !saving) setEditorOpen(open); }}>
+          <Dialog.Trigger asChild><Button onClick={() => setForm(emptyForm)}><Plus className="mr-2 h-4 w-4" />Add service</Button></Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
+            <Dialog.Content className="fixed right-0 top-0 z-50 h-dvh w-full max-w-2xl overflow-y-auto border-l bg-white p-5 shadow-xl sm:p-6">
+              {error && <p role="alert" className="mb-3 text-sm text-red-600">{error}</p>}
+              <Dialog.Title className="sr-only">{form.id ? "Edit service" : "Add service"}</Dialog.Title>
+              <Dialog.Description className="sr-only">Manage service details, images, pricing and availability.</Dialog.Description>
+              <Dialog.Close asChild><Button variant="outline" size="sm" className="float-right">Close</Button></Dialog.Close>
           <h2 className="mb-4 flex items-center gap-2 font-bold">{form.id ? <Edit3 className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4 text-primary" />} {form.id ? "Edit service" : "Add service"}</h2>
           <div className="space-y-3">
             <Input placeholder="Service name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -219,12 +240,7 @@ export default function AdminServicesPage() {
               onChange={(e) => setForm({ ...form, free_services_json: e.target.value })}
               className="min-h-24 w-full rounded-lg border bg-white p-3 text-sm outline-none focus:ring-1 focus:ring-ring"
             />
-            <textarea
-              placeholder="Image paths/URLs, one per line"
-              value={form.images_json}
-              onChange={(e) => setForm({ ...form, images_json: e.target.value })}
-              className="min-h-20 w-full rounded-lg border bg-white p-3 text-sm outline-none focus:ring-1 focus:ring-ring"
-            />
+            <MediaPicker onBusyChange={setMediaBusy} disabled={saving} key={form.id || "new"} label="Service images" category="Services" multiple value={form.images_json.split("\n").filter(Boolean)} onChange={(images) => setForm((prev) => ({ ...prev, images_json: images.join("\n") }))} />
             <div className="grid grid-cols-3 gap-2">
               <Input placeholder="Price" inputMode="decimal" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value.replace(/[^\d.]/g, "") })} />
               <Input placeholder="Offer price" inputMode="decimal" value={form.discounted_price} onChange={(e) => setForm({ ...form, discounted_price: e.target.value.replace(/[^\d.]/g, "") })} />
@@ -251,16 +267,17 @@ export default function AdminServicesPage() {
               <label className="flex items-center gap-2 rounded-lg border p-3"><input type="checkbox" checked={form.is_bestseller} onChange={(e) => setForm({ ...form, is_bestseller: e.target.checked })} /> Bestseller</label>
             </div>
             <div className="flex gap-2">
-              <Button type="button" onClick={saveService} disabled={saving || !form.name || !form.price}>
+              <Button type="button" onClick={saveService} disabled={saving || mediaBusy || !form.name || !form.price}>
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Save service
               </Button>
-              {form.id && <Button type="button" variant="outline" onClick={() => setForm(emptyForm)}>Cancel</Button>}
+              {form.id && <Button type="button" variant="outline" disabled={mediaBusy || saving} onClick={() => setEditorOpen(false)}>Cancel</Button>}
             </div>
           </div>
-        </section>
-
-        <section className="rounded-lg border bg-white">
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+        <section className="min-w-0 rounded-lg border bg-white">
           <div className="border-b p-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -274,7 +291,7 @@ export default function AdminServicesPage() {
             <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
             <>
-            <div className="grid gap-3 p-3 lg:hidden">
+            <div className="grid gap-3 p-3 xl:hidden">
               {filtered.map((service) => (
                 <div key={service.id} className="rounded-lg border bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
@@ -306,14 +323,14 @@ export default function AdminServicesPage() {
                     </div>
                   </div>
                   <div className="mt-3 flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => editService(service)}><Edit3 className="h-3.5 w-3.5" /></Button>
-                    <Button size="sm" variant="destructive" onClick={() => deleteService(service.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    <Button aria-label={`Edit ${service.name}`} size="sm" variant="outline" onClick={() => editService(service)}><Edit3 className="h-3.5 w-3.5" /></Button>
+                    <Button aria-label={`Delete ${service.name}`} size="sm" variant="destructive" onClick={() => deleteService(service.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-225 text-left text-sm">
+            <div className="hidden overflow-x-auto xl:block">
+              <table className="w-full text-left text-sm">
                 <thead className="border-b bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Service</th>
@@ -349,8 +366,8 @@ export default function AdminServicesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => editService(service)}><Edit3 className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="destructive" onClick={() => deleteService(service.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <Button aria-label={`Edit ${service.name}`} size="sm" variant="outline" onClick={() => editService(service)}><Edit3 className="h-3.5 w-3.5" /></Button>
+                          <Button aria-label={`Delete ${service.name}`} size="sm" variant="destructive" onClick={() => deleteService(service.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                         </div>
                       </td>
                     </tr>

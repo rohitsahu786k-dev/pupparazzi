@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { assetFileUrl } from "@/lib/media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Copy, Download, Eye, ImagePlus, Loader2, Printer, Share2, Trash2, Upload } from "lucide-react";
@@ -16,36 +17,47 @@ type Asset = {
   created_at: string;
 };
 
-const CATEGORIES = ["All", "Documents", "KYC", "Pets", "Bookings", "Services", "Hero", "General"];
+const CATEGORIES = ["All", "General", "Services", "Hero", "Documents", "KYC", "Pets", "Bookings", "Vaccination", "Old Invoice PDF"];
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://pupparazziclub.in";
 
 export default function AdminAssetsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [category, setCategory] = useState("Documents");
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const fetchVersion = useRef(0);
+  const [category, setCategory] = useState("General");
   const [filter, setFilter] = useState("All");
-  const [folder, setFolder] = useState("client-documents");
+  const [folder, setFolder] = useState("general");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [viewer, setViewer] = useState<{ label: string; path: string } | null>(null);
+  const [viewer, setViewer] = useState<{ label: string; path: string; image: boolean } | null>(null);
   const [error, setError] = useState("");
   const [brokenPreviews, setBrokenPreviews] = useState<Record<string, true>>({});
 
   async function fetchAssets() {
+    const version = ++fetchVersion.current;
     setLoading(true);
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ paginated: "true", page: String(page) });
     if (filter !== "All") params.set("category", filter);
-    const res = await fetch(`/api/assets?${params.toString()}`);
-    if (res.ok) {
-      setAssets(await res.json());
+    try {
+      const res = await fetch(`/api/assets?${params.toString()}`);
+      if (!res.ok) throw new Error("Unable to load files. Please retry.");
+      const data = await res.json();
+      if (version !== fetchVersion.current) return;
+      setAssets(data.items.map((asset: Asset) => ({ ...asset, path: assetFileUrl(asset) })));
+      setHasMore(data.hasMore);
       setBrokenPreviews({});
+    } catch (error) {
+      if (version === fetchVersion.current) setError(error instanceof Error ? error.message : "Unable to load files.");
+    } finally {
+      if (version === fetchVersion.current) setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {
     fetchAssets();
-  }, [filter]);
+  }, [filter, page]);
 
   async function uploadAsset() {
     const file = fileRef.current?.files?.[0];
@@ -61,20 +73,30 @@ export default function AdminAssetsPage() {
     formData.set("file", file);
     formData.set("category", category);
     formData.set("folder", folder || category.toLowerCase());
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error || "Upload failed");
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Upload failed");
+      }
+      if (fileRef.current) fileRef.current.value = "";
+      if (page !== 0 || filter !== "All") { setPage(0); setFilter("All"); }
+      else await fetchAssets();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setUploading(false);
     }
-    if (fileRef.current) fileRef.current.value = "";
-    await fetchAssets();
-    setUploading(false);
   }
 
   async function deleteAsset(id: string) {
     if (!confirm("Delete this asset from server storage?")) return;
-    await fetch(`/api/assets?id=${id}`, { method: "DELETE" });
-    await fetchAssets();
+    try {
+      const res = await fetch(`/api/assets?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Unable to delete file.");
+      if (assets.length === 1 && page > 0) setPage(page - 1);
+      else await fetchAssets();
+    } catch (error) { setError(error instanceof Error ? error.message : "Unable to delete file."); }
   }
 
   async function shareAsset(path: string) {
@@ -103,15 +125,15 @@ export default function AdminAssetsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Client Documents</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Manage client, pet, booking, KYC, and service documents from one place.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Media & Documents</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Upload and manage website images, client documents, pet records and booking files.</p>
       </div>
 
       <div className="rounded-lg border bg-white p-5">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_180px_180px_auto]">
           <Input ref={fileRef} type="file" accept="image/*,.pdf" />
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-11 rounded-lg border bg-white px-3 text-sm">
-            {CATEGORIES.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}
+          <select value={category} onChange={(e) => { setCategory(e.target.value); setFolder(e.target.value.toLowerCase()); }} className="h-11 rounded-lg border bg-white px-3 text-sm">
+            {CATEGORIES.filter((item) => item !== "All").map((item) => <option key={item} value={item}>{item === "General" ? "General images" : item}</option>)}
           </select>
           <Input value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="Folder" />
           <Button onClick={uploadAsset} disabled={uploading}>
@@ -132,10 +154,10 @@ export default function AdminAssetsPage() {
         {CATEGORIES.map((item) => (
           <button
             key={item}
-            onClick={() => setFilter(item)}
+            onClick={() => { setFilter(item); setPage(0); }}
             className={`rounded-lg border px-4 py-2 text-sm font-semibold ${filter === item ? "border-primary bg-primary text-white" : "bg-white text-muted-foreground hover:text-foreground"}`}
           >
-            {item}
+            {item === "General" ? "General images" : item}
           </button>
         ))}
       </div>
@@ -145,7 +167,7 @@ export default function AdminAssetsPage() {
       ) : assets.length === 0 ? (
         <div className="rounded-lg border bg-white p-10 text-center">
           <ImagePlus className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No client documents uploaded yet.</p>
+          <p className="text-sm text-muted-foreground">No media or documents uploaded yet.</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -155,6 +177,7 @@ export default function AdminAssetsPage() {
                 {isImageAsset(asset) && !brokenPreviews[asset.id] ? (
                   <img
                     src={asset.path}
+                    loading="lazy"
                     alt=""
                     className="h-full w-full object-cover"
                     onError={() => setBrokenPreviews((current) => ({ ...current, [asset.id]: true }))}
@@ -176,21 +199,27 @@ export default function AdminAssetsPage() {
                   <Button size="sm" variant="outline" className="flex-1" onClick={() => navigator.clipboard.writeText(assetUrl(asset.path))}>
                     <Copy className="mr-1 h-3.5 w-3.5" /> Copy
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => deleteAsset(asset.id)}>
+                  <Button aria-label={`Delete ${asset.original_name}`} size="sm" variant="destructive" onClick={() => deleteAsset(asset.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setViewer({ label: asset.original_name, path: assetUrl(asset.path) })}><Eye className="h-3.5 w-3.5" /></Button>
-                  <Button size="sm" variant="outline" asChild><a href={assetUrl(asset.path)} download><Download className="h-3.5 w-3.5" /></a></Button>
-                  <Button size="sm" variant="outline" onClick={() => shareAsset(asset.path)}><Share2 className="h-3.5 w-3.5" /></Button>
-                  <Button size="sm" variant="outline" onClick={() => printAsset(asset.path)}><Printer className="h-3.5 w-3.5" /></Button>
+                  <Button aria-label={`Preview ${asset.original_name}`} size="sm" variant="outline" onClick={() => setViewer({ label: asset.original_name, path: assetUrl(asset.path), image: isImageAsset(asset) })}><Eye className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="outline" asChild><a aria-label={`Download ${asset.original_name}`} href={asset.path.startsWith("/api/assets/") ? `${asset.path}?download=1` : assetUrl(asset.path)} download><Download className="h-3.5 w-3.5" /></a></Button>
+                  <Button aria-label={`Share ${asset.original_name}`} size="sm" variant="outline" onClick={() => shareAsset(asset.path)}><Share2 className="h-3.5 w-3.5" /></Button>
+                  <Button aria-label={`Print ${asset.original_name}`} size="sm" variant="outline" onClick={() => printAsset(asset.path)}><Printer className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <div className="flex items-center justify-between gap-3">
+        <Button variant="outline" disabled={loading || page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+        <Button variant="outline" disabled={loading} onClick={() => { setError(""); void fetchAssets(); }}>Refresh files</Button>
+        <Button variant="outline" disabled={loading || !hasMore} onClick={() => setPage(page + 1)}>Next</Button>
+      </div>
 
       {viewer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setViewer(null)}>
@@ -199,7 +228,7 @@ export default function AdminAssetsPage() {
               <p className="font-bold">{viewer.label}</p>
               <Button size="sm" variant="outline" onClick={() => setViewer(null)}>Close</Button>
             </div>
-            {/\.(png|jpe?g|webp|gif)$/i.test(viewer.path) || /\/image\/upload\//i.test(viewer.path) ? (
+            {viewer.image ? (
               <img src={viewer.path} alt={viewer.label} className="max-h-[75vh] w-full object-contain" />
             ) : (
               <iframe src={viewer.path} title={viewer.label} className="h-[75vh] w-full" />
