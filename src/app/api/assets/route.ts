@@ -20,6 +20,7 @@ export async function GET(req: Request) {
     const documentType = searchParams.get("documentType");
     const paginated = searchParams.get("paginated") === "true";
     const page = Math.floor(Math.max(0, Math.min(10000, Number(searchParams.get("page")) || 0)));
+    const query = (searchParams.get("q") || "").trim().slice(0, 100);
     const assets = await prisma.asset.findMany({
       where: {
         ...(category && category !== "All" ? { category } : {}),
@@ -27,6 +28,8 @@ export async function GET(req: Request) {
         ...(petId ? { pet_id: petId } : {}),
         ...(bookingId ? { booking_id: bookingId } : {}),
         ...(documentType && documentType !== "All" ? { document_type: documentType } : {}),
+        // document_type carries the label shown on each card ("Invoice 2943"), so it has to be searchable too.
+        ...(query ? { OR: [{ original_name: { contains: query, mode: "insensitive" as const } }, { document_type: { contains: query, mode: "insensitive" as const } }] } : {}),
       },
       orderBy: [{ created_at: "desc" }, { id: "desc" }],
       ...(paginated ? { skip: page * 48, take: 49 } : {}),

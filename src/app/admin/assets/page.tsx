@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { assetFileUrl } from "@/lib/media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, Download, Eye, ImagePlus, Loader2, Printer, Share2, Trash2, Upload } from "lucide-react";
+import { Copy, Download, Eye, ImagePlus, Loader2, Printer, Search, Share2, Trash2, Upload } from "lucide-react";
 import { FILE_COMPRESSOR_URL, isUploadTooLarge, MAX_UPLOAD_FILE_SIZE_MB, UPLOAD_SIZE_ERROR_MESSAGE } from "@/lib/upload-limits";
 
 type Asset = {
@@ -28,6 +28,8 @@ export default function AdminAssetsPage() {
   const fetchVersion = useRef(0);
   const [category, setCategory] = useState("General");
   const [filter, setFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [folder, setFolder] = useState("general");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,7 @@ export default function AdminAssetsPage() {
     setLoading(true);
     const params = new URLSearchParams({ paginated: "true", page: String(page) });
     if (filter !== "All") params.set("category", filter);
+    if (query) params.set("q", query);
     try {
       const res = await fetch(`/api/assets?${params.toString()}`);
       if (!res.ok) throw new Error("Unable to load files. Please retry.");
@@ -56,8 +59,13 @@ export default function AdminAssetsPage() {
   }
 
   useEffect(() => {
+    const timer = setTimeout(() => { setQuery(search.trim()); setPage(0); }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     fetchAssets();
-  }, [filter, page]);
+  }, [filter, page, query]);
 
   async function uploadAsset() {
     const file = fileRef.current?.files?.[0];
@@ -122,6 +130,10 @@ export default function AdminAssetsPage() {
     return /\.(png|jpe?g|webp|gif)$/i.test(asset.filename) || /\/image\/upload\//i.test(asset.path);
   }
 
+  function isPdfAsset(asset: Asset) {
+    return /\.pdf$/i.test(asset.filename) || /\.pdf$/i.test(asset.original_name || "");
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -150,6 +162,17 @@ export default function AdminAssetsPage() {
         {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
       </div>
 
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by file name or notes..."
+          aria-label="Search media and documents"
+          className="pl-9"
+        />
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         {CATEGORIES.map((item) => (
           <button
@@ -167,7 +190,7 @@ export default function AdminAssetsPage() {
       ) : assets.length === 0 ? (
         <div className="rounded-lg border bg-white p-10 text-center">
           <ImagePlus className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No media or documents uploaded yet.</p>
+          <p className="text-sm text-muted-foreground">{query ? `Nothing matches "${query}".` : "No media or documents uploaded yet."}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -182,10 +205,18 @@ export default function AdminAssetsPage() {
                     className="h-full w-full object-cover"
                     onError={() => setBrokenPreviews((current) => ({ ...current, [asset.id]: true }))}
                   />
+                ) : isPdfAsset(asset) ? (
+                  // Non-interactive so the card's own preview button stays in charge of opening the file.
+                  <iframe
+                    src={`${asset.path}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                    title={`Preview of ${asset.original_name}`}
+                    loading="lazy"
+                    className="pointer-events-none h-full w-full border-0 bg-white"
+                  />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center px-4 text-center text-sm font-semibold text-muted-foreground">
                     <ImagePlus className="mb-2 h-8 w-8" />
-                    <span>{isImageAsset(asset) ? "Preview unavailable" : "PDF"}</span>
+                    <span>Preview unavailable</span>
                   </div>
                 )}
               </div>
